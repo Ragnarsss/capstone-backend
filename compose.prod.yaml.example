@@ -1,0 +1,77 @@
+# Docker Compose override para entorno de PRODUCCION
+#
+# Este archivo contiene configuraciones especificas para produccion:
+# - Target production en builds
+# - Restart policies
+# - Resource limits
+# - Sin puertos de debug expuestos
+# - Volumenes read-only donde sea posible
+#
+# Uso: podman-compose -f compose.yaml -f compose.prod.yaml up -d
+
+services:
+  # Override PHP service para produccion
+  php-service:
+    restart: unless-stopped
+    volumes:
+      # Monta codigo PHP en read-only para seguridad
+      # :z para compatibilidad SELinux en Podman
+      - ./php-service/src:/var/www/html:ro,z
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+  # Override Node service para produccion
+  node-service:
+    build:
+      target: production
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+    # NO exponer puerto 3000 directamente, solo via proxy PHP
+    # NO montar volumenes de codigo (usar codigo del build)
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+  # Override Postgres para produccion
+  postgres:
+    restart: unless-stopped
+    # NO exponer puerto 5432 en produccion (solo acceso interno)
+    # Comentar la siguiente linea si NO necesitas acceso externo
+    ports:
+      - "9501:5432"
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+  # Override Valkey para produccion
+  valkey:
+    restart: unless-stopped
+    # NO exponer puerto 6379 en produccion (solo acceso interno)
+    # Comentar la siguiente linea si NO necesitas acceso externo
+    ports:
+      - "9502:6379"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M

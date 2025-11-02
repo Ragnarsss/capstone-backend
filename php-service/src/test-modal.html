@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Modal - Asistencia</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+
+        .btn-asistencia {
+            padding: 15px 30px;
+            font-size: 18px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+
+        .btn-asistencia:hover {
+            background: #5568d3;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content {
+            position: relative;
+            margin: 50px auto;
+            width: 600px;
+            height: 800px;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .modal-header {
+            padding: 15px 20px;
+            background: #667eea;
+            color: white;
+            border-radius: 16px 16px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .close {
+            font-size: 28px;
+            font-weight: bold;
+            color: white;
+            cursor: pointer;
+            background: none;
+            border: none;
+        }
+
+        .close:hover {
+            color: #ddd;
+        }
+
+        .modal-body {
+            width: 100%;
+            height: calc(100% - 60px);
+        }
+
+        .modal-body iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            border-radius: 0 0 16px 16px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Sistema de Asistencia - Test</h1>
+    <p>Haz clic en el boton para abrir el modal con WebSocket</p>
+
+    <button class="btn-asistencia" onclick="openModal()">ASISTENCIA</button>
+
+    <div id="asistenciaModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Sistema de Asistencia</h2>
+                <button class="close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <iframe id="asistenciaFrame" src="/asistencia"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openModal() {
+            console.log('[Test] Abriendo modal...');
+            document.getElementById('asistenciaModal').style.display = 'block';
+            // Recarga el iframe para asegurar conexion fresca
+            document.getElementById('asistenciaFrame').src = '/asistencia';
+        }
+
+        function closeModal() {
+            console.log('[Test] Cerrando modal...');
+            document.getElementById('asistenciaModal').style.display = 'none';
+            // Detiene la conexion WebSocket al cerrar
+            document.getElementById('asistenciaFrame').src = 'about:blank';
+        }
+
+        // Cerrar modal al hacer clic fuera de el
+        window.onclick = function(event) {
+            const modal = document.getElementById('asistenciaModal');
+            if (event.target == modal) {
+                closeModal();
+            }
+        }
+
+        console.log('[Test] Pagina cargada. Haz clic en ASISTENCIA para probar.');
+    </script>
+</body>
+</html>

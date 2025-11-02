@@ -1,0 +1,73 @@
+# Docker Compose / Podman Compose para POC003 - Asistencia
+# Stack: PHP 7.4 + Node.js 20 + PostgreSQL 18 + Valkey
+#
+# Este archivo contiene la configuracion base compartida entre desarrollo y produccion.
+# Usar en conjunto con compose.dev.yaml o compose.prod.yaml segun el entorno.
+#
+# Uso:
+#   Desarrollo:  podman-compose -f compose.yaml -f compose.dev.yaml up
+#   Produccion:  podman-compose -f compose.yaml -f compose.prod.yaml up -d
+
+services:
+  # Servicio PHP con Apache (frontend y proxy)
+  php-service:
+    build:
+      context: ./php-service
+      dockerfile: Containerfile
+    container_name: poc003-php
+    ports:
+      - "9500:80"
+    depends_on:
+      - node-service
+      - postgres
+    networks:
+      - poc003-network
+
+  # Servicio Node.js con Fastify y WebSocket
+  node-service:
+    build:
+      context: ./node-service
+      dockerfile: Containerfile
+    container_name: poc003-node
+    environment:
+      - HOST=0.0.0.0
+      - PORT=3000
+      - VALKEY_HOST=valkey
+      - VALKEY_PORT=6379
+    depends_on:
+      - valkey
+    networks:
+      - poc003-network
+    expose:
+      - "3000"
+
+  # Base de datos PostgreSQL 18
+  postgres:
+    image: postgres:18-alpine
+    container_name: poc003-postgres
+    environment:
+      - POSTGRES_USER=asistencia
+      - POSTGRES_PASSWORD=asistencia_pass
+      - POSTGRES_DB=asistencia_db
+    networks:
+      - poc003-network
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  # Valkey (Redis compatible) para cache y sesiones
+  valkey:
+    image: valkey/valkey:7-alpine
+    container_name: poc003-valkey
+    networks:
+      - poc003-network
+    volumes:
+      - valkey-data:/data
+    command: ["valkey-server", "--appendonly", "yes"]
+
+networks:
+  poc003-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  valkey-data:

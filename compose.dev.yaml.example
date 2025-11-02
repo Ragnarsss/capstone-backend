@@ -1,0 +1,49 @@
+# Docker Compose override para entorno de DESARROLLO
+#
+# Este archivo contiene configuraciones especificas para desarrollo:
+# - Hot reload con volumenes montados
+# - Puertos expuestos para debugging
+# - Target development en builds
+# - Logs mas verbosos
+#
+# Uso: podman-compose -f compose.yaml -f compose.dev.yaml up
+
+services:
+  # Override PHP service para desarrollo
+  php-service:
+    volumes:
+      # Monta codigo PHP para cambios en vivo
+      # :z para compatibilidad SELinux en Podman (shared access)
+      - ./php-service/src:/var/www/html:z
+
+  # Override Node service para desarrollo con hot reload
+  node-service:
+    build:
+      target: development
+    environment:
+      - NODE_ENV=development
+    ports:
+      # Puerto expuesto para debug/testing directo (bypass proxy PHP)
+      - "9503:3000"
+    volumes:
+      # Monta el codigo fuente para desarrollo con hot reload
+      # :z para compatibilidad SELinux en Podman (shared access)
+      - ./node-service/src:/app/src:ro,z
+      - ./node-service/package.json:/app/package.json:ro,z
+      - ./node-service/tsconfig.json:/app/tsconfig.json:ro,z
+      # Volume para node_modules (named volume, no necesita :z)
+      - node-modules:/app/node_modules
+    command: ["npm", "run", "dev"]
+
+  # Override Postgres para desarrollo (puerto expuesto para debug)
+  postgres:
+    ports:
+      - "9501:5432"
+
+  # Override Valkey para desarrollo (puerto expuesto para debug)
+  valkey:
+    ports:
+      - "9502:6379"
+
+volumes:
+  node-modules:

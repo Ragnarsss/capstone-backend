@@ -1,0 +1,40 @@
+# Dockerfile para PHP 7.4.33 sobre Rocky Linux 9 con Apache
+
+FROM rockylinux:9
+
+# Instala Apache y PHP 7.4
+RUN dnf install -y epel-release && \
+    dnf install -y https://rpms.remirepo.net/enterprise/remi-release-9.rpm && \
+    dnf module reset php -y && \
+    dnf module enable php:remi-7.4 -y && \
+    dnf install -y \
+        httpd \
+        php \
+        php-fpm \
+        php-pgsql \
+        php-json \
+        php-mbstring \
+        postgresql \
+    && dnf clean all
+
+# Habilita mod_proxy_wstunnel para WebSocket proxying
+RUN sed -i '/#LoadModule proxy_module/s/^#//' /etc/httpd/conf.modules.d/00-proxy.conf && \
+    sed -i '/#LoadModule proxy_http_module/s/^#//' /etc/httpd/conf.modules.d/00-proxy.conf && \
+    sed -i '/#LoadModule proxy_wstunnel_module/s/^#//' /etc/httpd/conf.modules.d/00-proxy.conf && \
+    sed -i '/#LoadModule rewrite_module/s/^#//' /etc/httpd/conf.modules.d/00-base.conf
+
+# Copia la configuracion de Apache
+COPY apache-config/00-proxy.conf /etc/httpd/conf.modules.d/
+COPY apache-config/asistencia.conf /etc/httpd/conf.d/
+
+# Copia el codigo PHP
+COPY src /var/www/html/
+
+# Permisos
+RUN chown -R apache:apache /var/www/html && \
+    chmod -R 755 /var/www/html
+
+EXPOSE 80
+
+# Inicia Apache en foreground
+CMD ["/usr/sbin/httpd", "-D", "FOREGROUND"]

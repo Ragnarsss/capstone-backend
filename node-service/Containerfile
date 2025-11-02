@@ -1,0 +1,63 @@
+# Multistage build para Node.js 20 LTS con TypeScript
+
+# Etapa 1: Build (desarrollo y compilacion)
+FROM node:20-alpine3.20 AS builder
+
+WORKDIR /app
+
+# Copia archivos de dependencias
+COPY package*.json ./
+COPY tsconfig.json ./
+
+# Instala dependencias incluyendo devDependencies
+RUN npm install
+
+# Copia el codigo fuente
+COPY src ./src
+
+# Compila TypeScript a JavaScript
+RUN npm run build
+
+# Etapa 2: Produccion (imagen final optimizada)
+FROM node:20-alpine3.20 AS production
+
+WORKDIR /app
+
+# Copia solo package.json para instalar deps de produccion
+COPY package*.json ./
+
+# Instala solo dependencias de produccion
+RUN npm install --omit=dev
+
+# Copia el codigo compilado desde la etapa de build
+COPY --from=builder /app/dist ./dist
+
+# Usuario no-root por seguridad
+RUN addgroup -g 1001 nodejs && \
+    adduser -u 1001 -G nodejs -s /bin/sh -D nodejs && \
+    chown -R nodejs:nodejs /app
+
+USER nodejs
+
+# Expone el puerto del servicio
+EXPOSE 3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+
+# Comando de inicio
+CMD ["node", "dist/index.js"]
+
+# Etapa 3: Desarrollo (con hot reload)
+FROM node:20-alpine3.20 AS development
+
+WORKDIR /app
+
+COPY package*.json ./
+COPY tsconfig.json ./
+
+RUN npm install
+
+# En dev, el codigo se monta como volumen
+CMD ["npm", "run", "dev"]
