@@ -1,30 +1,29 @@
 import type { FastifyInstance } from 'fastify';
 import type { WebSocket } from 'ws';
-import { QRGenerator } from './qr-generator';
-import { config } from '../config';
-import type { CountdownMessage, QRUpdateMessage } from '../types';
+import { QRProjectionService } from '../application/qr-projection.service';
+import type { CountdownMessageDTO, QRUpdateMessageDTO } from './types';
 
-// Slice vertical: manejo de conexiones WebSocket
-export class WebSocketHandler {
-  private qrGenerator: QRGenerator;
+/**
+ * WebSocket Controller para QR Projection
+ * Responsabilidad: Manejo de conexiones WebSocket y comunicación con clientes
+ */
+export class WebSocketController {
+  private service: QRProjectionService;
 
   constructor() {
-    this.qrGenerator = new QRGenerator();
+    this.service = new QRProjectionService();
   }
 
-  // Registra las rutas de WebSocket en Fastify
   async register(fastify: FastifyInstance): Promise<void> {
     fastify.get('/ws', { websocket: true }, this.handleConnection.bind(this));
   }
 
-  // Maneja una conexion WebSocket individual
   private async handleConnection(socket: WebSocket, req: any): Promise<void> {
-    const sessionId = this.generateSessionId();
+    const sessionId = this.service.generateSessionId();
     let isClosed = false;
 
     console.log(`[WebSocket] Nueva conexion: ${sessionId}`);
 
-    // Marcar cuando el socket se cierra
     socket.on('close', () => {
       isClosed = true;
       console.log(`[WebSocket] Conexion cerrada: ${sessionId}`);
@@ -36,13 +35,10 @@ export class WebSocketHandler {
     });
 
     try {
-      // Fase 1: Countdown de 5 segundos
-      await this.runCountdown(socket, sessionId, () => isClosed);
+      await this.runCountdownPhase(socket, sessionId, () => isClosed);
 
-      // Solo continuar si el socket sigue abierto
       if (!isClosed && socket.readyState === 1) {
-        // Fase 2: Generacion continua de QR cada 3 segundos
-        await this.startQRGeneration(socket, sessionId);
+        await this.startQRGenerationPhase(socket, sessionId);
       }
     } catch (error) {
       if (!isClosed) {
@@ -54,23 +50,24 @@ export class WebSocketHandler {
     }
   }
 
-  // Ejecuta el countdown inicial
-  private async runCountdown(
+  private async runCountdownPhase(
     socket: WebSocket,
     sessionId: string,
     isClosedFn: () => boolean
   ): Promise<void> {
-    for (let i = config.qr.countdownSeconds; i > 0; i--) {
-      // Verificar si el socket se cerro antes de enviar
+    const duration = this.service.getCountdownDuration();
+
+    for (let i = duration; i > 0; i--) {
       if (isClosedFn() || socket.readyState !== 1) {
         console.log(`[WebSocket] Countdown cancelado para ${sessionId}, socket cerrado`);
         return;
       }
 
       try {
-        const message: CountdownMessage = {
+        const countdownState = await this.service.createCountdownState(i);
+        const message: CountdownMessageDTO = {
           type: 'countdown',
-          payload: { seconds: i },
+          payload: { seconds: countdownState.secondsRemaining },
         };
 
         socket.send(JSON.stringify(message));
@@ -83,13 +80,11 @@ export class WebSocketHandler {
     }
   }
 
-  // Inicia la generacion periodica de QR
-  private async startQRGeneration(
+  private async startQRGenerationPhase(
     socket: WebSocket,
     sessionId: string
   ): Promise<void> {
     const interval = setInterval(async () => {
-      // Si el socket se cerro, limpiar el intervalo
       if (socket.readyState !== 1) {
         console.log(`[WebSocket] Limpiando intervalo para ${sessionId}, socket cerrado`);
         clearInterval(interval);
@@ -97,11 +92,15 @@ export class WebSocketHandler {
       }
 
       try {
-        const qrMessage = await this.qrGenerator.createQRMessage(sessionId);
+        const qrCode = await this.service.generateQRCode(sessionId);
 
-        const message: QRUpdateMessage = {
+        const message: QRUpdateMessageDTO = {
           type: 'qr-update',
-          payload: qrMessage,
+          payload: {
+            qrData: qrCode.data,
+            timestamp: qrCode.timestamp,
+            sessionId: qrCode.sessionId,
+          },
         };
 
         socket.send(JSON.stringify(message));
@@ -109,9 +108,8 @@ export class WebSocketHandler {
         console.error(`[QR] Error generando QR para ${sessionId}:`, error);
         clearInterval(interval);
       }
-    }, config.qr.regenerationInterval);
+    }, this.service.getRegenerationInterval());
 
-    // Limpieza cuando se cierra la conexion
     socket.on('close', () => {
       clearInterval(interval);
       console.log(`[WebSocket] Intervalo QR limpiado para ${sessionId}`);
@@ -123,12 +121,6 @@ export class WebSocketHandler {
     });
   }
 
-  // Genera un ID de sesion unico
-  private generateSessionId(): string {
-    return `session-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-  }
-
-  // Helper para delays
   private sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }

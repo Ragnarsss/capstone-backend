@@ -157,15 +157,15 @@ session_start();
 </head>
 <body>
     <header>
-        <h1>PoC-007</h1>
-        <p>Simulacion Carrusel QR</p>
+        <h1>Proyecto Asistencia</h1>
+        <p>Sistema de Registro con QR Dinámico + JWT</p>
     </header>
 
     <main>
         <div class="card">
-            <h2>Debiera ser el mismo modal que aparece en TONGOY</h2>
+            <h2>Sistema de Registro de Asistencia</h2>
             <p>
-                Al hacer click, se abre un modal con un iframe que carga el servicio Node.js a través del proxy de Apache.
+                Al hacer click, obtienes un JWT desde PHP y el modal se abre con autenticación segura.
             </p>
             <button class="btn-asistencia" onclick="openAsistenciaModal()">
                 ASISTENCIA
@@ -190,14 +190,53 @@ session_start();
     </div>
 
     <script>
-        function openAsistenciaModal() {
+        // ============================================
+        // JWT + postMessage Integration
+        // ============================================
+        async function openAsistenciaModal() {
             const modal = document.getElementById('modalOverlay');
             const iframe = document.getElementById('asistenciaFrame');
 
-            // Carga el iframe con el servicio Node.js a traves del proxy de Apache
-            iframe.src = '/asistencia/';
+            try {
+                console.log('[Modal] Obteniendo JWT desde PHP...');
 
-            modal.classList.add('active');
+                // 1. Obtener JWT desde PHP
+                const response = await fetch('/api_puente_minodo.php?action=get_token', {
+                    credentials: 'include' // Incluir cookies de sesión PHP
+                });
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    alert('Error de autenticación. Por favor recarga la página.');
+                    console.error('[Modal] Error obteniendo JWT:', data.message);
+                    return;
+                }
+
+                console.log('[Modal] JWT obtenido exitosamente');
+
+                // 2. Cargar iframe
+                iframe.src = '/asistencia/';
+
+                // 3. Enviar token cuando el iframe cargue
+                iframe.onload = function() {
+                    console.log('[Modal] Iframe cargado, enviando token...');
+
+                    iframe.contentWindow.postMessage({
+                        type: 'AUTH_TOKEN',
+                        token: data.token
+                    }, window.location.origin);
+
+                    console.log('[Modal] Token enviado al iframe');
+                };
+
+                // 4. Mostrar modal
+                modal.classList.add('active');
+
+            } catch (error) {
+                console.error('[Modal] Error:', error);
+                alert('Error de conexión. Intenta de nuevo.');
+            }
         }
 
         function closeAsistenciaModal() {

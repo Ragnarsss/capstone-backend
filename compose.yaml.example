@@ -1,4 +1,4 @@
-# Docker Compose / Podman Compose para POC003 - Asistencia
+# Docker Compose / Podman Compose para Proyecto Asistencia
 # Stack: PHP 7.4 + Node.js 20 + PostgreSQL 18 + Valkey
 #
 # Este archivo contiene la configuracion base compartida entre desarrollo y produccion.
@@ -14,21 +14,21 @@ services:
     build:
       context: ./php-service
       dockerfile: Containerfile
-    container_name: poc003-php
+    container_name: asistencia-php
     ports:
       - "9500:80"
     depends_on:
       - node-service
       - postgres
     networks:
-      - poc003-network
+      - asistencia-network
 
   # Servicio Node.js con Fastify y WebSocket
   node-service:
     build:
       context: ./node-service
       dockerfile: Containerfile
-    container_name: poc003-node
+    container_name: asistencia-node
     environment:
       - HOST=0.0.0.0
       - PORT=3000
@@ -37,35 +37,35 @@ services:
     depends_on:
       - valkey
     networks:
-      - poc003-network
+      - asistencia-network
     expose:
       - "3000"
 
   # Base de datos PostgreSQL 18
   postgres:
     image: postgres:18-alpine
-    container_name: poc003-postgres
+    container_name: asistencia-postgres
     environment:
       - POSTGRES_USER=asistencia
       - POSTGRES_PASSWORD=asistencia_pass
       - POSTGRES_DB=asistencia_db
     networks:
-      - poc003-network
+      - asistencia-network
     volumes:
       - postgres-data:/var/lib/postgresql/data
 
   # Valkey (Redis compatible) para cache y sesiones
   valkey:
     image: valkey/valkey:7-alpine
-    container_name: poc003-valkey
+    container_name: asistencia-valkey
     networks:
-      - poc003-network
+      - asistencia-network
     volumes:
       - valkey-data:/data
     command: ["valkey-server", "--appendonly", "yes"]
 
 networks:
-  poc003-network:
+  asistencia-network:
     driver: bridge
 
 volumes:

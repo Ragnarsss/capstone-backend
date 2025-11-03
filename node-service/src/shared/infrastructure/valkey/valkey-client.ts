@@ -1,16 +1,19 @@
 import Redis from 'ioredis';
-import { config } from '../config';
+import { config } from '../../config';
 
-// Slice vertical: cliente de Valkey (Redis compatible)
+/**
+ * Cliente base de Valkey (Redis compatible)
+ * Responsabilidad única: Gestión de conexión y operaciones básicas
+ */
 export class ValkeyClient {
   private client: Redis;
+  private static instance: ValkeyClient;
 
-  constructor() {
+  private constructor() {
     this.client = new Redis({
       host: config.valkey.host,
       port: config.valkey.port,
       retryStrategy: (times) => {
-        // Reintenta cada 2 segundos hasta 10 intentos
         if (times > 10) {
           console.error('[Valkey] Max reintentos alcanzado');
           return null;
@@ -22,7 +25,13 @@ export class ValkeyClient {
     this.setupEventHandlers();
   }
 
-  // Configura los event handlers del cliente
+  static getInstance(): ValkeyClient {
+    if (!ValkeyClient.instance) {
+      ValkeyClient.instance = new ValkeyClient();
+    }
+    return ValkeyClient.instance;
+  }
+
   private setupEventHandlers(): void {
     this.client.on('connect', () => {
       console.log('[Valkey] Conectado exitosamente');
@@ -37,25 +46,15 @@ export class ValkeyClient {
     });
   }
 
-  // Guarda un QR generado con TTL
-  async saveQR(sessionId: string, qrData: string, ttlSeconds = 300): Promise<void> {
-    const key = `qr:${sessionId}`;
-    await this.client.setex(key, ttlSeconds, qrData);
-  }
-
-  // Recupera un QR guardado
-  async getQR(sessionId: string): Promise<string | null> {
-    const key = `qr:${sessionId}`;
-    return await this.client.get(key);
-  }
-
-  // Cierra la conexion
-  async close(): Promise<void> {
-    await this.client.quit();
-  }
-
-  // Retorna el cliente para operaciones custom
   getClient(): Redis {
     return this.client;
+  }
+
+  async ping(): Promise<string> {
+    return await this.client.ping();
+  }
+
+  async close(): Promise<void> {
+    await this.client.quit();
   }
 }

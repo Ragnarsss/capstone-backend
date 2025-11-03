@@ -32,6 +32,12 @@ RUN npm install --omit=dev
 # Copia el codigo compilado desde la etapa de build
 COPY --from=builder /app/dist ./dist
 
+# Copiar assets frontend desde la etapa builder para que estén disponibles
+# en la imagen de producción. El servidor en runtime espera encontrar
+# process.cwd() + '/src/frontend'. Copiamos solo la carpeta frontend
+# para mantener la imagen pequeña.
+COPY --from=builder /app/src/frontend ./src/frontend
+
 # Usuario no-root por seguridad
 RUN addgroup -g 1001 nodejs && \
     adduser -u 1001 -G nodejs -s /bin/sh -D nodejs && \

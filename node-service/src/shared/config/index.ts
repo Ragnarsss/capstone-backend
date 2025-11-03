@@ -15,4 +15,15 @@ export const config = {
     // Intervalo de regeneracion de QR (en milisegundos)
     regenerationInterval: 3000,
   },
+  jwt: {
+    // Secret para firmar JWT (debe coincidir con PHP)
+    // En produccion, usar variable de entorno segura
+    secret: process.env.JWT_SECRET || 'CAMBIAR_EN_PRODUCCION_SECRET_KEY_COMPARTIDO_PHP_NODE',
+    // Tiempo de expiracion del token (5 minutos)
+    expiresIn: '5m',
+    // Issuer del token
+    issuer: 'php-service',
+    // Audience del token
+    audience: 'node-service',
+  },
 } as const;

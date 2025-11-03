@@ -23,6 +23,11 @@ RUN sed -i '/#LoadModule proxy_module/s/^#//' /etc/httpd/conf.modules.d/00-proxy
     sed -i '/#LoadModule proxy_wstunnel_module/s/^#//' /etc/httpd/conf.modules.d/00-proxy.conf && \
     sed -i '/#LoadModule rewrite_module/s/^#//' /etc/httpd/conf.modules.d/00-base.conf
 
+# Cambiar Apache MPM de event a prefork (requerido para mod_php)
+# MPM prefork es necesario para que Apache pueda cargar el módulo PHP
+RUN sed -i 's/^LoadModule mpm_event_module/#LoadModule mpm_event_module/' /etc/httpd/conf.modules.d/00-mpm.conf && \
+    sed -i 's/^#LoadModule mpm_prefork_module/LoadModule mpm_prefork_module/' /etc/httpd/conf.modules.d/00-mpm.conf
+
 # Copia la configuracion de Apache
 COPY apache-config/00-proxy.conf /etc/httpd/conf.modules.d/
 COPY apache-config/asistencia.conf /etc/httpd/conf.d/
@@ -30,9 +35,11 @@ COPY apache-config/asistencia.conf /etc/httpd/conf.d/
 # Copia el codigo PHP
 COPY src /var/www/html/
 
-# Permisos
+# Permisos (asegurar que todo sea legible por Apache)
 RUN chown -R apache:apache /var/www/html && \
-    chmod -R 755 /var/www/html
+    chmod -R 755 /var/www/html && \
+    find /var/www/html -type d -exec chmod 755 {} \; && \
+    find /var/www/html -type f -exec chmod 644 {} \;
 
 EXPOSE 80
 
