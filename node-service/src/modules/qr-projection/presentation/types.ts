@@ -3,8 +3,18 @@
  */
 
 export interface WebSocketMessage {
-  type: 'qr-update' | 'countdown' | 'error';
-  payload: unknown;
+  type: 'qr-update' | 'countdown' | 'error' | 'auth-ok' | 'AUTH';
+  payload?: unknown;
+}
+
+export interface AuthMessageDTO {
+  type: 'AUTH';
+  token: string;
+}
+
+export interface AuthOkMessageDTO {
+  type: 'auth-ok';
+  username: string;
 }
 
 export interface CountdownMessageDTO extends WebSocketMessage {
@@ -25,7 +35,8 @@ export interface QRUpdateMessageDTO extends WebSocketMessage {
 
 export interface ErrorMessageDTO extends WebSocketMessage {
   type: 'error';
-  payload: {
+  message: string;
+  payload?: {
     message: string;
     code?: string;
   };

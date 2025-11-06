@@ -1,5 +1,3 @@
-# Glosario de Términos y Acrónimos del Sistema de Asistencia
-
 Este documento define los acrónimos, tecnologías y conceptos clave utilizados en el `Plan.md` del Sistema de Asistencia Criptográfica.
 
 ---
