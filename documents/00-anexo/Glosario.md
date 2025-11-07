@@ -1,8 +1,4 @@
-Este documento define los acrónimos, tecnologías y conceptos clave utilizados en el `Plan.md` del Sistema de Asistencia Criptográfica.
-
----
-
-## A. Conceptos de Arquitectura y Seguridad
+# A. Conceptos de Arquitectura y Seguridad
 
 - **AES-256-GCM**: **Advanced Encryption Standard (256 bits, Galois/Counter Mode)**. Es un algoritmo de cifrado simétrico que ofrece confidencialidad, integridad y autenticidad. Se usa para cifrar los *payloads* de los QR, asegurando que no puedan ser leídos ni manipulados por terceros.
 - **Device Binding**: **Vinculación de Dispositivo**. Proceso de asociar criptográficamente una cuenta de usuario a un dispositivo físico específico. En este proyecto, se logra mediante FIDO2/WebAuthn, creando una credencial que solo puede ser usada desde ese dispositivo.
