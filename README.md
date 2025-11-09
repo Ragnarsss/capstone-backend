@@ -23,13 +23,15 @@ podman-compose -f compose.yaml -f compose.prod.yaml up -d --build
 
 ### Acceso
 
-| Servicio | URL | Descripción |
-|----------|-----|-------------|
-| **Frontend** | http://localhost:9500 | Aplicación principal |
-| **Ejemplo JWT** | http://localhost:9500/ejemplo-jwt-client.html | Demo autenticación |
-| PostgreSQL | localhost:9501 | Base de datos |
-| Valkey | localhost:9502 | Cache (Redis) |
-| Node (dev) | http://localhost:9503 | API directa (solo dev) |
+| Servicio | Puerto | URL/Host | Descripción | Entorno |
+|----------|--------|----------|-------------|---------|
+| **Frontend** | 9500 | <http://localhost:9500> | Aplicación principal | Todos |
+| **Ejemplo JWT** | 9500 | <http://localhost:9500/ejemplo-jwt-client.html> | Demo autenticación | Todos |
+| PostgreSQL | 9501 | localhost:9501 | Base de datos | Dev + Prod |
+| Valkey | 9502 | localhost:9502 | Cache (Redis) | Dev + Prod |
+| Node.js API | 9503 | <http://localhost:9503> | API directa (bypass proxy) | **Solo Dev** |
+
+**Nota:** En producción, Node.js NO está expuesto directamente. Todo el tráfico pasa por el proxy Apache en el puerto 9500.
 
 ### Detener Servicios
 
