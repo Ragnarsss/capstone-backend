@@ -1,8 +1,11 @@
-# PLAN PARTE 1: Infraestructura de Datos
+# PLAN PARTE 1 - Infraestructura de Datos
 
 **Fecha:** 2025-11-04
+
 **Versión:** 2.0
+
 **Estado:** Planificación consolidada
+
 **Duración estimada:** 1 día
 
 ---
@@ -21,19 +24,19 @@
 
 ## Contexto y Objetivos
 
-### Objetivo Principal
+**Objetivo Principal:**
 
 Establecer la capa de persistencia completa del sistema, incluyendo schemas PostgreSQL, tablas normalizadas, índices optimizados, scripts de migración y datos de prueba.
 
-### Estado Actual
+**Estado Actual:**
 
 - Sistema: 57% completo
-- Infraestructura Docker: Operativa
+- Infraestructura Podman: Operativa
 - PostgreSQL: Contenedor funcionando
 - Schemas: NO creados (0%)
 - Migraciones: NO implementadas (0%)
 
-### Independencia
+**Independencia:**
 
 **NO depende de otras partes.** Puede ejecutarse en paralelo o primero.
 
@@ -41,15 +44,16 @@ Establecer la capa de persistencia completa del sistema, incluyendo schemas Post
 
 ## Dependencias
 
-### Pre-requisitos
+**Pre-requisitos:**
 
-- Docker/Podman funcionando
+- Podman funcionando
 - PostgreSQL 18 contenedor disponible
 - Variables de entorno configuradas
 
-### Outputs para Otras Partes
+**Outputs para Otras Partes:**
 
 Esta parte es requisito para:
+
 - **PARTE 2 (Attendance Backend):** Necesita `attendance.*` schemas
 - **PARTE 3 (Enrollment Backend):** Necesita `enrollment.*` schemas
 - **PARTE 4 (Frontend Guest):** Indirectamente vía APIs
@@ -58,7 +62,7 @@ Esta parte es requisito para:
 
 ## Alcance
 
-### Incluye
+**Incluye:**
 
 - Schema `enrollment` completo
 - Schema `attendance` completo
@@ -67,10 +71,10 @@ Esta parte es requisito para:
 - Scripts de migración
 - Scripts de rollback
 - Datos de prueba (seeds)
-- Integración con Docker Compose
+- Integración con Podman Compose
 - Documentación de uso
 
-### NO Incluye
+**NO Incluye:**
 
 - Lógica de aplicación
 - Repositorios en código
@@ -89,13 +93,13 @@ Esta parte es requisito para:
 
 ---
 
-#### User Story 1.1: Schemas PostgreSQL
+#### User Story 1.1 - Schemas PostgreSQL
 
 **Como** desarrollador
 **Quiero** tener los schemas de base de datos creados
 **Para** poder persistir datos de enrollment y attendance
 
-##### Tareas
+##### Tareas - User Story 1.1
 
 **PART1-T1.1.1:** Crear archivo `database/migrations/001-initial-schema.sql`
 
@@ -111,6 +115,7 @@ Esta parte es requisito para:
 - **Descripción:** `CREATE SCHEMA enrollment` con comentarios
 - **Criterio:** Schema se crea sin errores
 - **SQL:**
+
 ```sql
 CREATE SCHEMA IF NOT EXISTS enrollment;
 COMMENT ON SCHEMA enrollment IS 'Gestión de dispositivos FIDO2 enrolados';
@@ -135,6 +140,7 @@ COMMENT ON SCHEMA enrollment IS 'Gestión de dispositivos FIDO2 enrolados';
 - **Descripción:** Índices en credential_id, user_id, aaguid, is_active
 - **Criterio:** 4 índices creados correctamente
 - **Índices:**
+
 ```sql
 CREATE UNIQUE INDEX idx_devices_credential_id ON enrollment.devices(credential_id);
 CREATE INDEX idx_devices_user_id ON enrollment.devices(user_id);
@@ -152,6 +158,8 @@ CREATE INDEX idx_devices_active ON enrollment.devices(is_active) WHERE is_active
   - `history_id` (PK), `device_id` (FK nullable), `user_id`
   - `action`, `reason`, `performed_at`, `performed_by`, `metadata`
 - **Acciones:** `enrolled`, `revoked`, `re-enrolled`, `updated`
+
+##### Tareas - Parte 2
 
 **PART1-T1.1.6:** Escribir DDL para schema attendance
 
@@ -225,7 +233,7 @@ CREATE INDEX idx_devices_active ON enrollment.devices(is_active) WHERE is_active
 **Quiero** scripts automatizados de migración
 **Para** desplegar y revertir cambios de DB fácilmente
 
-##### Tareas
+##### Tareas - User Story 1.2
 
 **PART1-T1.2.1:** Crear archivo `database/migrations/001-rollback.sql`
 
@@ -263,7 +271,7 @@ CREATE INDEX idx_devices_active ON enrollment.devices(is_active) WHERE is_active
 **Quiero** datos de prueba en la base de datos
 **Para** poder probar sin crear datos manualmente
 
-##### Tareas
+##### Tareas - User Story 1.3
 
 **PART1-T1.3.1:** Crear archivo `database/seeds/test-data.sql`
 
@@ -294,13 +302,13 @@ CREATE INDEX idx_devices_active ON enrollment.devices(is_active) WHERE is_active
 
 ---
 
-#### User Story 1.4: Integración Docker
+#### User Story 1.4: Integración Podman
 
 **Como** DevOps
 **Quiero** que PostgreSQL se inicialice automáticamente
 **Para** no tener que ejecutar scripts manualmente
 
-##### Tareas
+##### Tareas - User Story 1.4
 
 **PART1-T1.4.1:** Crear volume en compose.yaml para PostgreSQL
 
@@ -313,7 +321,7 @@ CREATE INDEX idx_devices_active ON enrollment.devices(is_active) WHERE is_active
 
 - **Estimación:** XS (1h)
 - **Prioridad:** P0
-- **Descripción:** Volume para /docker-entrypoint-initdb.d
+- **Descripción:** Volume para /podman-entrypoint-initdb.d (compatible con docker-entrypoint-initdb.d)
 - **Criterio:** Scripts se ejecutan al crear contenedor
 
 **PART1-T1.4.3:** Configurar variables de entorno en compose
@@ -345,9 +353,9 @@ CREATE INDEX idx_devices_active ON enrollment.devices(is_active) WHERE is_active
 **Quiero** validar que la base de datos funciona correctamente
 **Para** asegurar que no hay errores en el schema
 
-##### Tareas
+##### Tareas - Parte 6
 
-**PART1-T1.5.1:** Ejecutar docker-compose up y verificar logs
+**PART1-T1.5.1:** Ejecutar podman-compose up y verificar logs
 
 - **Estimación:** XS (30min)
 - **Prioridad:** P0
@@ -398,7 +406,7 @@ Una tarea se considera **DONE** cuando:
 
 1. PostgreSQL contiene schemas enrollment y attendance
 2. Todas las tablas con índices y constraints funcionando
-3. Script init ejecuta automáticamente en docker-compose up
+3. Script init ejecuta automáticamente en podman-compose up
 4. Datos de prueba insertados correctamente
 5. Tests de validación pasan exitosamente
 6. Documentación en `database/README.md` completa
@@ -431,14 +439,17 @@ Una tarea se considera **DONE** cuando:
 ### Herramientas Recomendadas
 
 **Gestión:**
+
 - Jira / Linear / GitHub Projects
 
 **Desarrollo:**
+
 - DBeaver / pgAdmin (gestión PostgreSQL)
 - VSCode (editor)
-- Docker/Podman (contenedores)
+- Podman (contenedores)
 
 **Testing:**
+
 - psql (cliente PostgreSQL)
 - Scripts bash de validación
 

@@ -1,8 +1,11 @@
-# PLAN PARTE 3: Módulo Enrollment Backend Real
+# PLAN PARTE 3 - Módulo Enrollment Backend Real
 
 **Fecha:** 2025-11-04
+
 **Versión:** 2.0
+
 **Estado:** Planificación consolidada
+
 **Duración estimada:** 4-5 días
 
 ---
@@ -57,21 +60,25 @@ Reemplazar stubs actuales con implementación real de FIDO2/WebAuthn, incluyendo
 ### Incluye
 
 **Domain Layer:**
+
 - Entities: `Device`, `EnrollmentChallenge`, `ECDHSession`
 - Value Objects: `CredentialId`, `PublicKey`, `HandshakeSecret`
 - Services: `FIDO2Validator`, `AAGUIDValidator`
 
 **Infrastructure:**
+
 - FIDO2Service (WebAuthn real)
 - ECDHService (key exchange P-256)
 - HKDFService (derivación secrets)
 - Repositories + PenaltyService
 
 **Application:**
+
 - Use Cases reales (no stubs)
 - DTOs con validaciones estrictas
 
 **Presentation:**
+
 - HTTP endpoints actualizados
 - WebSocket `/enrollment/ws`
 
@@ -155,63 +162,90 @@ node-service/src/modules/enrollment/
 
 ## Tareas Críticas (P0)
 
+### User Story 3.1
+
+#### Tareas - User Story 3.1
+
 ### Domain Layer (6 tareas)
 
 **PART3-T3.1.1:** Actualizar `Device.entity.ts` con campos completos
+
 - Estimación: S (3h)
 - Campos: credential_id, public_key, aaguid, sign_count
 
 **PART3-T3.1.2-6:** Implementar entities y VOs restantes
+
 - Challenge, ECDH Session, CredentialId, PublicKey, HandshakeSecret
 - Total: 13h
+
+#### User Story 3.2
+
+##### Tareas - User Story 3.2
 
 ### Infrastructure Crypto (3 tareas críticas)
 
 **PART3-T3.3.1:** Implementar `FIDO2Service.ts`
+
 - Estimación: L (12h)
 - Wrapper de `@simplewebauthn/server`
 - Métodos: `generateRegistrationOptions()`, `verifyRegistrationResponse()`
 
 **PART3-T3.3.2:** Implementar `ECDHService.ts`
+
 - Estimación: M (8h)
 - Key exchange ECDH P-256
 - Métodos: `generateKeyPair()`, `deriveSharedSecret()`
 
 **PART3-T3.3.3:** Implementar `HKDFService.ts`
+
 - Estimación: M (6h)
 - Derivación handshake_secret
 - HKDF con SHA-256
 
+#### User Story 3.3
+
+##### Tareas - User Story 3.3
+
 ### Application Layer (4 tareas críticas)
 
 **PART3-T3.5.1:** Reemplazar `StartEnrollmentUseCase.ts`
+
 - Estimación: M (8h)
 - Genera challenge real con FIDO2Service
 - Challenge aleatorio 32 bytes, TTL 5min
 
 **PART3-T3.5.2:** Reemplazar `FinishEnrollmentUseCase.ts`
+
 - Estimación: L (14h)
 - Valida credential, extrae publicKey, deriva secrets
 - Guarda en DB, retorna deviceId
 
 **PART3-T3.5.3:** Reemplazar `LoginECDHUseCase.ts`
+
 - Estimación: L (12h)
 - ECDH key exchange + generación TOTPu
 - Deriva session_key, genera TOTPu
 
 **PART3-T3.5.4:** Implementar `VerifyDeviceUseCase.ts`
+
 - Estimación: M (6h)
 - Verifica sign_count anti-clonación
 - Detecta clonación, incrementa counter
 
+#### User Story 3.4
+
+##### Tareas - User Story 3.4
+
 ### Presentation Layer (5 tareas críticas)
 
 **PART3-T3.6.1-4:** Actualizar endpoints HTTP
+
 - `/enrollment/start`, `/enrollment/finish`
 - `/enrollment/login`, `/enrollment/status`
 - Total: 17h
 
 **PART3-T3.6.5:** Implementar `WebSocketController` para enrollment
+
 - Estimación: L (10h)
 - Canal interactivo para FIDO2
 - Auth JWT + códigos cierre 4401/4403
@@ -234,7 +268,7 @@ class PenaltyService {
 
 ### Escala de Penalización
 
-```
+```text
 Device 1: 0 min delay
 Device 2: 5 min delay
 Device 3: 30 min delay
@@ -243,10 +277,12 @@ Device 4+: Exponencial (máx 24h)
 
 ### Storage en Valkey
 
-```
-Key: penalty:{userId}
-Value: {attempts: number, blockedUntil: timestamp}
-TTL: 24 horas
+```json
+{
+  "Key": "penalty:{userId}",
+  "Value": "{attempts: number, blockedUntil: timestamp}",
+  "TTL": "24 horas"
+}
 ```
 
 ---

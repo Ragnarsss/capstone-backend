@@ -1,8 +1,11 @@
-# PLAN PARTE 2: Módulo Attendance Backend
+# PLAN PARTE 2 - Módulo Attendance Backend
 
 **Fecha:** 2025-11-04
+
 **Versión:** 2.0
+
 **Estado:** Planificación consolidada
+
 **Duración estimada:** 3-4 días
 
 ---
@@ -50,6 +53,7 @@ Implementar la lógica completa de validación de asistencia mediante N rondas d
 ### Outputs para Otras Partes
 
 Esta parte provee:
+
 - **PARTE 4 (Frontend Guest):** Endpoints REST para validación
 - APIs:
   - `POST /attendance/register`
@@ -63,23 +67,28 @@ Esta parte provee:
 ### Incluye
 
 **Domain Layer:**
+
 - Entities: `Validation`, `AttendanceSession`, `Round`
 - Value Objects: `ResponseTime`, `CertaintyScore`, `QRPayload`
 - Domain Services: `CertaintyCalculator`, `TOTPValidator`
 
 **Application Layer:**
+
 - Use Cases: Register, Validate Round, Calculate Result
 - DTOs con validación
 
 **Infrastructure Layer:**
+
 - Repositories: Session, Validation, QRMetadata
 - Services: TOTP, Encryption (AES-256-GCM)
 
 **Presentation Layer:**
+
 - HTTP REST Controllers
 - Error handling middleware
 
 **Testing:**
+
 - Unit tests (CertaintyCalculator)
 - Integration tests (Use Cases)
 - E2E tests (flujo completo N rondas)
@@ -108,7 +117,7 @@ Esta parte provee:
 **Quiero** las entidades de dominio definidas
 **Para** tener un modelo rico del negocio
 
-##### Tareas
+##### Tareas - User Story 2.1
 
 **PART2-T2.1.1:** Crear estructura de carpetas `attendance/domain`
 
@@ -173,7 +182,7 @@ Esta parte provee:
 **Quiero** servicios de dominio para lógica compleja
 **Para** mantener entidades limpias
 
-##### Tareas
+##### Tareas - User Story 2.2
 
 **PART2-T2.2.1:** Implementar `CertaintyCalculator.service.ts`
 
@@ -219,7 +228,7 @@ Esta parte provee:
 **Quiero** repositorios para persistencia
 **Para** guardar datos en PostgreSQL y Valkey
 
-##### Tareas
+##### Tareas - User Story 2.3
 
 **PART2-T2.3.1:** Implementar `SessionRepository.ts` (PostgreSQL)
 
@@ -296,7 +305,7 @@ Esta parte provee:
 **Quiero** casos de uso bien definidos
 **Para** orquestar la lógica de negocio
 
-##### Tareas
+##### Tareas - User Story 2.4
 
 **PART2-T2.4.1:** Implementar `RegisterUserUseCase.ts`
 
@@ -346,7 +355,7 @@ Esta parte provee:
 **Quiero** endpoints REST bien documentados
 **Para** integrar con el frontend
 
-##### Tareas
+##### Tareas - User Story 2.5
 
 **PART2-T2.5.1:** Crear `AttendanceController.ts` con estructura base
 
@@ -412,7 +421,7 @@ Esta parte provee:
 **Quiero** tests end-to-end automatizados
 **Para** validar el flujo completo
 
-##### Tareas
+##### Tareas - User Story 2.6
 
 **PART2-T2.6.1:** Setup entorno testing E2E
 
@@ -454,7 +463,7 @@ Esta parte provee:
 **Quiero** documentación clara del módulo
 **Para** entender cómo funciona
 
-##### Tareas
+##### Tareas - User Story 2.7
 
 **PART2-T2.7.1:** Crear `README.md` en módulo attendance
 
@@ -573,14 +582,17 @@ Una tarea se considera **DONE** cuando:
 ### Herramientas Recomendadas
 
 **Gestión:**
+
 - Jira / Linear / GitHub Projects
 
 **Desarrollo:**
+
 - VSCode con extensiones TypeScript
 - Postman / Insomnia (testing APIs)
 - Jest (unit/integration testing)
 
 **Testing:**
+
 - Supertest (HTTP testing)
 - Testcontainers (DB integration)
 
