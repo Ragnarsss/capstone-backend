@@ -101,14 +101,14 @@ Esta parte es requisito para:
 
 ##### Tareas - User Story 1.1
 
-**PART1-T1.1.1:** Crear archivo `database/migrations/001-initial-schema.sql`
+**PART1-T1.1.1: (COMPLETO)** Crear archivo `database/migrations/001-initial-schema.sql`
 
 - **Estimación:** XS (1h)
 - **Prioridad:** P0
 - **Descripción:** Archivo SQL vacío con comentarios de estructura
 - **Criterio:** Archivo existe con header y secciones comentadas
 
-**PART1-T1.1.2:** Escribir DDL para schema enrollment
+**PART1-T1.1.2: (COMPLETO)** Escribir DDL para schema enrollment
 
 - **Estimación:** S (2h)
 - **Prioridad:** P0
@@ -121,7 +121,7 @@ CREATE SCHEMA IF NOT EXISTS enrollment;
 COMMENT ON SCHEMA enrollment IS 'Gestión de dispositivos FIDO2 enrolados';
 ```
 
-**PART1-T1.1.3:** Escribir DDL para tabla `enrollment.devices`
+**PART1-T1.1.3: (COMPLETO)** Escribir DDL para tabla `enrollment.devices`
 
 - **Estimación:** S (3h)
 - **Prioridad:** P0
@@ -133,7 +133,7 @@ COMMENT ON SCHEMA enrollment IS 'Gestión de dispositivos FIDO2 enrolados';
   - `device_fingerprint`, `attestation_format`
   - `sign_count`, `enrolled_at`, `last_used_at`, `is_active`
 
-**PART1-T1.1.4:** Crear índices para `enrollment.devices`
+**PART1-T1.1.4: (COMPLETO)** Crear índices para `enrollment.devices`
 
 - **Estimación:** XS (1h)
 - **Prioridad:** P0
@@ -148,7 +148,7 @@ CREATE INDEX idx_devices_aaguid ON enrollment.devices(aaguid);
 CREATE INDEX idx_devices_active ON enrollment.devices(is_active) WHERE is_active = TRUE;
 ```
 
-**PART1-T1.1.5:** Escribir DDL para tabla `enrollment.enrollment_history`
+**PART1-T1.1.5: (COMPLETO)** Escribir DDL para tabla `enrollment.enrollment_history`
 
 - **Estimación:** S (2h)
 - **Prioridad:** P1
@@ -161,14 +161,14 @@ CREATE INDEX idx_devices_active ON enrollment.devices(is_active) WHERE is_active
 
 ##### Tareas - Parte 2
 
-**PART1-T1.1.6:** Escribir DDL para schema attendance
+**PART1-T1.1.6: (COMPLETO)** Escribir DDL para schema attendance
 
 - **Estimación:** XS (1h)
 - **Prioridad:** P0
 - **Descripción:** `CREATE SCHEMA attendance` con comentarios
 - **Criterio:** Schema se crea sin errores
 
-**PART1-T1.1.7:** Escribir DDL para tabla `attendance.sessions`
+**PART1-T1.1.7: (COMPLETO)** Escribir DDL para tabla `attendance.sessions`
 
 - **Estimación:** S (2h)
 - **Prioridad:** P0
@@ -180,7 +180,7 @@ CREATE INDEX idx_devices_active ON enrollment.devices(is_active) WHERE is_active
   - `start_time`, `end_time`, `max_rounds` (1-10)
   - `status` (active/closed/cancelled), `created_at`
 
-**PART1-T1.1.8:** Escribir DDL para tabla `attendance.registrations`
+**PART1-T1.1.8: (COMPLETO)** Escribir DDL para tabla `attendance.registrations`
 
 - **Estimación:** S (2h)
 - **Prioridad:** P0
@@ -191,7 +191,7 @@ CREATE INDEX idx_devices_active ON enrollment.devices(is_active) WHERE is_active
   - `device_id` (FK nullable), `queue_position`
   - `registered_at`, `status` (active/processing/completed/failed)
 
-**PART1-T1.1.9:** Escribir DDL para tabla `attendance.validations`
+**PART1-T1.1.9: (COMPLETO)** Escribir DDL para tabla `attendance.validations`
 
 - **Estimación:** S (2h)
 - **Prioridad:** P0
@@ -204,7 +204,7 @@ CREATE INDEX idx_devices_active ON enrollment.devices(is_active) WHERE is_active
   - `rt_valid`, `secret_valid`, `validation_status`
   - `failed_attempts`, `created_at`
 
-**PART1-T1.1.10:** Escribir DDL para tabla `attendance.results`
+**PART1-T1.1.10: (COMPLETO)** Escribir DDL para tabla `attendance.results`
 
 - **Estimación:** S (2h)
 - **Prioridad:** P0
@@ -218,7 +218,7 @@ CREATE INDEX idx_devices_active ON enrollment.devices(is_active) WHERE is_active
   - `certainty_score` (0-100), `final_status`
   - `calculated_at`
 
-**PART1-T1.1.11:** Crear índices para tablas attendance
+**PART1-T1.1.11: (COMPLETO)** Crear índices para tablas attendance
 
 - **Estimación:** S (2h)
 - **Prioridad:** P0
@@ -242,21 +242,21 @@ CREATE INDEX idx_devices_active ON enrollment.devices(is_active) WHERE is_active
 - **Descripción:** DROP de todas las tablas y schemas
 - **Criterio:** Revierte completamente 001-initial-schema.sql
 
-**PART1-T1.2.2:** Crear archivo `database/init.sh`
+**PART1-T1.2.2: (COMPLETO)** Crear archivo `database/init.sh`
 
 - **Estimación:** S (2h)
 - **Prioridad:** P0
 - **Descripción:** Script bash que ejecuta migraciones en orden
 - **Criterio:** Ejecuta todos los .sql en orden numérico
 
-**PART1-T1.2.3:** Agregar logging a init.sh
+**PART1-T1.2.3: (COMPLETO)** Agregar logging a init.sh
 
 - **Estimación:** XS (1h)
 - **Prioridad:** P2
 - **Descripción:** Echo de cada paso + manejo de errores
 - **Criterio:** Script muestra progreso y errores claros
 
-**PART1-T1.2.4:** Hacer init.sh idempotente
+**PART1-T1.2.4: (COMPLETO)** Hacer init.sh idempotente
 
 - **Estimación:** S (2h)
 - **Prioridad:** P1
@@ -310,35 +310,35 @@ CREATE INDEX idx_devices_active ON enrollment.devices(is_active) WHERE is_active
 
 ##### Tareas - User Story 1.4
 
-**PART1-T1.4.1:** Crear volume en compose.yaml para PostgreSQL
+**PART1-T1.4.1: (COMPLETO)** Crear volume en compose.yaml para PostgreSQL
 
 - **Estimación:** XS (30min)
 - **Prioridad:** P0
 - **Descripción:** Volume persistente para /var/lib/postgresql/data
 - **Criterio:** Datos persisten entre reinicios
 
-**PART1-T1.4.2:** Montar database/ en contenedor PostgreSQL
+**PART1-T1.4.2: (COMPLETO)** Montar database/ en contenedor PostgreSQL
 
 - **Estimación:** XS (1h)
 - **Prioridad:** P0
 - **Descripción:** Volume para /podman-entrypoint-initdb.d (compatible con docker-entrypoint-initdb.d)
 - **Criterio:** Scripts se ejecutan al crear contenedor
 
-**PART1-T1.4.3:** Configurar variables de entorno en compose
+**PART1-T1.4.3: (COMPLETO)** Configurar variables de entorno en compose
 
 - **Estimación:** XS (30min)
 - **Prioridad:** P0
 - **Descripción:** POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD
 - **Criterio:** Base de datos se crea con credenciales correctas
 
-**PART1-T1.4.4:** Crear .env.example con variables DB
+**PART1-T1.4.4: (COMPLETO)** Crear .env.example con variables DB
 
 - **Estimación:** XS (30min)
 - **Prioridad:** P1
 - **Descripción:** Template con valores por defecto
 - **Criterio:** Documentación clara de cada variable
 
-**PART1-T1.4.5:** Crear README.md en database/
+**PART1-T1.4.5: (COMPLETO)** Crear README.md en database/
 
 - **Estimación:** S (2h)
 - **Prioridad:** P2
