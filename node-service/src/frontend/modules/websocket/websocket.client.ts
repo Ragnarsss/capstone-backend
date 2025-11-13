@@ -2,8 +2,31 @@
  * WebSocket Client Module
  * Responsabilidad: Gestión de conexiones WebSocket con autenticación JWT
  */
+import { AuthService } from '../auth/auth.service';
+
+interface WebSocketMessage {
+  type: string;
+  payload?: unknown;
+  username?: string;
+  message?: string;
+}
+
+interface AuthMessage {
+  type: 'AUTH';
+  token: string;
+}
+
+type MessageHandler = (payload: unknown) => void;
+
 export class WebSocketClient {
-  constructor(authService) {
+  private readonly authService: AuthService;
+  private ws: WebSocket | null;
+  private readonly reconnectTimeout: number;
+  private readonly messageHandlers: Map<string, MessageHandler[]>;
+  private isAuthenticated: boolean;
+  private authTimeout: ReturnType<typeof setTimeout> | null;
+
+  constructor(authService: AuthService) {
     this.authService = authService;
     this.ws = null;
     this.reconnectTimeout = 3000;
@@ -12,66 +35,80 @@ export class WebSocketClient {
     this.authTimeout = null;
   }
 
-  connect() {
+  connect(): void {
     if (!this.authService.isUserAuthenticated()) {
       console.log('[WebSocket] Esperando autenticación JWT del padre...');
       return;
     }
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = protocol + '//' + window.location.host + '/asistencia/ws';
+    
+    // Detectar si estamos en contexto /asistencia/ (iframe de Apache)
+    // Si pathname comienza con /asistencia, usar /asistencia/ws
+    // Si no, usar /ws directo (desarrollo o root)
+    let wsPath = '/ws';
+    if (window.location.pathname.startsWith('/asistencia')) {
+      wsPath = '/asistencia/ws';
+      console.log('[WebSocket] Contexto /asistencia/ detectado, usando /asistencia/ws');
+    }
+    
+    const wsUrl = protocol + '//' + window.location.host + wsPath;
 
     console.log('[WebSocket] Estableciendo conexion...', wsUrl);
     this.ws = new WebSocket(wsUrl);
     this.isAuthenticated = false;
 
     this.ws.onopen = () => this.handleOpen();
-    this.ws.onmessage = (event) => this.handleMessage(event);
-    this.ws.onerror = (error) => this.handleError(error);
+    this.ws.onmessage = (event: MessageEvent) => this.handleMessage(event);
+    this.ws.onerror = (error: Event) => this.handleError(error);
     this.ws.onclose = () => this.handleClose();
   }
 
-  handleOpen() {
+  private handleOpen(): void {
     console.log('[WebSocket] Conectado, enviando autenticación...');
-    
+
     // Enviar token JWT como primer mensaje
     const token = this.authService.getToken();
-    if (!token) {
+    if (!token || !this.ws) {
       console.error('[WebSocket] No hay token disponible');
-      this.ws.close();
+      this.ws?.close();
       return;
     }
 
-    this.ws.send(JSON.stringify({
+    const authMessage: AuthMessage = {
       type: 'AUTH',
       token: token
-    }));
+    };
+
+    this.ws.send(JSON.stringify(authMessage));
 
     // Timeout de autenticación: 5 segundos
     this.authTimeout = setTimeout(() => {
       if (!this.isAuthenticated) {
         console.error('[WebSocket] Timeout de autenticación');
-        this.ws.close();
+        this.ws?.close();
       }
     }, 5000);
   }
 
-  handleMessage(event) {
+  private handleMessage(event: MessageEvent): void {
     try {
-      const message = JSON.parse(event.data);
+      const message: WebSocketMessage = JSON.parse(event.data);
 
       // Manejar respuesta de autenticación
       if (message.type === 'auth-ok') {
         console.log('[WebSocket] Autenticación exitosa:', message.username || 'usuario');
         this.isAuthenticated = true;
-        clearTimeout(this.authTimeout);
+        if (this.authTimeout) {
+          clearTimeout(this.authTimeout);
+        }
         this.notifyHandlers('connection', { status: 'authenticated' });
         return;
       }
 
       if (message.type === 'error') {
         console.error('[WebSocket] Error del servidor:', message.message);
-        this.ws.close();
+        this.ws?.close();
         return;
       }
 
@@ -86,33 +123,35 @@ export class WebSocketClient {
     }
   }
 
-  handleError(error) {
+  private handleError(error: Event): void {
     console.error('[WebSocket] Error:', error);
     this.notifyHandlers('error', { message: 'Error de conexion' });
   }
 
-  handleClose() {
+  private handleClose(): void {
     console.log('[WebSocket] Conexion cerrada. Reintentando en', this.reconnectTimeout, 'ms');
     this.isAuthenticated = false;
-    clearTimeout(this.authTimeout);
+    if (this.authTimeout) {
+      clearTimeout(this.authTimeout);
+    }
     setTimeout(() => this.connect(), this.reconnectTimeout);
   }
 
-  on(messageType, handler) {
+  on(messageType: string, handler: MessageHandler): void {
     if (!this.messageHandlers.has(messageType)) {
       this.messageHandlers.set(messageType, []);
     }
-    this.messageHandlers.get(messageType).push(handler);
+    this.messageHandlers.get(messageType)!.push(handler);
   }
 
-  notifyHandlers(messageType, payload) {
+  private notifyHandlers(messageType: string, payload?: unknown): void {
     const handlers = this.messageHandlers.get(messageType);
     if (handlers) {
       handlers.forEach(handler => handler(payload));
     }
   }
 
-  disconnect() {
+  disconnect(): void {
     if (this.ws) {
       this.ws.close();
       this.ws = null;

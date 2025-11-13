@@ -4,8 +4,13 @@
   "description": "Servicio de asistencia con QR dinamico via WebSocket",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
-    "build": "tsc",
+    "dev": "concurrently -n backend,frontend -c blue,green \"npm:dev:backend\" \"npm:dev:frontend\"",
+    "dev:backend": "tsx watch src/index.ts",
+    "dev:frontend": "vite",
+    "build": "npm run build:backend && npm run build:frontend",
+    "build:backend": "tsc",
+    "build:frontend": "vite build",
+    "preview": "vite preview",
     "start": "node dist/index.js",
     "type-check": "tsc --noEmit"
   },
@@ -13,6 +18,7 @@
     "fastify": "4.28.1",
     "@fastify/websocket": "10.0.1",
     "@fastify/static": "^7.0.4",
+    "@fastify/http-proxy": "^9.5.0",
     "ioredis": "5.4.1",
     "qrcode": "^1.5.3",
     "jsonwebtoken": "^9.0.2"
@@ -22,8 +28,10 @@
     "@types/qrcode": "^1.5.5",
     "@types/ws": "^8.5.10",
     "@types/jsonwebtoken": "^9.0.5",
+    "concurrently": "^9.1.0",
     "tsx": "^4.16.2",
-    "typescript": "5.5.4"
+    "typescript": "5.5.4",
+    "vite": "^6.0.1"
   },
   "engines": {
     "node": ">=20.0.0"

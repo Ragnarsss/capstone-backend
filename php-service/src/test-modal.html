@@ -102,11 +102,45 @@
     </div>
 
     <script>
-        function openModal() {
+        async function openModal() {
             console.log('[Test] Abriendo modal...');
-            document.getElementById('asistenciaModal').style.display = 'block';
-            // Recarga el iframe para asegurar conexion fresca
-            document.getElementById('asistenciaFrame').src = '/asistencia';
+            
+            try {
+                // 1. Obtener JWT del backend PHP
+                console.log('[Test] Obteniendo token JWT...');
+                const response = await fetch('/api_puente_minodo.php?action=get_token');
+                const data = await response.json();
+                
+                if (!data.success) {
+                    console.error('[Test] Error obteniendo token:', data.error);
+                    alert('Error: ' + (data.message || 'No se pudo obtener el token de autenticación'));
+                    return;
+                }
+                
+                console.log('[Test] Token obtenido exitosamente para usuario:', data.username);
+                
+                // 2. Abrir modal
+                const modal = document.getElementById('asistenciaModal');
+                const iframe = document.getElementById('asistenciaFrame');
+                modal.style.display = 'block';
+                
+                // 3. Cargar iframe y esperar que cargue
+                iframe.src = '/asistencia';
+                
+                // 4. Cuando el iframe cargue, enviar el JWT via postMessage
+                iframe.onload = function() {
+                    console.log('[Test] Iframe cargado, enviando token JWT...');
+                    iframe.contentWindow.postMessage({
+                        type: 'AUTH_TOKEN',
+                        token: data.token
+                    }, window.location.origin);
+                    console.log('[Test] Token enviado al iframe');
+                };
+                
+            } catch (error) {
+                console.error('[Test] Error al abrir modal:', error);
+                alert('Error de conexión. Por favor verifica que el servidor esté funcionando.');
+            }
         }
 
         function closeModal() {

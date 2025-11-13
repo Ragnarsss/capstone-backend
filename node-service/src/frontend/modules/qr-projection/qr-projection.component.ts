@@ -2,7 +2,16 @@
  * QR Projection Component
  * Responsabilidad: Renderizado y actualización de UI para proyección de QR
  */
+interface DOMElements {
+  status: HTMLElement | null;
+  countdown: HTMLElement | null;
+  qrContainer: HTMLElement | null;
+  qrImage: HTMLImageElement | null;
+}
+
 export class QRProjectionComponent {
+  private readonly elements: DOMElements;
+
   constructor() {
     this.elements = {
       status: null,
@@ -12,29 +21,29 @@ export class QRProjectionComponent {
     };
   }
 
-  mount() {
+  mount(): void {
     this.elements.status = document.getElementById('status');
     this.elements.countdown = document.getElementById('countdown');
     this.elements.qrContainer = document.getElementById('qr-container');
-    this.elements.qrImage = document.getElementById('qr-image');
+    this.elements.qrImage = document.getElementById('qr-image') as HTMLImageElement | null;
   }
 
-  updateStatus(message) {
+  updateStatus(message: string): void {
     if (this.elements.status) {
       this.elements.status.textContent = message;
     }
   }
 
-  showCountdown(seconds) {
+  showCountdown(seconds: number): void {
     if (this.elements.countdown && this.elements.qrContainer) {
       this.elements.countdown.style.display = 'block';
-      this.elements.countdown.textContent = seconds;
+      this.elements.countdown.textContent = seconds.toString();
       this.elements.qrContainer.style.display = 'none';
       this.updateStatus('Iniciando en...');
     }
   }
 
-  showQRCode(qrData) {
+  showQRCode(qrData: string): void {
     if (this.elements.countdown && this.elements.qrContainer && this.elements.qrImage) {
       this.elements.countdown.style.display = 'none';
       this.elements.qrContainer.style.display = 'block';
@@ -43,21 +52,21 @@ export class QRProjectionComponent {
     }
   }
 
-  showError(message) {
+  showError(message: string): void {
     if (this.elements.status) {
       this.elements.status.innerHTML = `<div class="error">${message}</div>`;
     }
   }
 
-  showWaitingAuth() {
+  showWaitingAuth(): void {
     this.updateStatus('Esperando autenticación...');
   }
 
-  showConnecting() {
+  showConnecting(): void {
     this.updateStatus('Conectando...');
   }
 
-  showConnected() {
+  showConnected(): void {
     this.updateStatus('Preparando sistema...');
   }
 }

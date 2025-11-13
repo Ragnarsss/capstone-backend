@@ -2,16 +2,27 @@
  * Auth Service Module
  * Responsabilidad: Lógica de autenticación y manejo de tokens JWT
  */
-import { TokenStorage } from './token-storage.js';
+import { TokenStorage } from './token-storage';
+
+interface AuthMessage {
+  type: 'AUTH_TOKEN' | 'TOKEN_REFRESH';
+  token: string;
+}
+
+type AuthCallback = () => void;
 
 export class AuthService {
+  private readonly tokenStorage: TokenStorage;
+  private isAuthenticated: boolean;
+  private readonly onAuthCallbacks: AuthCallback[];
+
   constructor() {
     this.tokenStorage = new TokenStorage();
     this.isAuthenticated = false;
     this.onAuthCallbacks = [];
   }
 
-  initialize() {
+  initialize(): void {
     const storedToken = this.tokenStorage.get();
     if (storedToken) {
       this.isAuthenticated = true;
@@ -21,8 +32,8 @@ export class AuthService {
     this.setupMessageListener();
   }
 
-  setupMessageListener() {
-    window.addEventListener('message', (event) => {
+  private setupMessageListener(): void {
+    window.addEventListener('message', (event: MessageEvent<AuthMessage>) => {
       if (event.origin !== window.location.origin) {
         console.warn('[Auth] Mensaje de origen no confiable:', event.origin);
         return;
@@ -40,38 +51,38 @@ export class AuthService {
     });
   }
 
-  handleAuthToken(token) {
+  private handleAuthToken(token: string): void {
     this.tokenStorage.save(token);
     this.isAuthenticated = true;
     console.log('[Auth] Token recibido y almacenado');
     this.notifyAuthentication();
   }
 
-  handleTokenRefresh(token) {
+  private handleTokenRefresh(token: string): void {
     this.tokenStorage.save(token);
     console.log('[Auth] Token renovado');
   }
 
-  onAuthenticated(callback) {
+  onAuthenticated(callback: AuthCallback): void {
     this.onAuthCallbacks.push(callback);
     if (this.isAuthenticated) {
       callback();
     }
   }
 
-  notifyAuthentication() {
+  private notifyAuthentication(): void {
     this.onAuthCallbacks.forEach(callback => callback());
   }
 
-  getToken() {
+  getToken(): string | null {
     return this.tokenStorage.get();
   }
 
-  isUserAuthenticated() {
+  isUserAuthenticated(): boolean {
     return this.isAuthenticated;
   }
 
-  logout() {
+  logout(): void {
     this.tokenStorage.clear();
     this.isAuthenticated = false;
   }

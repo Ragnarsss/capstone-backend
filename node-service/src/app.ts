@@ -1,14 +1,19 @@
 import Fastify from 'fastify';
 import fastifyWebSocket from '@fastify/websocket';
-import fastifyStatic from '@fastify/static';
 import { config } from './shared/config';
 import { ValkeyClient } from './shared/infrastructure/valkey/valkey-client';
 import { WebSocketController } from './modules/qr-projection/presentation/websocket-controller';
 import { EnrollmentController } from './modules/enrollment/presentation/enrollment-controller';
+import { frontendPlugin } from './plugins/frontend-plugin';
 
 /**
  * Application Bootstrap
- * Responsabilidad: Composición de módulos y configuración de servidor
+ * Responsabilidad: Composición de módulos backend y registro de plugins
+ *
+ * Separación de Concerns:
+ * - Infraestructura compartida (Valkey, logging, WebSocket)
+ * - Módulos de dominio backend (QR Projection, Enrollment)
+ * - Plugin de frontend (desarrollo/producción) - registrado último
  */
 export async function createApp() {
   const fastify = Fastify({
@@ -17,39 +22,36 @@ export async function createApp() {
     },
   });
 
-  // Registrar plugin de WebSocket
+  // ========================================
+  // 1. INFRAESTRUCTURA COMPARTIDA
+  // ========================================
   await fastify.register(fastifyWebSocket);
 
-  // Registrar plugin de archivos estáticos para frontend
-  const frontendPath = process.cwd() + '/src/frontend';
-  console.log('[Server] Frontend path:', frontendPath);
-  await fastify.register(fastifyStatic, {
-    root: frontendPath,
-    prefix: '/frontend/',
-  });
-
-  // Inicializar infraestructura compartida
   const valkeyClient = ValkeyClient.getInstance();
   await valkeyClient.ping();
 
-  // Registrar módulos backend
+  // ========================================
+  // 2. MÓDULOS BACKEND (rutas específicas)
+  // ========================================
   const wsController = new WebSocketController();
   await wsController.register(fastify);
 
   const enrollmentController = new EnrollmentController();
   await enrollmentController.register(fastify);
 
-  // Health check
+  // Health check endpoint
   fastify.get('/health', async () => {
     return { status: 'ok', timestamp: Date.now() };
   });
 
-  // Página principal (servir index.html modular)
-  fastify.get('/', async (request, reply) => {
-    reply.header('Cache-Control', 'no-cache, no-store, must-revalidate');
-    reply.header('Pragma', 'no-cache');
-    reply.header('Expires', '0');
-    return reply.sendFile('app/index.html');
+  // ========================================
+  // 3. FRONTEND PLUGIN (catch-all, registrar último)
+  // ========================================
+  await fastify.register(frontendPlugin, {
+    isDevelopment: config.env.isDevelopment,
+    viteUrl: config.frontend.viteUrl,
+    vitePath: config.frontend.vitePath,
+    staticPath: config.frontend.staticPath,
   });
 
   // Shutdown graceful

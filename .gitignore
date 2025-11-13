@@ -4,6 +4,12 @@ dist/
 *.log
 npm-debug.log*
 
+# Vite
+.vite/
+node-service/src/frontend/**/*.js
+node-service/src/frontend/**/*.js.map
+!node-service/src/frontend/**/*.config.js
+
 # Environment
 .env
 .env.local

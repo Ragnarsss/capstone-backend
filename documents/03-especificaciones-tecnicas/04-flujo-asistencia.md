@@ -277,9 +277,6 @@ Output:
 ```
 
 ---
-```
-
----
 
 ## Paso 2: Generación de Payload QR
 

@@ -2,12 +2,17 @@
  * Main Application Entry Point
  * Responsabilidad: Orquestación e inicialización de módulos
  */
-import { AuthService } from '../modules/auth/auth.service.js';
-import { WebSocketClient } from '../modules/websocket/websocket.client.js';
-import { QRProjectionComponent } from '../modules/qr-projection/qr-projection.component.js';
-import { QRProjectionService } from '../modules/qr-projection/qr-projection.service.js';
+import { AuthService } from '../modules/auth/auth.service';
+import { WebSocketClient } from '../modules/websocket/websocket.client';
+import { QRProjectionComponent } from '../modules/qr-projection/qr-projection.component';
+import { QRProjectionService } from '../modules/qr-projection/qr-projection.service';
 
 class Application {
+  private authService: AuthService | null;
+  private wsClient: WebSocketClient | null;
+  private qrComponent: QRProjectionComponent | null;
+  private qrService: QRProjectionService | null;
+
   constructor() {
     this.authService = null;
     this.wsClient = null;
@@ -15,7 +20,7 @@ class Application {
     this.qrService = null;
   }
 
-  async initialize() {
+  async initialize(): Promise<void> {
     this.authService = new AuthService();
     this.authService.initialize();
 
@@ -35,10 +40,10 @@ class Application {
     }
   }
 
-  start() {
+  private start(): void {
     console.log('[App] Iniciando aplicación');
-    this.qrService.start();
-    this.wsClient.connect();
+    this.qrService?.start();
+    this.wsClient?.connect();
   }
 }
 

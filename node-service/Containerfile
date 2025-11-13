@@ -1,13 +1,14 @@
-# Multistage build para Node.js 20 LTS con TypeScript
+# Multistage build para Node.js 20 LTS con TypeScript + Vite
 
 # Etapa 1: Build (desarrollo y compilacion)
 FROM node:20-alpine3.20 AS builder
 
 WORKDIR /app
 
-# Copia archivos de dependencias
+# Copia archivos de dependencias y configuracion
 COPY package*.json ./
 COPY tsconfig.json ./
+COPY vite.config.ts ./
 
 # Instala dependencias incluyendo devDependencies
 RUN npm install
@@ -15,7 +16,7 @@ RUN npm install
 # Copia el codigo fuente
 COPY src ./src
 
-# Compila TypeScript a JavaScript
+# Compila backend TypeScript a JavaScript y frontend con Vite
 RUN npm run build
 
 # Etapa 2: Produccion (imagen final optimizada)
@@ -30,13 +31,8 @@ COPY package*.json ./
 RUN npm install --omit=dev
 
 # Copia el codigo compilado desde la etapa de build
+# dist/index.js (backend) y dist/frontend/ (frontend de Vite)
 COPY --from=builder /app/dist ./dist
-
-# Copiar assets frontend desde la etapa builder para que estén disponibles
-# en la imagen de producción. El servidor en runtime espera encontrar
-# process.cwd() + '/src/frontend'. Copiamos solo la carpeta frontend
-# para mantener la imagen pequeña.
-COPY --from=builder /app/src/frontend ./src/frontend
 
 # Usuario no-root por seguridad
 RUN addgroup -g 1001 nodejs && \
@@ -62,6 +58,7 @@ WORKDIR /app
 
 COPY package*.json ./
 COPY tsconfig.json ./
+COPY vite.config.ts ./
 
 RUN npm install
 

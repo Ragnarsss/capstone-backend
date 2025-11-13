@@ -9,16 +9,16 @@ Sistema de validación de asistencia universitaria con autenticación JWT y WebS
 ### Requisitos Previos
 
 - Podman + Podman Compose (o Docker + Docker Compose)
-- Puertos disponibles: 9500, 9501, 9502, 9503
+- Puertos disponibles: 9500, 9501, 9502, 9503, 9504 (dev)
 
 ### Iniciar Servicios
 
 ```bash
-# Desarrollo (con hot reload)
-podman-compose -f compose.yaml -f compose.dev.yaml up --build
+# Desarrollo (con hot reload y Vite dev server)
+podman compose -f compose.yaml -f compose.dev.yaml up --build
 
 # Producción
-podman-compose -f compose.yaml -f compose.prod.yaml up -d --build
+podman compose -f compose.yaml -f compose.prod.yaml up -d --build
 ```
 
 ### Acceso
@@ -30,13 +30,14 @@ podman-compose -f compose.yaml -f compose.prod.yaml up -d --build
 | PostgreSQL | 9501 | localhost:9501 | Base de datos | Dev + Prod |
 | Valkey | 9502 | localhost:9502 | Cache (Redis) | Dev + Prod |
 | Node.js API | 9503 | <http://localhost:9503> | API directa (bypass proxy) | **Solo Dev** |
+| Vite Dev Server | 9504 | <http://localhost:9504> | Frontend con HMR | **Solo Dev** |
 
 **Nota:** En producción, Node.js NO está expuesto directamente. Todo el tráfico pasa por el proxy Apache en el puerto 9500.
 
 ### Detener Servicios
 
 ```bash
-podman-compose down
+podman compose down
 ```
 
 ---
@@ -104,9 +105,10 @@ Ver carpeta **[documents/](documents/)** para:
 
 | Componente | Tecnología | Versión |
 |------------|------------|---------|
-| Frontend | PHP + Apache | 7.4 / 2.4 |
+| Frontend (PHP) | PHP + Apache | 7.4 / 2.4 |
+| Frontend (Node) | TypeScript + Vite | Latest |
 | Backend | Node.js + TypeScript | 20 LTS |
-| Framework | Fastify | Latest |
+| Framework Backend | Fastify | Latest |
 | Base de Datos | PostgreSQL | 18 |
 | Cache | Valkey | 7 |
 | Contenedores | Podman/Docker | Latest |
@@ -123,28 +125,29 @@ sudo lsof -i :9500
 sudo lsof -i :9501
 sudo lsof -i :9502
 sudo lsof -i :9503
+sudo lsof -i :9504  # Solo en desarrollo
 
 # Detener servicios anteriores
-podman-compose down
+podman compose down
 ```
 
 ### Rebuild completo
 
 ```bash
 # Limpiar todo y reconstruir
-podman-compose down -v
-podman-compose -f compose.yaml -f compose.dev.yaml up --build --force-recreate
+podman compose down -v
+podman compose -f compose.yaml -f compose.dev.yaml up --build --force-recreate
 ```
 
 ### Ver logs
 
 ```bash
 # Todos los servicios
-podman-compose logs -f
+podman compose logs -f
 
 # Servicio específico
-podman-compose logs -f node-service
-podman-compose logs -f php-service
+podman compose logs -f node-service
+podman compose logs -f php-service
 ```
 
 ---
@@ -185,4 +188,4 @@ Este proyecto es parte de un trabajo de titulación universitario.
 
 ---
 
-**Última actualización:** 2025-11-06
+**Última actualización:** 2025-11-12

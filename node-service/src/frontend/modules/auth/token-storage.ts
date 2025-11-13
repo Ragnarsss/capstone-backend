@@ -3,23 +3,25 @@
  * Responsabilidad: Gestión de almacenamiento de tokens JWT
  */
 export class TokenStorage {
+  private readonly storageKey: string;
+
   constructor() {
     this.storageKey = 'jwt_token';
   }
 
-  save(token) {
+  save(token: string): void {
     sessionStorage.setItem(this.storageKey, token);
   }
 
-  get() {
+  get(): string | null {
     return sessionStorage.getItem(this.storageKey);
   }
 
-  clear() {
+  clear(): void {
     sessionStorage.removeItem(this.storageKey);
   }
 
-  exists() {
+  exists(): boolean {
     return this.get() !== null;
   }
 }

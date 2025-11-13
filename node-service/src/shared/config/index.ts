@@ -1,9 +1,18 @@
 // Configuracion centralizada del servicio
 
 export const config = {
+  env: {
+    isDevelopment: process.env.NODE_ENV !== 'production',
+    isProduction: process.env.NODE_ENV === 'production',
+  },
   server: {
     host: process.env.HOST || '0.0.0.0',
     port: parseInt(process.env.PORT || '3000', 10),
+  },
+  frontend: {
+    viteUrl: process.env.VITE_URL || 'http://localhost:5173',
+    vitePath: process.env.VITE_BASE_PATH || '/asistencia/',
+    staticPath: process.env.STATIC_PATH || process.cwd() + '/dist/frontend',
   },
   valkey: {
     host: process.env.VALKEY_HOST || 'valkey',
@@ -13,7 +22,7 @@ export const config = {
     // Tiempo de countdown inicial antes de mostrar QR
     countdownSeconds: 5,
     // Intervalo de regeneracion de QR (en milisegundos)
-    regenerationInterval: 3000,
+    regenerationInterval: 300,
   },
   jwt: {
     // Secret para firmar JWT (debe coincidir con PHP)
