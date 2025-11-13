@@ -25,12 +25,16 @@ services:
     ports:
       # Puerto expuesto para debug/testing directo (bypass proxy PHP)
       - "9503:3000"
+      # Puerto de Vite dev server para frontend
+      - "9504:5173"
     volumes:
       # Monta el codigo fuente para desarrollo con hot reload
       # :z para compatibilidad SELinux en Podman (shared access)
-      - ./node-service/src:/app/src:ro,z
-      - ./node-service/package.json:/app/package.json:ro,z
-      - ./node-service/tsconfig.json:/app/tsconfig.json:ro,z
+      # En desarrollo NO usamos :ro para permitir builds, tests, etc.
+      - ./node-service/src:/app/src:z
+      - ./node-service/package.json:/app/package.json:z
+      - ./node-service/tsconfig.json:/app/tsconfig.json:z
+      - ./node-service/vite.config.ts:/app/vite.config.ts:z
       # Volume para node_modules (named volume, no necesita :z)
       - node-modules:/app/node_modules
     command: ["npm", "run", "dev"]
