@@ -4,6 +4,9 @@ import { config } from './shared/config';
 import { ValkeyClient } from './shared/infrastructure/valkey/valkey-client';
 import { WebSocketController } from './modules/qr-projection/presentation/websocket-controller';
 import { EnrollmentController } from './modules/enrollment/presentation/enrollment-controller';
+import { EnrollmentService } from './modules/enrollment/application/enrollment.service';
+import { EnrollmentChallengeRepository } from './modules/enrollment/infrastructure/enrollment-challenge.repository';
+import { SessionKeyRepository } from './modules/enrollment/infrastructure/session-key.repository';
 import { frontendPlugin } from './plugins/frontend-plugin';
 import { JWTUtils } from './modules/auth/domain/jwt-utils';
 import { AuthService } from './modules/auth/application/auth.service';
@@ -11,6 +14,8 @@ import { AuthMiddleware } from './modules/auth/presentation/auth-middleware';
 import { QRProjectionService } from './modules/qr-projection/application/qr-projection.service';
 import { WebSocketAuthGuard } from './modules/qr-projection/presentation/websocket-auth.guard';
 import { QRCodeLibraryRenderer } from './modules/qr-projection/infrastructure/qrcode-library.renderer';
+import { QRMetadataRepository } from './modules/qr-projection/infrastructure/qr-metadata.repository';
+import { ProjectionQueueRepository } from './modules/qr-projection/infrastructure/projection-queue.repository';
 
 /**
  * Application Bootstrap
@@ -51,7 +56,16 @@ export async function createApp() {
     width: 300,
   });
 
-  const qrProjectionService = new QRProjectionService(config.qr, qrRenderer);
+  // QR Projection repositories
+  const qrMetadataRepository = new QRMetadataRepository();
+  const projectionQueueRepository = new ProjectionQueueRepository();
+
+  const qrProjectionService = new QRProjectionService(
+    config.qr,
+    qrRenderer,
+    qrMetadataRepository,
+    projectionQueueRepository
+  );
   const wsAuthGuard = new WebSocketAuthGuard(jwtUtils, 5000);
 
   // ========================================
@@ -60,7 +74,16 @@ export async function createApp() {
   const wsController = new WebSocketController(qrProjectionService, wsAuthGuard);
   await wsController.register(fastify);
 
-  const enrollmentController = new EnrollmentController(authMiddleware);
+  // Enrollment repositories
+  const enrollmentChallengeRepository = new EnrollmentChallengeRepository();
+  const sessionKeyRepository = new SessionKeyRepository();
+
+  const enrollmentService = new EnrollmentService(
+    enrollmentChallengeRepository,
+    sessionKeyRepository
+  );
+
+  const enrollmentController = new EnrollmentController(enrollmentService, authMiddleware);
   await enrollmentController.register(fastify);
 
   // Health check endpoint

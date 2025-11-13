@@ -19,8 +19,8 @@ export class EnrollmentController {
   private service: EnrollmentService;
   private authMiddleware: AuthMiddleware;
 
-  constructor(authMiddleware: AuthMiddleware) {
-    this.service = new EnrollmentService();
+  constructor(enrollmentService: EnrollmentService, authMiddleware: AuthMiddleware) {
+    this.service = enrollmentService;
     this.authMiddleware = authMiddleware;
   }
 

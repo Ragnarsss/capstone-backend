@@ -31,11 +31,16 @@ export class QRProjectionService {
   private readonly config: QRProjectionConfig;
   private activeIntervals: Map<string, NodeJS.Timeout> = new Map();
 
-  constructor(config: QRProjectionConfig, qrRenderer: QRCodeRenderer) {
+  constructor(
+    config: QRProjectionConfig,
+    qrRenderer: QRCodeRenderer,
+    metadataRepository: QRMetadataRepository,
+    queueRepository: ProjectionQueueRepository
+  ) {
     this.config = config;
     this.qrGenerator = new QRGenerator(qrRenderer);
-    this.metadataRepository = new QRMetadataRepository();
-    this.queueRepository = new ProjectionQueueRepository();
+    this.metadataRepository = metadataRepository;
+    this.queueRepository = queueRepository;
   }
 
   generateSessionId(): string {

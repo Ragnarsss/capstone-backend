@@ -10,9 +10,12 @@ export class EnrollmentService {
   private challengeRepository: EnrollmentChallengeRepository;
   private sessionKeyRepository: SessionKeyRepository;
 
-  constructor() {
-    this.challengeRepository = new EnrollmentChallengeRepository();
-    this.sessionKeyRepository = new SessionKeyRepository();
+  constructor(
+    challengeRepository: EnrollmentChallengeRepository,
+    sessionKeyRepository: SessionKeyRepository
+  ) {
+    this.challengeRepository = challengeRepository;
+    this.sessionKeyRepository = sessionKeyRepository;
   }
 
   async createEnrollmentChallenge(userId: number, username: string, displayName?: string): Promise<{
