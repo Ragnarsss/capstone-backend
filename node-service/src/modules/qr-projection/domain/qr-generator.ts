@@ -1,11 +1,29 @@
-import QRCode from 'qrcode';
 import type { QRCode as QRCodeModel } from './models';
 
 /**
+ * Interfaz para renderizado de códigos QR
+ * Abstracción que permite cambiar la implementación sin afectar el dominio
+ */
+export interface QRCodeRenderer {
+  /**
+   * Renderiza un mensaje como código QR en formato Data URL
+   * @param message Mensaje a codificar
+   * @returns Promise con el Data URL del QR generado
+   */
+  renderToDataURL(message: string): Promise<string>;
+}
+
+/**
  * Domain service: Generación de códigos QR
- * Responsabilidad única: Lógica de generación de QR codes
+ * Responsabilidad: Orquestar la lógica de negocio de generación de QR codes
  */
 export class QRGenerator {
+  private readonly renderer: QRCodeRenderer;
+
+  constructor(renderer: QRCodeRenderer) {
+    this.renderer = renderer;
+  }
+
   private generateUniqueMessage(sessionId: string): string {
     const timestamp = Date.now();
     const random = Math.random().toString(36).substring(7);
@@ -14,12 +32,7 @@ export class QRGenerator {
 
   async generate(sessionId: string): Promise<QRCodeModel> {
     const message = this.generateUniqueMessage(sessionId);
-
-    const qrData = await QRCode.toDataURL(message, {
-      errorCorrectionLevel: 'M',
-      margin: 1,
-      width: 300,
-    });
+    const qrData = await this.renderer.renderToDataURL(message);
 
     return {
       data: qrData,

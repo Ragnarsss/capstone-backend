@@ -1,4 +1,4 @@
-import { QRGenerator } from '../domain/qr-generator';
+import { QRGenerator, type QRCodeRenderer } from '../domain/qr-generator';
 import type { QRCode, CountdownState } from '../domain/models';
 import { QRMetadataRepository } from '../infrastructure/qr-metadata.repository';
 import { ProjectionQueueRepository } from '../infrastructure/projection-queue.repository';
@@ -21,9 +21,9 @@ export class QRProjectionService {
   private queueRepository: ProjectionQueueRepository;
   private readonly config: QRProjectionConfig;
 
-  constructor(config: QRProjectionConfig) {
+  constructor(config: QRProjectionConfig, qrRenderer: QRCodeRenderer) {
     this.config = config;
-    this.qrGenerator = new QRGenerator();
+    this.qrGenerator = new QRGenerator(qrRenderer);
     this.metadataRepository = new QRMetadataRepository();
     this.queueRepository = new ProjectionQueueRepository();
   }
