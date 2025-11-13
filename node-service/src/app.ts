@@ -9,6 +9,7 @@ import { JWTUtils } from './modules/auth/domain/jwt-utils';
 import { AuthService } from './modules/auth/application/auth.service';
 import { AuthMiddleware } from './modules/auth/presentation/auth-middleware';
 import { QRProjectionService } from './modules/qr-projection/application/qr-projection.service';
+import { WebSocketAuthGuard } from './modules/qr-projection/presentation/websocket-auth.guard';
 
 /**
  * Application Bootstrap
@@ -42,11 +43,12 @@ export async function createApp() {
   const authService = new AuthService(jwtUtils);
   const authMiddleware = new AuthMiddleware(authService);
   const qrProjectionService = new QRProjectionService(config.qr);
+  const wsAuthGuard = new WebSocketAuthGuard(jwtUtils, 5000);
 
   // ========================================
   // 3. MÓDULOS BACKEND (rutas específicas)
   // ========================================
-  const wsController = new WebSocketController(qrProjectionService, jwtUtils);
+  const wsController = new WebSocketController(qrProjectionService, wsAuthGuard);
   await wsController.register(fastify);
 
   const enrollmentController = new EnrollmentController(authMiddleware);

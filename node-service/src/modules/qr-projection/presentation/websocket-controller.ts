@@ -2,20 +2,20 @@ import type { FastifyInstance } from 'fastify';
 import type { WebSocket } from 'ws';
 import { QRProjectionService } from '../application/qr-projection.service';
 import type { CountdownMessageDTO, QRUpdateMessageDTO } from './types';
-import { JWTUtils } from '../../auth/domain/jwt-utils';
+import { WebSocketAuthGuard } from './websocket-auth.guard';
 import type { AuthenticatedUser } from '../../auth/domain/models';
 
 /**
  * WebSocket Controller para QR Projection
- * Responsabilidad: Manejo de conexiones WebSocket con autenticación JWT y comunicación con clientes
+ * Responsabilidad: Manejo de conexiones WebSocket y comunicación de proyección de QR
  */
 export class WebSocketController {
   private service: QRProjectionService;
-  private jwtUtils: JWTUtils;
+  private authGuard: WebSocketAuthGuard;
 
-  constructor(service: QRProjectionService, jwtUtils: JWTUtils) {
+  constructor(service: QRProjectionService, authGuard: WebSocketAuthGuard) {
     this.service = service;
-    this.jwtUtils = jwtUtils;
+    this.authGuard = authGuard;
   }
 
   async register(fastify: FastifyInstance): Promise<void> {
@@ -23,120 +23,52 @@ export class WebSocketController {
   }
 
   private async handleConnection(socket: WebSocket, req: any): Promise<void> {
-    let isAuthenticated = false;
-    let user: AuthenticatedUser | null = null;
-    let authTimeout: NodeJS.Timeout;
     let isClosed = false;
 
     console.log('[WebSocket] Nueva conexión, esperando autenticación...');
 
-    // Timeout de autenticación: 5 segundos
-    authTimeout = setTimeout(() => {
-      if (!isAuthenticated) {
-        console.log('[WebSocket] Timeout de autenticación');
-        this.sendMessage(socket, {
-          type: 'error',
-          message: 'Timeout de autenticación. Debe enviar mensaje AUTH en 5 segundos.'
-        });
-        socket.close(4408, 'Auth timeout');
-      }
-    }, 5000);
+    // Autenticar usando el guard
+    const authResult = await this.authGuard.authenticate(socket);
 
+    // Si la autenticación falla, el guard ya cerró la conexión
+    if (!authResult.success || !authResult.user) {
+      console.log('[WebSocket] Autenticación fallida, conexión terminada');
+      return;
+    }
+
+    const user: AuthenticatedUser = authResult.user;
+
+    // Configurar handlers de cleanup
+    socket.on('close', () => {
+      isClosed = true;
+      console.log(`[WebSocket] Conexión cerrada: ${user.username}`);
+    });
+
+    socket.on('error', (error) => {
+      isClosed = true;
+      console.error('[WebSocket] Error en socket:', error);
+    });
+
+    // Handler para mensajes post-autenticación
     socket.on('message', async (data) => {
       try {
         const msg = JSON.parse(data.toString());
-
-        // FASE 1: Autenticación (primer mensaje debe ser AUTH)
-        if (!isAuthenticated) {
-          if (msg.type !== 'AUTH') {
-            console.log('[WebSocket] Primer mensaje no es AUTH:', msg.type);
-            this.sendMessage(socket, {
-              type: 'error',
-              message: 'Debe autenticar primero. Envíe mensaje tipo AUTH con token.'
-            });
-            socket.close(4401, 'No autenticado');
-            return;
-          }
-
-          if (!msg.token) {
-            console.log('[WebSocket] Mensaje AUTH sin token');
-            this.sendMessage(socket, {
-              type: 'error',
-              message: 'Token JWT requerido en mensaje AUTH'
-            });
-            socket.close(4401, 'Token faltante');
-            return;
-          }
-
-          try {
-            const payload = this.jwtUtils.verify(msg.token);
-            user = {
-              userId: payload.userId,
-              username: payload.username,
-              nombreCompleto: payload.nombreCompleto,
-              rol: payload.rol
-            };
-            isAuthenticated = true;
-            clearTimeout(authTimeout);
-
-            console.log(`[WebSocket] Usuario autenticado: ${user.username} (ID: ${user.userId})`);
-
-            this.sendMessage(socket, {
-              type: 'auth-ok',
-              username: user.username
-            });
-
-            // Iniciar proyección de QR
-            const sessionId = this.service.generateSessionId();
-            console.log(`[WebSocket] Iniciando proyección para sesión: ${sessionId}`);
-            
-            await this.runCountdownPhase(socket, sessionId, () => isClosed);
-
-            if (!isClosed && socket.readyState === 1) {
-              await this.startQRGenerationPhase(socket, sessionId);
-            }
-
-          } catch (error) {
-            console.error('[WebSocket] Error validando token:', error);
-            this.sendMessage(socket, {
-              type: 'error',
-              message: error instanceof Error ? error.message : 'Token inválido o expirado'
-            });
-            socket.close(4403, 'Token inválido');
-          }
-          return;
-        }
-
-        // FASE 2: Mensajes post-autenticación
         // Por ahora la proyección es unidireccional (servidor → cliente)
         // Pero aquí se pueden manejar comandos futuros como 'pause', 'resume', etc.
-        console.log(`[WebSocket] Mensaje de ${user?.username}:`, msg.type);
-
+        console.log(`[WebSocket] Mensaje de ${user.username}:`, msg.type);
       } catch (error) {
         console.error('[WebSocket] Error procesando mensaje:', error);
       }
     });
 
-    socket.on('close', () => {
-      isClosed = true;
-      clearTimeout(authTimeout);
-      if (user) {
-        console.log(`[WebSocket] Conexión cerrada: ${user.username}`);
-      } else {
-        console.log('[WebSocket] Conexión cerrada antes de autenticar');
-      }
-    });
+    // Iniciar proyección de QR
+    const sessionId = this.service.generateSessionId();
+    console.log(`[WebSocket] Iniciando proyección para sesión: ${sessionId}`);
 
-    socket.on('error', (error) => {
-      isClosed = true;
-      clearTimeout(authTimeout);
-      console.error('[WebSocket] Error en socket:', error);
-    });
-  }
+    await this.runCountdownPhase(socket, sessionId, () => isClosed);
 
-  private sendMessage(socket: WebSocket, message: any): void {
-    if (socket.readyState === 1) {
-      socket.send(JSON.stringify(message));
+    if (!isClosed && socket.readyState === 1) {
+      await this.startQRGenerationPhase(socket, sessionId);
     }
   }
 
