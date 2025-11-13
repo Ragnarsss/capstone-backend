@@ -1,3 +1,5 @@
+import { UserId } from './user-id';
+
 /**
  * Domain models para Authentication
  */
@@ -14,7 +16,7 @@ export interface JWTPayload {
 }
 
 export interface AuthenticatedUser {
-  readonly userId: number;
+  readonly userId: UserId;
   readonly username: string;
   readonly nombreCompleto?: string;
   readonly rol?: string;

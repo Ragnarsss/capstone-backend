@@ -44,12 +44,12 @@ export class EnrollmentController {
       const { displayName } = request.body || {};
 
       request.log.info({
-        userId: user.userId,
+        userId: user.userId.toNumber(),
         username: user.username,
       }, 'Iniciando enrolamiento FIDO2');
 
       const result = await this.service.createEnrollmentChallenge(
-        user.userId,
+        user.userId.toNumber(),
         user.username,
         displayName || user.nombreCompleto
       );
@@ -81,11 +81,11 @@ export class EnrollmentController {
       const { credential } = request.body;
 
       request.log.info({
-        userId: user.userId,
+        userId: user.userId.toNumber(),
         credentialId: credential?.id,
       }, 'Finalizando enrolamiento FIDO2');
 
-      const result = await this.service.verifyAndCompleteEnrollment(user.userId, credential);
+      const result = await this.service.verifyAndCompleteEnrollment(user.userId.toNumber(), credential);
 
       const response: FinishEnrollmentResponseDTO = {
         success: true,
@@ -115,10 +115,10 @@ export class EnrollmentController {
       const { publicKey, assertion } = request.body;
 
       request.log.info({
-        userId: user.userId,
+        userId: user.userId.toNumber(),
       }, 'Login ECDH iniciado');
 
-      const result = await this.service.performECDHLogin(user.userId, publicKey, assertion);
+      const result = await this.service.performECDHLogin(user.userId.toNumber(), publicKey, assertion);
 
       const response: LoginECDHResponseDTO = {
         success: true,
@@ -146,10 +146,10 @@ export class EnrollmentController {
       const user = request.user!;
 
       request.log.info({
-        userId: user.userId,
+        userId: user.userId.toNumber(),
       }, 'Verificando estado de enrolamiento');
 
-      const result = await this.service.checkEnrollmentStatus(user.userId);
+      const result = await this.service.checkEnrollmentStatus(user.userId.toNumber());
 
       const response: EnrollmentStatusResponseDTO = {
         success: true,

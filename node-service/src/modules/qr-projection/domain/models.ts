@@ -1,3 +1,5 @@
+import { SessionId } from './session-id';
+
 /**
  * Domain models para QR Projection
  * Sin dependencias externas, lógica de negocio pura
@@ -6,12 +8,12 @@
 export interface QRCode {
   readonly data: string;
   readonly timestamp: number;
-  readonly sessionId: string;
+  readonly sessionId: SessionId;
 }
 
 export interface QRMetadata {
   readonly userId: number;
-  readonly sessionId: string;
+  readonly sessionId: SessionId;
   readonly ronda: number;
   readonly timestampEnvio: number;
   readonly mostradoCount: number;
@@ -25,7 +27,7 @@ export interface CountdownState {
 }
 
 export interface ProjectionSession {
-  readonly sessionId: string;
+  readonly sessionId: SessionId;
   readonly startedAt: number;
   readonly isActive: boolean;
 }

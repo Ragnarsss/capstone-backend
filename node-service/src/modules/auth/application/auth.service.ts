@@ -1,5 +1,6 @@
 import { JWTUtils } from '../domain/jwt-utils';
 import type { AuthenticatedUser, JWTPayload } from '../domain/models';
+import { UserId } from '../domain/user-id';
 
 /**
  * Application Service para Authentication
@@ -29,7 +30,7 @@ export class AuthService {
 
   private mapToAuthenticatedUser(payload: JWTPayload): AuthenticatedUser {
     return {
-      userId: payload.userId,
+      userId: UserId.create(payload.userId),
       username: payload.username,
       nombreCompleto: payload.nombreCompleto,
       rol: payload.rol,

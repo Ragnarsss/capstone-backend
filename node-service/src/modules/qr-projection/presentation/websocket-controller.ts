@@ -83,7 +83,7 @@ export class WebSocketController {
           payload: {
             qrData: qrCode.data,
             timestamp: qrCode.timestamp,
-            sessionId: qrCode.sessionId,
+            sessionId: qrCode.sessionId.toString(),
           },
         };
         socket.send(JSON.stringify(message));

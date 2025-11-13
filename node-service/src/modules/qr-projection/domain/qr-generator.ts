@@ -1,4 +1,5 @@
 import type { QRCode as QRCodeModel } from './models';
+import { SessionId } from './session-id';
 
 /**
  * Interfaz para renderizado de códigos QR
@@ -24,13 +25,13 @@ export class QRGenerator {
     this.renderer = renderer;
   }
 
-  private generateUniqueMessage(sessionId: string): string {
+  private generateUniqueMessage(sessionId: SessionId): string {
     const timestamp = Date.now();
     const random = Math.random().toString(36).substring(7);
-    return `ASISTENCIA:${sessionId}:${timestamp}:${random}`;
+    return `ASISTENCIA:${sessionId.toString()}:${timestamp}:${random}`;
   }
 
-  async generate(sessionId: string): Promise<QRCodeModel> {
+  async generate(sessionId: SessionId): Promise<QRCodeModel> {
     const message = this.generateUniqueMessage(sessionId);
     const qrData = await this.renderer.renderToDataURL(message);
 
