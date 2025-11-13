@@ -2,8 +2,8 @@
  * QR Projection Service
  * Responsabilidad: Lógica de negocio para proyección de QR
  */
-import { QRProjectionComponent } from './qr-projection.component';
-import { WebSocketClient } from '../websocket/websocket.client';
+import { QRProjectionComponent } from '../presentation/qr-projection.component';
+import { WebSocketClient } from '../../websocket/infrastructure/websocket.client';
 
 interface ConnectionPayload {
   status: string;

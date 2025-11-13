@@ -2,7 +2,7 @@
  * WebSocket Client Module
  * Responsabilidad: Gestión de conexiones WebSocket con autenticación JWT
  */
-import { AuthService } from '../auth/auth.service';
+import { AuthService } from '../../auth/application/auth.service';
 
 interface WebSocketMessage {
   type: string;

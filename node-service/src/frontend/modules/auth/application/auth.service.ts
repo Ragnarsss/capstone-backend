@@ -2,7 +2,7 @@
  * Auth Service Module
  * Responsabilidad: Lógica de autenticación y manejo de tokens JWT
  */
-import { TokenStorage } from './token-storage';
+import { TokenStorage } from '../infrastructure/token-storage';
 
 interface AuthMessage {
   type: 'AUTH_TOKEN' | 'TOKEN_REFRESH';

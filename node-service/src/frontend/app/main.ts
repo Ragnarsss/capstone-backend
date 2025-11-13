@@ -2,10 +2,10 @@
  * Main Application Entry Point
  * Responsabilidad: Orquestación e inicialización de módulos
  */
-import { AuthService } from '../modules/auth/auth.service';
-import { WebSocketClient } from '../modules/websocket/websocket.client';
-import { QRProjectionComponent } from '../modules/qr-projection/qr-projection.component';
-import { QRProjectionService } from '../modules/qr-projection/qr-projection.service';
+import { AuthService } from '../modules/auth/application/auth.service';
+import { WebSocketClient } from '../modules/websocket/infrastructure/websocket.client';
+import { QRProjectionComponent } from '../modules/qr-projection/presentation/qr-projection.component';
+import { QRProjectionService } from '../modules/qr-projection/application/qr-projection.service';
 
 class Application {
   private authService: AuthService | null;
