@@ -12,6 +12,15 @@ export interface QRProjectionConfig {
 }
 
 /**
+ * Callbacks para eventos de proyección
+ */
+export interface ProjectionCallbacks {
+  onCountdown(seconds: number): Promise<void>;
+  onQRUpdate(qr: QRCode): Promise<void>;
+  shouldStop(): boolean;
+}
+
+/**
  * Application Service para QR Projection
  * Responsabilidad: Orquestar casos de uso de proyección de QR
  */
@@ -20,6 +29,7 @@ export class QRProjectionService {
   private metadataRepository: QRMetadataRepository;
   private queueRepository: ProjectionQueueRepository;
   private readonly config: QRProjectionConfig;
+  private activeIntervals: Map<string, NodeJS.Timeout> = new Map();
 
   constructor(config: QRProjectionConfig, qrRenderer: QRCodeRenderer) {
     this.config = config;
@@ -28,23 +38,84 @@ export class QRProjectionService {
     this.queueRepository = new ProjectionQueueRepository();
   }
 
-  async generateQRCode(sessionId: string): Promise<QRCode> {
-    return await this.qrGenerator.generate(sessionId);
-  }
-
-  async createCountdownState(secondsRemaining: number): Promise<CountdownState> {
-    return { secondsRemaining };
-  }
-
-  getCountdownDuration(): number {
-    return this.config.countdownSeconds;
-  }
-
-  getRegenerationInterval(): number {
-    return this.config.regenerationInterval;
-  }
-
   generateSessionId(): string {
     return `session-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+  }
+
+  /**
+   * Inicia una proyección completa: countdown + rotación de QR
+   */
+  async startProjection(sessionId: string, callbacks: ProjectionCallbacks): Promise<void> {
+    // Fase 1: Countdown
+    await this.runCountdownPhase(sessionId, callbacks);
+
+    // Verificar si debemos continuar después del countdown
+    if (callbacks.shouldStop()) {
+      return;
+    }
+
+    // Fase 2: Rotación de QR
+    await this.startQRRotation(sessionId, callbacks);
+  }
+
+  /**
+   * Detiene la rotación de QR para una sesión
+   */
+  stopProjection(sessionId: string): void {
+    const interval = this.activeIntervals.get(sessionId);
+    if (interval) {
+      clearInterval(interval);
+      this.activeIntervals.delete(sessionId);
+      console.log(`[QRProjectionService] Rotación detenida para ${sessionId}`);
+    }
+  }
+
+  private async runCountdownPhase(
+    sessionId: string,
+    callbacks: ProjectionCallbacks
+  ): Promise<void> {
+    const duration = this.config.countdownSeconds;
+
+    for (let i = duration; i > 0; i--) {
+      if (callbacks.shouldStop()) {
+        console.log(`[QRProjectionService] Countdown cancelado para ${sessionId}`);
+        return;
+      }
+
+      try {
+        await callbacks.onCountdown(i);
+      } catch (error) {
+        console.error(`[QRProjectionService] Error en countdown para ${sessionId}:`, error);
+        return;
+      }
+
+      await this.sleep(1000);
+    }
+  }
+
+  private async startQRRotation(
+    sessionId: string,
+    callbacks: ProjectionCallbacks
+  ): Promise<void> {
+    const interval = setInterval(async () => {
+      if (callbacks.shouldStop()) {
+        this.stopProjection(sessionId);
+        return;
+      }
+
+      try {
+        const qrCode = await this.qrGenerator.generate(sessionId);
+        await callbacks.onQRUpdate(qrCode);
+      } catch (error) {
+        console.error(`[QRProjectionService] Error generando QR para ${sessionId}:`, error);
+        this.stopProjection(sessionId);
+      }
+    }, this.config.regenerationInterval);
+
+    this.activeIntervals.set(sessionId, interval);
+  }
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }
