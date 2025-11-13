@@ -15,8 +15,8 @@ declare module 'fastify' {
 export class AuthMiddleware {
   private authService: AuthService;
 
-  constructor() {
-    this.authService = new AuthService();
+  constructor(authService: AuthService) {
+    this.authService = authService;
   }
 
   authenticate() {

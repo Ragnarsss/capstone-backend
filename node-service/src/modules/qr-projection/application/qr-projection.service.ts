@@ -2,7 +2,14 @@ import { QRGenerator } from '../domain/qr-generator';
 import type { QRCode, CountdownState } from '../domain/models';
 import { QRMetadataRepository } from '../infrastructure/qr-metadata.repository';
 import { ProjectionQueueRepository } from '../infrastructure/projection-queue.repository';
-import { config } from '../../../shared/config';
+
+/**
+ * Configuración requerida por QRProjectionService
+ */
+export interface QRProjectionConfig {
+  countdownSeconds: number;
+  regenerationInterval: number;
+}
 
 /**
  * Application Service para QR Projection
@@ -12,8 +19,10 @@ export class QRProjectionService {
   private qrGenerator: QRGenerator;
   private metadataRepository: QRMetadataRepository;
   private queueRepository: ProjectionQueueRepository;
+  private readonly config: QRProjectionConfig;
 
-  constructor() {
+  constructor(config: QRProjectionConfig) {
+    this.config = config;
     this.qrGenerator = new QRGenerator();
     this.metadataRepository = new QRMetadataRepository();
     this.queueRepository = new ProjectionQueueRepository();
@@ -28,11 +37,11 @@ export class QRProjectionService {
   }
 
   getCountdownDuration(): number {
-    return config.qr.countdownSeconds;
+    return this.config.countdownSeconds;
   }
 
   getRegenerationInterval(): number {
-    return config.qr.regenerationInterval;
+    return this.config.regenerationInterval;
   }
 
   generateSessionId(): string {

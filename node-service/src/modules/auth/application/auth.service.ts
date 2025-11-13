@@ -8,8 +8,8 @@ import type { AuthenticatedUser, JWTPayload } from '../domain/models';
 export class AuthService {
   private jwtUtils: JWTUtils;
 
-  constructor() {
-    this.jwtUtils = new JWTUtils();
+  constructor(jwtUtils: JWTUtils) {
+    this.jwtUtils = jwtUtils;
   }
 
   authenticateFromHeader(authHeader: string | undefined): AuthenticatedUser {

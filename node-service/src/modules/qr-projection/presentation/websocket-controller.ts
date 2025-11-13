@@ -13,9 +13,9 @@ export class WebSocketController {
   private service: QRProjectionService;
   private jwtUtils: JWTUtils;
 
-  constructor() {
-    this.service = new QRProjectionService();
-    this.jwtUtils = new JWTUtils();
+  constructor(service: QRProjectionService, jwtUtils: JWTUtils) {
+    this.service = service;
+    this.jwtUtils = jwtUtils;
   }
 
   async register(fastify: FastifyInstance): Promise<void> {

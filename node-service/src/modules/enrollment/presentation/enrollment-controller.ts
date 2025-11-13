@@ -19,9 +19,9 @@ export class EnrollmentController {
   private service: EnrollmentService;
   private authMiddleware: AuthMiddleware;
 
-  constructor() {
+  constructor(authMiddleware: AuthMiddleware) {
     this.service = new EnrollmentService();
-    this.authMiddleware = new AuthMiddleware();
+    this.authMiddleware = authMiddleware;
   }
 
   async register(fastify: FastifyInstance): Promise<void> {

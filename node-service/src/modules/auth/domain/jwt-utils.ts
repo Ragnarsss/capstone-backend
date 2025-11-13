@@ -1,17 +1,33 @@
-import jwt from 'jsonwebtoken';
-import { config } from '../../../shared/config';
+import jwt, { type Secret } from 'jsonwebtoken';
+import type { StringValue } from 'ms';
 import type { JWTPayload } from './models';
+
+/**
+ * Configuración requerida por JWTUtils
+ */
+export interface JWTConfig {
+  secret: Secret;
+  expiresIn: StringValue | number;
+  issuer: string;
+  audience: string;
+}
 
 /**
  * Domain service: JWT utilities
  * Responsabilidad: Validación y generación de JWT
  */
 export class JWTUtils {
+  private readonly config: JWTConfig;
+
+  constructor(config: JWTConfig) {
+    this.config = config;
+  }
+
   verify(token: string): JWTPayload {
     try {
-      const decoded = jwt.verify(token, config.jwt.secret, {
-        issuer: config.jwt.issuer,
-        audience: config.jwt.audience,
+      const decoded = jwt.verify(token, this.config.secret, {
+        issuer: this.config.issuer,
+        audience: this.config.audience,
       }) as JWTPayload;
 
       if (!decoded.userId || !decoded.username) {
@@ -31,10 +47,10 @@ export class JWTUtils {
   }
 
   generate(payload: Omit<JWTPayload, 'iat' | 'exp' | 'iss' | 'aud'>): string {
-    return jwt.sign(payload, config.jwt.secret, {
-      expiresIn: config.jwt.expiresIn,
-      issuer: config.jwt.issuer,
-      audience: config.jwt.audience,
+    return jwt.sign(payload, this.config.secret, {
+      expiresIn: this.config.expiresIn,
+      issuer: this.config.issuer,
+      audience: this.config.audience,
     });
   }
 
