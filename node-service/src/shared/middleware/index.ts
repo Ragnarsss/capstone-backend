@@ -4,3 +4,4 @@
  */
 
 export { securityHeadersMiddleware } from './security-headers.middleware';
+export { corsMiddleware } from './cors.middleware';
