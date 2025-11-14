@@ -2,6 +2,7 @@ import Fastify from 'fastify';
 import fastifyWebSocket from '@fastify/websocket';
 import { config } from './shared/config';
 import { ValkeyClient } from './shared/infrastructure/valkey/valkey-client';
+import { securityHeadersMiddleware } from './shared/middleware';
 import { WebSocketController } from './backend/qr-projection/presentation/websocket-controller';
 import { EnrollmentController } from './backend/enrollment/presentation/enrollment-controller';
 import { EnrollmentService } from './backend/enrollment/application/enrollment.service';
@@ -22,6 +23,7 @@ import { ProjectionQueueRepository } from './backend/qr-projection/infrastructur
  *
  * Separación de Concerns:
  * - Infraestructura compartida (Valkey, logging, WebSocket)
+ * - Middlewares globales (seguridad)
  * - Módulos de dominio backend (QR Projection, Enrollment)
  * - Plugin de frontend (desarrollo/producción) - registrado último
  */
@@ -41,7 +43,12 @@ export async function createApp() {
   await valkeyClient.ping();
 
   // ========================================
-  // 2. DEPENDENCY INJECTION - Composition Root
+  // 2. MIDDLEWARES GLOBALES
+  // ========================================
+  securityHeadersMiddleware(fastify);
+
+  // ========================================
+  // 3. DEPENDENCY INJECTION - Composition Root
   // ========================================
   // Crear instancias de servicios compartidos con configuración inyectada
   const jwtUtils = new JWTUtils(config.jwt);
@@ -60,7 +67,7 @@ export async function createApp() {
   const wsAuthGuard = new WebSocketAuthGuard(jwtUtils, 5000);
 
   // ========================================
-  // 3. MÓDULOS BACKEND (rutas específicas)
+  // 4. MÓDULOS BACKEND (rutas específicas)
   // ========================================
   const wsController = new WebSocketController(qrProjectionService, wsAuthGuard);
   await wsController.register(fastify);
@@ -83,7 +90,7 @@ export async function createApp() {
   });
 
   // ========================================
-  // 3. FRONTEND PLUGIN (catch-all, registrar último)
+  // 5. FRONTEND PLUGIN (catch-all, registrar último)
   // ========================================
   await fastify.register(frontendPlugin, {
     isDevelopment: config.env.isDevelopment,
