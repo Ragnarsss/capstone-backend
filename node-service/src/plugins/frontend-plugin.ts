@@ -29,24 +29,10 @@ export async function frontendPlugin(
   } = options;
 
   if (isDevelopment) {
-    // Modo desarrollo: Rutas directas + Proxy a Vite para assets
-    fastify.log.info('[Frontend] Development mode: serving HTML + proxying assets to Vite');
+    // Modo desarrollo: Proxy completo a Vite
+    fastify.log.info('[Frontend] Development mode: proxying to Vite dev server');
     fastify.log.info(`[Frontend] Vite URL: ${viteUrl}${vitePath}`);
 
-    // Rutas HTML directas (302 redirect a URLs de Vite)
-    fastify.get('/', async (_request, reply) => {
-      return reply.redirect(302, `${viteUrl}${vitePath}features/qr-host/`);
-    });
-
-    fastify.get('/lector', async (_request, reply) => {
-      return reply.redirect(302, `${viteUrl}${vitePath}features/qr-reader/`);
-    });
-
-    fastify.get('/lector/', async (_request, reply) => {
-      return reply.redirect(302, `${viteUrl}${vitePath}features/qr-reader/`);
-    });
-
-    // Proxy solo para assets (js, css, etc)
     await fastify.register(fastifyHttpProxy, {
       upstream: viteUrl,
       prefix: '/',
