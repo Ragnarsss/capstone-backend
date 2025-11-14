@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite';
+import path from 'path';
 
 /**
  * Vite Configuration
@@ -19,7 +20,15 @@ export default defineConfig({
   build: {
     outDir: '../../dist/frontend',
     emptyOutDir: true,
+    rollupOptions: {
+      input: {
+        app: path.resolve(__dirname, 'src/frontend/index.html'),
+        lector: path.resolve(__dirname, 'src/frontend/lector/index.html'),
+      },
+    },
   },
+
+  appType: 'mpa',
 
   // Configuración del dev server
   server: {

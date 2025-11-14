@@ -67,7 +67,15 @@ session_start();
             line-height: 1.6;
         }
 
-        .btn-asistencia {
+        .button-group {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .btn-main {
+            display: block;
+            width: 100%;
             background: rgb(255, 128, 0);
             color: white;
             border: none;
@@ -80,13 +88,18 @@ session_start();
             box-shadow: 0 4px 15px rgba(255, 128, 0, 0.4);
         }
 
-        .btn-asistencia:hover {
+        .btn-main:hover {
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(255, 128, 0, 0.6);
         }
 
-        .btn-asistencia:active {
+        .btn-main:active {
             transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: #1f2937;
+            box-shadow: 0 4px 15px rgba(31, 41, 55, 0.4);
         }
 
         /* Modal overlay */
@@ -167,9 +180,14 @@ session_start();
             <p>
                 Al hacer click, obtienes un JWT desde PHP y el modal se abre con autenticación segura.
             </p>
-            <button class="btn-asistencia" onclick="openAsistenciaModal()">
-                ASISTENCIA
-            </button>
+            <div class="button-group">
+                <button class="btn-main" onclick="openAsistenciaModal()">
+                    PROYECTAR QR
+                </button>
+                <button class="btn-main btn-secondary" onclick="openLectorModal()">
+                    LECTOR QR
+                </button>
+            </div>
         </div>
     </main>
 
@@ -189,23 +207,50 @@ session_start();
         </div>
     </div>
 
+    <!-- Modal lector QR -->
+    <div class="modal-overlay" id="modalReaderOverlay">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3>Lector de QR</h3>
+                <button class="btn-close" onclick="closeLectorModal()">&times;</button>
+            </div>
+            <iframe
+                id="lectorFrame"
+                class="modal-content"
+                src=""
+                title="Lector QR"
+                allow="camera"
+            ></iframe>
+        </div>
+    </div>
+
     <script>
         // ============================================
-        // JWT + postMessage Integration
+        // JWT + postMessage Integration (Proyección y Lector)
         // ============================================
-        async function openAsistenciaModal() {
-            const modal = document.getElementById('modalOverlay');
-            const iframe = document.getElementById('asistenciaFrame');
+        async function fetchAuthToken() {
+            const response = await fetch('/api_puente_minodo.php?action=get_token', {
+                credentials: 'include'
+            });
+
+            if (!response.ok) {
+                throw new Error('No se pudo obtener el token');
+            }
+
+            return response.json();
+        }
+
+        async function openSecureModal(modalId, iframeId, targetPath) {
+            const modal = document.getElementById(modalId);
+            const iframe = document.getElementById(iframeId);
+
+            if (!modal || !iframe) {
+                console.error('[Modal] Elementos no encontrados:', modalId, iframeId);
+                return;
+            }
 
             try {
-                console.log('[Modal] Obteniendo JWT desde PHP...');
-
-                // 1. Obtener JWT desde PHP
-                const response = await fetch('/api_puente_minodo.php?action=get_token', {
-                    credentials: 'include' // Incluir cookies de sesión PHP
-                });
-
-                const data = await response.json();
+                const data = await fetchAuthToken();
 
                 if (!data.success) {
                     alert('Error de autenticación. Por favor recarga la página.');
@@ -213,53 +258,65 @@ session_start();
                     return;
                 }
 
-                console.log('[Modal] JWT obtenido exitosamente');
-
-                // 2. Cargar iframe
-                iframe.src = '/asistencia/';
-
-                // 3. Enviar token cuando el iframe cargue
-                iframe.onload = function() {
-                    console.log('[Modal] Iframe cargado, enviando token...');
-
+                iframe.src = targetPath;
+                iframe.onload = function () {
                     iframe.contentWindow.postMessage({
                         type: 'AUTH_TOKEN',
                         token: data.token
                     }, window.location.origin);
-
-                    console.log('[Modal] Token enviado al iframe');
                 };
 
-                // 4. Mostrar modal
                 modal.classList.add('active');
-
             } catch (error) {
                 console.error('[Modal] Error:', error);
                 alert('Error de conexión. Intenta de nuevo.');
             }
         }
 
-        function closeAsistenciaModal() {
-            const modal = document.getElementById('modalOverlay');
-            const iframe = document.getElementById('asistenciaFrame');
+        function closeModal(modalId, iframeId) {
+            const modal = document.getElementById(modalId);
+            const iframe = document.getElementById(iframeId);
+
+            if (!modal || !iframe) return;
 
             modal.classList.remove('active');
-
-            // Limpia el iframe al cerrar
             iframe.src = '';
         }
 
-        // Cierra el modal si se hace click fuera del contenedor
-        document.getElementById('modalOverlay').addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeAsistenciaModal();
-            }
+        function openAsistenciaModal() {
+            openSecureModal('modalOverlay', 'asistenciaFrame', '/asistencia/');
+        }
+
+        function closeAsistenciaModal() {
+            closeModal('modalOverlay', 'asistenciaFrame');
+        }
+
+        function openLectorModal() {
+            openSecureModal('modalReaderOverlay', 'lectorFrame', '/asistencia/lector/');
+        }
+
+        function closeLectorModal() {
+            closeModal('modalReaderOverlay', 'lectorFrame');
+        }
+
+        ['modalOverlay', 'modalReaderOverlay'].forEach((modalId) => {
+            const modal = document.getElementById(modalId);
+            if (!modal) return;
+            modal.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    if (modalId === 'modalOverlay') {
+                        closeAsistenciaModal();
+                    } else {
+                        closeLectorModal();
+                    }
+                }
+            });
         });
 
-        // Cierra el modal con la tecla ESC
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
                 closeAsistenciaModal();
+                closeLectorModal();
             }
         });
     </script>

@@ -1,0 +1,106 @@
+/**
+ * QR Reader Styles
+ * Responsabilidad: Estilos del lector QR embebido en el iframe
+ */
+
+.container.scanner {
+  max-width: 640px;
+}
+
+.scanner__status {
+  margin-bottom: 16px;
+  font-weight: 500;
+  color: #444;
+}
+
+.scanner__video-wrapper {
+  position: relative;
+  width: 100%;
+  padding-top: 56.25%;
+  background: #111;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+.scanner__video-wrapper video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.scanner__overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 600;
+  background: rgba(0, 0, 0, 0.65);
+  transition: opacity 0.2s ease;
+}
+
+.scanner__controls {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.btn {
+  flex: 1;
+  padding: 14px 18px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.btn.primary {
+  background: #2563eb;
+  color: #fff;
+  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.3);
+}
+
+.btn.secondary {
+  background: #efefef;
+  color: #333;
+}
+
+.btn:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+.scanner__result {
+  margin-top: 24px;
+  padding: 16px;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  min-height: 64px;
+  text-align: left;
+  color: #111;
+  font-family: 'Source Code Pro', monospace;
+  word-break: break-word;
+}
+
+.scanner__result.success {
+  border-color: #22c55e;
+  background: #f0fdf4;
+  color: #14532d;
+}
+
+.scanner__result.error {
+  border-color: #ef4444;
+  background: #fef2f2;
+  color: #7f1d1d;
+}

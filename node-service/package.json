@@ -21,7 +21,9 @@
     "@fastify/http-proxy": "^9.5.0",
     "ioredis": "5.4.1",
     "qrcode": "^1.5.3",
-    "jsonwebtoken": "^9.0.2"
+    "jsonwebtoken": "^9.0.2",
+    "@zxing/browser": "^0.1.5",
+    "@zxing/library": "^0.21.0"
   },
   "devDependencies": {
     "@types/node": "^20.14.10",

@@ -1,4 +1,4 @@
-import { FastifyInstance } from 'fastify';
+import { FastifyInstance, FastifyReply } from 'fastify';
 import fastifyStatic from '@fastify/static';
 import fastifyHttpProxy from '@fastify/http-proxy';
 
@@ -50,12 +50,27 @@ export async function frontendPlugin(
       prefix: '/',
     });
 
-    // Ruta raíz sirve index.html con headers no-cache
-    fastify.get('/', async (_request, reply) => {
+    const sendNoCache = (reply: FastifyReply) => {
       reply.header('Cache-Control', 'no-cache, no-store, must-revalidate');
       reply.header('Pragma', 'no-cache');
       reply.header('Expires', '0');
+    };
+
+    // Ruta raíz
+    fastify.get('/', async (_request, reply) => {
+      sendNoCache(reply);
       return reply.sendFile('index.html');
+    });
+
+    // Ruta lector QR
+    fastify.get('/lector', async (_request, reply) => {
+      sendNoCache(reply);
+      return reply.sendFile('lector/index.html');
+    });
+
+    fastify.get('/lector/', async (_request, reply) => {
+      sendNoCache(reply);
+      return reply.sendFile('lector/index.html');
     });
   }
 
