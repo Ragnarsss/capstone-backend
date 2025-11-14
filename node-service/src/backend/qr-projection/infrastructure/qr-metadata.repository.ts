@@ -1,4 +1,5 @@
 import type { QRMetadata } from '../domain/models';
+import { SessionId } from '../domain/session-id';
 import { ValkeyClient } from '../../../shared/infrastructure/valkey/valkey-client';
 
 /**
@@ -9,10 +10,10 @@ export class QRMetadataRepository {
   private client = ValkeyClient.getInstance().getClient();
 
   async save(metadata: QRMetadata, ttlSeconds = 120): Promise<void> {
-    const key = this.buildKey(metadata.sessionId, metadata.userId, metadata.ronda);
+    const key = this.buildKey(metadata.sessionId.toString(), metadata.userId, metadata.ronda);
     const data = {
       userId: metadata.userId.toString(),
-      sessionId: metadata.sessionId,
+      sessionId: metadata.sessionId.toString(),
       ronda: metadata.ronda.toString(),
       timestampEnvio: metadata.timestampEnvio.toString(),
       mostradoCount: metadata.mostradoCount.toString(),
@@ -37,7 +38,7 @@ export class QRMetadataRepository {
 
     return {
       userId: parseInt(data.userId, 10),
-      sessionId: data.sessionId,
+      sessionId: SessionId.create(data.sessionId),
       ronda: parseInt(data.ronda, 10),
       timestampEnvio: parseInt(data.timestampEnvio, 10),
       mostradoCount: parseInt(data.mostradoCount, 10),

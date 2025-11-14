@@ -1,5 +1,6 @@
 import type { WebSocket } from 'ws';
 import { JWTUtils } from '../../auth/domain/jwt-utils';
+import { UserId } from '../../auth/domain/user-id';
 import type { AuthenticatedUser } from '../../auth/domain/models';
 
 /**
@@ -97,7 +98,7 @@ export class WebSocketAuthGuard {
           try {
             const payload = this.jwtUtils.verify(msg.token);
             const user: AuthenticatedUser = {
-              userId: payload.userId,
+              userId: UserId.create(payload.userId),
               username: payload.username,
               nombreCompleto: payload.nombreCompleto,
               rol: payload.rol
@@ -106,7 +107,7 @@ export class WebSocketAuthGuard {
             this.cleanupListeners(socket, messageHandler);
             clearTimeout(authTimeout);
 
-            console.log(`[WebSocket Auth] Usuario autenticado: ${user.username} (ID: ${user.userId})`);
+            console.log(`[WebSocket Auth] Usuario autenticado: ${user.username} (ID: ${user.userId.toNumber()})`);
 
             this.sendMessage(socket, {
               type: 'auth-ok',

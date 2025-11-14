@@ -54,21 +54,37 @@ export async function frontendPlugin(
       prefix: '/',
     });
 
-    // Ruta raiz: QR Host
+    // Rutas compatibles con proxy Apache que preserva el prefijo /asistencia/
+    // Sirven los mismos archivos estáticos en ambas rutas para evitar 404
     fastify.get('/', async (_request, reply) => {
       noCacheHeaders(reply);
-      return reply.sendFile('qr-host/index.html');
+      return reply.sendFile('features/qr-host/index.html');
     });
 
-    // Ruta lector QR: QR Reader
+    fastify.get('/asistencia', async (_request, reply) => {
+      noCacheHeaders(reply);
+      return reply.sendFile('features/qr-host/index.html');
+    });
+
+    fastify.get('/asistencia/', async (_request, reply) => {
+      noCacheHeaders(reply);
+      return reply.sendFile('features/qr-host/index.html');
+    });
+
+    // Ruta lector QR: QR Reader (compatibilidad con y sin prefijo)
     fastify.get('/lector', async (_request, reply) => {
       noCacheHeaders(reply);
-      return reply.sendFile('qr-reader/index.html');
+      return reply.sendFile('features/qr-reader/index.html');
     });
 
-    fastify.get('/lector/', async (_request, reply) => {
+    fastify.get('/asistencia/lector', async (_request, reply) => {
       noCacheHeaders(reply);
-      return reply.sendFile('qr-reader/index.html');
+      return reply.sendFile('features/qr-reader/index.html');
+    });
+
+    fastify.get('/asistencia/lector/', async (_request, reply) => {
+      noCacheHeaders(reply);
+      return reply.sendFile('features/qr-reader/index.html');
     });
   }
 

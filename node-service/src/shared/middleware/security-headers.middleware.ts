@@ -21,7 +21,9 @@ interface SecurityHeadersConfig {
 }
 
 const DEFAULT_CONFIG: SecurityHeadersConfig = {
-  xFrameOptions: 'DENY',
+  // Por defecto usar SAMEORIGIN para permitir que Apache (mismo origin) embeba contenido
+  // Si se desea bloquear embedding completamente, puede sobreescribirse a 'DENY'
+  xFrameOptions: 'SAMEORIGIN',
   contentTypeNosniff: true,
   xssProtection: true,
   referrerPolicy: 'strict-origin-when-cross-origin',
