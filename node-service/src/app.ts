@@ -13,7 +13,6 @@ import { AuthService } from './modules/auth/application/auth.service';
 import { AuthMiddleware } from './modules/auth/presentation/auth-middleware';
 import { QRProjectionService } from './modules/qr-projection/application/qr-projection.service';
 import { WebSocketAuthGuard } from './modules/qr-projection/presentation/websocket-auth.guard';
-import { QRCodeLibraryRenderer } from './modules/qr-projection/infrastructure/qrcode-library.renderer';
 import { QRMetadataRepository } from './modules/qr-projection/infrastructure/qr-metadata.repository';
 import { ProjectionQueueRepository } from './modules/qr-projection/infrastructure/projection-queue.repository';
 
@@ -49,20 +48,12 @@ export async function createApp() {
   const authService = new AuthService(jwtUtils);
   const authMiddleware = new AuthMiddleware(authService);
 
-  // QR Renderer con configuración
-  const qrRenderer = new QRCodeLibraryRenderer({
-    errorCorrectionLevel: 'M',
-    margin: 1,
-    width: 300,
-  });
-
   // QR Projection repositories
   const qrMetadataRepository = new QRMetadataRepository();
   const projectionQueueRepository = new ProjectionQueueRepository();
 
   const qrProjectionService = new QRProjectionService(
     config.qr,
-    qrRenderer,
     qrMetadataRepository,
     projectionQueueRepository
   );

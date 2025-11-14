@@ -24,10 +24,15 @@ export interface CountdownMessageDTO extends WebSocketMessage {
   };
 }
 
+/**
+ * Mensaje de actualización de QR
+ * Ahora envía solo el mensaje/payload, no la imagen renderizada
+ * El frontend se encarga de generar la imagen QR
+ */
 export interface QRUpdateMessageDTO extends WebSocketMessage {
   type: 'qr-update';
   payload: {
-    qrData: string;
+    message: string;
     timestamp: number;
     sessionId: string;
   };

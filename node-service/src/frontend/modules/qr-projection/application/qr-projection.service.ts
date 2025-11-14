@@ -1,7 +1,11 @@
 /**
  * QR Projection Service
  * Responsabilidad: Lógica de negocio para proyección de QR
+ * 
+ * Este servicio recibe el payload/mensaje del backend y genera la imagen QR
+ * en el navegador para reducir carga del servidor y mejorar escalabilidad.
  */
+import QRCode from 'qrcode';
 import { QRProjectionComponent } from '../presentation/qr-projection.component';
 import { WebSocketClient } from '../../websocket/infrastructure/websocket.client';
 
@@ -14,7 +18,9 @@ interface CountdownPayload {
 }
 
 interface QRUpdatePayload {
-  qrData: string;
+  message: string;
+  timestamp: number;
+  sessionId: string;
 }
 
 interface ErrorPayload {
@@ -49,9 +55,21 @@ export class QRProjectionService {
     this.component.showCountdown(countdownPayload.seconds);
   }
 
-  private handleQRUpdate(payload: unknown): void {
+  private async handleQRUpdate(payload: unknown): Promise<void> {
     const qrPayload = payload as QRUpdatePayload;
-    this.component.showQRCode(qrPayload.qrData);
+    
+    try {
+      const qrImageDataURL = await QRCode.toDataURL(qrPayload.message, {
+        errorCorrectionLevel: 'M',
+        margin: 1,
+        width: 300,
+      });
+      
+      this.component.showQRCode(qrImageDataURL);
+    } catch (error) {
+      console.error('[QRProjectionService] Error generando imagen QR:', error);
+      this.component.showError('Error al generar código QR');
+    }
   }
 
   private handleError(payload: unknown): void {

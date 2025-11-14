@@ -39,7 +39,7 @@ export interface CountdownPayload {
 }
 
 export interface QRUpdatePayload {
-  readonly qrData: string;
+  readonly message: string;
   readonly timestamp: number;
   readonly sessionId: string;
 }

@@ -1,19 +1,25 @@
+/**
+ * @deprecated Este archivo ya no se utiliza
+ * 
+ * La generación de imágenes QR ahora se realiza en el frontend
+ * para reducir carga del servidor y mejorar escalabilidad.
+ * 
+ * Backend solo genera el payload/mensaje del QR.
+ * Frontend usa la librería qrcode para renderizar la imagen.
+ * 
+ * Mantenido como referencia histórica.
+ */
+
+/*
 import QRCode from 'qrcode';
 import type { QRCodeRenderer } from '../domain/qr-generator';
 
-/**
- * Configuración para el renderizado de QR codes
- */
 export interface QRCodeRenderConfig {
   errorCorrectionLevel: 'L' | 'M' | 'Q' | 'H';
   margin: number;
   width: number;
 }
 
-/**
- * Implementación de QRCodeRenderer usando la librería 'qrcode'
- * Responsabilidad: Detalle técnico de cómo se genera el QR usando una librería específica
- */
 export class QRCodeLibraryRenderer implements QRCodeRenderer {
   private readonly config: QRCodeRenderConfig;
 
@@ -29,3 +35,4 @@ export class QRCodeLibraryRenderer implements QRCodeRenderer {
     });
   }
 }
+*/

@@ -77,13 +77,13 @@ export class WebSocketController {
         socket.send(JSON.stringify(message));
       },
 
-      onQRUpdate: async (qrCode) => {
+      onQRUpdate: async (qrPayload) => {
         const message: QRUpdateMessageDTO = {
           type: 'qr-update',
           payload: {
-            qrData: qrCode.data,
-            timestamp: qrCode.timestamp,
-            sessionId: qrCode.sessionId.toString(),
+            message: qrPayload.message,
+            timestamp: qrPayload.timestamp,
+            sessionId: qrPayload.sessionId.toString(),
           },
         };
         socket.send(JSON.stringify(message));

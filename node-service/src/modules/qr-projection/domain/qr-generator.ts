@@ -1,42 +1,25 @@
-import type { QRCode as QRCodeModel } from './models';
+import type { QRPayload } from './models';
 import { SessionId } from './session-id';
 
 /**
- * Interfaz para renderizado de códigos QR
- * Abstracción que permite cambiar la implementación sin afectar el dominio
- */
-export interface QRCodeRenderer {
-  /**
-   * Renderiza un mensaje como código QR en formato Data URL
-   * @param message Mensaje a codificar
-   * @returns Promise con el Data URL del QR generado
-   */
-  renderToDataURL(message: string): Promise<string>;
-}
-
-/**
- * Domain service: Generación de códigos QR
- * Responsabilidad: Orquestar la lógica de negocio de generación de QR codes
+ * Domain service: Generación de payloads QR
+ * Responsabilidad: Generar el mensaje/payload que será codificado en QR
+ * 
+ * Nota: El renderizado visual del QR se realiza en el frontend para reducir
+ * carga del servidor y mejorar escalabilidad
  */
 export class QRGenerator {
-  private readonly renderer: QRCodeRenderer;
-
-  constructor(renderer: QRCodeRenderer) {
-    this.renderer = renderer;
-  }
-
   private generateUniqueMessage(sessionId: SessionId): string {
     const timestamp = Date.now();
     const random = Math.random().toString(36).substring(7);
     return `ASISTENCIA:${sessionId.toString()}:${timestamp}:${random}`;
   }
 
-  async generate(sessionId: SessionId): Promise<QRCodeModel> {
+  generate(sessionId: SessionId): QRPayload {
     const message = this.generateUniqueMessage(sessionId);
-    const qrData = await this.renderer.renderToDataURL(message);
 
     return {
-      data: qrData,
+      message,
       timestamp: Date.now(),
       sessionId,
     };

@@ -1,5 +1,5 @@
-import { QRGenerator, type QRCodeRenderer } from '../domain/qr-generator';
-import type { QRCode, CountdownState } from '../domain/models';
+import { QRGenerator } from '../domain/qr-generator';
+import type { QRPayload } from '../domain/models';
 import { QRMetadataRepository } from '../infrastructure/qr-metadata.repository';
 import { ProjectionQueueRepository } from '../infrastructure/projection-queue.repository';
 import { SessionId } from '../domain/session-id';
@@ -17,13 +17,16 @@ export interface QRProjectionConfig {
  */
 export interface ProjectionCallbacks {
   onCountdown(seconds: number): Promise<void>;
-  onQRUpdate(qr: QRCode): Promise<void>;
+  onQRUpdate(payload: QRPayload): Promise<void>;
   shouldStop(): boolean;
 }
 
 /**
  * Application Service para QR Projection
  * Responsabilidad: Orquestar casos de uso de proyección de QR
+ * 
+ * Nota: Este servicio genera solo el payload/mensaje del QR.
+ * El renderizado visual se realiza en el frontend.
  */
 export class QRProjectionService {
   private qrGenerator: QRGenerator;
@@ -34,12 +37,11 @@ export class QRProjectionService {
 
   constructor(
     config: QRProjectionConfig,
-    qrRenderer: QRCodeRenderer,
     metadataRepository: QRMetadataRepository,
     queueRepository: ProjectionQueueRepository
   ) {
     this.config = config;
-    this.qrGenerator = new QRGenerator(qrRenderer);
+    this.qrGenerator = new QRGenerator();
     this.metadataRepository = metadataRepository;
     this.queueRepository = queueRepository;
   }
@@ -104,17 +106,17 @@ export class QRProjectionService {
     sessionId: SessionId,
     callbacks: ProjectionCallbacks
   ): Promise<void> {
-    const interval = setInterval(async () => {
+    const interval = setInterval(() => {
       if (callbacks.shouldStop()) {
         this.stopProjection(sessionId);
         return;
       }
 
       try {
-        const qrCode = await this.qrGenerator.generate(sessionId);
-        await callbacks.onQRUpdate(qrCode);
+        const qrPayload = this.qrGenerator.generate(sessionId);
+        callbacks.onQRUpdate(qrPayload);
       } catch (error) {
-        console.error(`[QRProjectionService] Error generando QR para ${sessionId.toString()}:`, error);
+        console.error(`[QRProjectionService] Error generando payload QR para ${sessionId.toString()}:`, error);
         this.stopProjection(sessionId);
       }
     }, this.config.regenerationInterval);
