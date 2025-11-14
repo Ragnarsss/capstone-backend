@@ -5,15 +5,18 @@ import path from 'path';
  * Vite Configuration
  * Responsabilidad: Configuración del bundler y dev server para frontend
  *
- * Nota: En esta arquitectura, Vite NO hace proxy a backend.
- * El flujo es: Apache -> Fastify (backend) -> Vite (frontend)
- * Las peticiones /ws y /api son manejadas por Fastify antes de llegar aquí.
+ * Flujo (desarrollo y producción):
+ * - Apache proxy: /asistencia/* -> Fastify :3000/*
+ * - Fastify proxy (dev): /* -> Vite :5173/*
+ * - Vite sirve con base: '/asistencia/' para que los assets tengan el prefijo correcto
+ * - Los HTMLs usan rutas relativas desde /asistencia/ (ej: /asistencia/shared/styles/base.css)
  */
 export default defineConfig({
   // Directorio raíz del frontend
   root: 'src/frontend',
 
-  // Base path para assets (debe coincidir con Apache ProxyPass)
+  // Base path para assets - Debe ser '/asistencia/' en todos los entornos
+  // porque Apache siempre hace proxy desde /asistencia/*
   base: '/asistencia/',
 
   // Configuración de build
@@ -32,13 +35,12 @@ export default defineConfig({
 
   // Configuración del dev server
   server: {
-    host: '0.0.0.0', // Escuchar en todas las interfaces (necesario para contenedores)
+    host: '0.0.0.0',
     port: 5173,
-    // Sin proxy: Fastify maneja el routing a backend
 
     // HMR: Hot Module Replacement via WebSocket
     hmr: {
-      clientPort: 9504, // Puerto accesible desde navegador (expuesto en compose.dev.yaml)
+      clientPort: 9504,
     },
   },
 

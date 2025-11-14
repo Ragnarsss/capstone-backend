@@ -19,7 +19,8 @@ export class WebSocketController {
   }
 
   async register(fastify: FastifyInstance): Promise<void> {
-    fastify.get('/ws', { websocket: true }, this.handleConnection.bind(this));
+    // Registrar en /asistencia/ws porque Apache preserve el prefijo
+    fastify.get('/asistencia/ws', { websocket: true }, this.handleConnection.bind(this));
   }
 
   private async handleConnection(socket: WebSocket, req: any): Promise<void> {

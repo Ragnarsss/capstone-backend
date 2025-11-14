@@ -29,14 +29,17 @@ export async function frontendPlugin(
   } = options;
 
   if (isDevelopment) {
-    // Modo desarrollo: Proxy completo a Vite
+    // Modo desarrollo: Proxy a Vite preservando el path completo
+    // Apache: /asistencia/* -> Fastify :3000/*
+    // Fastify: /* -> Vite :5173/* (conserva el path completo)
+    // Vite tiene base: '/asistencia/' y transforma las rutas en el HTML
     fastify.log.info('[Frontend] Development mode: proxying to Vite dev server');
-    fastify.log.info(`[Frontend] Vite URL: ${viteUrl}${vitePath}`);
+    fastify.log.info(`[Frontend] Vite URL: ${viteUrl}`);
 
+    // Registrar proxy en la raíz para capturar todo
     await fastify.register(fastifyHttpProxy, {
       upstream: viteUrl,
       prefix: '/',
-      rewritePrefix: vitePath,
       http2: false,
       websocket: false,
     });
