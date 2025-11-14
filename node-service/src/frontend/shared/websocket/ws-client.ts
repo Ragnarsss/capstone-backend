@@ -1,8 +1,8 @@
 /**
- * WebSocket Client Module
- * Responsabilidad: Gestión de conexiones WebSocket con autenticación JWT
+ * WebSocket Client
+ * Responsabilidad: Gestion de conexiones WebSocket con autenticacion JWT
  */
-import { AuthService } from '../../auth/application/auth.service';
+import type { AuthClient } from '../auth/auth-client';
 
 interface WebSocketMessage {
   type: string;
@@ -19,15 +19,15 @@ interface AuthMessage {
 type MessageHandler = (payload: unknown) => void;
 
 export class WebSocketClient {
-  private readonly authService: AuthService;
+  private readonly authClient: AuthClient;
   private ws: WebSocket | null;
   private readonly reconnectTimeout: number;
   private readonly messageHandlers: Map<string, MessageHandler[]>;
   private isAuthenticated: boolean;
   private authTimeout: ReturnType<typeof setTimeout> | null;
 
-  constructor(authService: AuthService) {
-    this.authService = authService;
+  constructor(authClient: AuthClient) {
+    this.authClient = authClient;
     this.ws = null;
     this.reconnectTimeout = 3000;
     this.messageHandlers = new Map();
@@ -36,16 +36,13 @@ export class WebSocketClient {
   }
 
   connect(): void {
-    if (!this.authService.isUserAuthenticated()) {
-      console.log('[WebSocket] Esperando autenticación JWT del padre...');
+    if (!this.authClient.isUserAuthenticated()) {
+      console.log('[WebSocket] Esperando autenticacion JWT del padre...');
       return;
     }
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     
-    // Detectar si estamos en contexto /asistencia/ (iframe de Apache)
-    // Si pathname comienza con /asistencia, usar /asistencia/ws
-    // Si no, usar /ws directo (desarrollo o root)
     let wsPath = '/ws';
     if (window.location.pathname.startsWith('/asistencia')) {
       wsPath = '/asistencia/ws';
@@ -65,10 +62,9 @@ export class WebSocketClient {
   }
 
   private handleOpen(): void {
-    console.log('[WebSocket] Conectado, enviando autenticación...');
+    console.log('[WebSocket] Conectado, enviando autenticacion...');
 
-    // Enviar token JWT como primer mensaje
-    const token = this.authService.getToken();
+    const token = this.authClient.getToken();
     if (!token || !this.ws) {
       console.error('[WebSocket] No hay token disponible');
       this.ws?.close();
@@ -82,10 +78,9 @@ export class WebSocketClient {
 
     this.ws.send(JSON.stringify(authMessage));
 
-    // Timeout de autenticación: 5 segundos
     this.authTimeout = setTimeout(() => {
       if (!this.isAuthenticated) {
-        console.error('[WebSocket] Timeout de autenticación');
+        console.error('[WebSocket] Timeout de autenticacion');
         this.ws?.close();
       }
     }, 5000);
@@ -95,9 +90,8 @@ export class WebSocketClient {
     try {
       const message: WebSocketMessage = JSON.parse(event.data);
 
-      // Manejar respuesta de autenticación
       if (message.type === 'auth-ok') {
-        console.log('[WebSocket] Autenticación exitosa:', message.username || 'usuario');
+        console.log('[WebSocket] Autenticacion exitosa:', message.username || 'usuario');
         this.isAuthenticated = true;
         if (this.authTimeout) {
           clearTimeout(this.authTimeout);
@@ -112,7 +106,6 @@ export class WebSocketClient {
         return;
       }
 
-      // Mensajes normales (solo después de autenticar)
       if (this.isAuthenticated) {
         this.notifyHandlers(message.type, message.payload);
       } else {

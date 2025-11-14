@@ -56,21 +56,21 @@ export async function frontendPlugin(
       reply.header('Expires', '0');
     };
 
-    // Ruta raíz
+    // Ruta raiz: QR Host
     fastify.get('/', async (_request, reply) => {
       sendNoCache(reply);
-      return reply.sendFile('index.html');
+      return reply.sendFile('qr-host/index.html');
     });
 
-    // Ruta lector QR
+    // Ruta lector QR: QR Reader
     fastify.get('/lector', async (_request, reply) => {
       sendNoCache(reply);
-      return reply.sendFile('lector/index.html');
+      return reply.sendFile('qr-reader/index.html');
     });
 
     fastify.get('/lector/', async (_request, reply) => {
       sendNoCache(reply);
-      return reply.sendFile('lector/index.html');
+      return reply.sendFile('qr-reader/index.html');
     });
   }
 

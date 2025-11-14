@@ -22,8 +22,8 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       input: {
-        app: path.resolve(__dirname, 'src/frontend/index.html'),
-        lector: path.resolve(__dirname, 'src/frontend/lector/index.html'),
+        'qr-host': path.resolve(__dirname, 'src/frontend/features/qr-host/index.html'),
+        'qr-reader': path.resolve(__dirname, 'src/frontend/features/qr-reader/index.html'),
       },
     },
   },

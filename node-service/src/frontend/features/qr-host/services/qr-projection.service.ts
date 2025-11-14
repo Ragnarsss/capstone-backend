@@ -1,13 +1,10 @@
 /**
  * QR Projection Service
- * Responsabilidad: Lógica de negocio para proyección de QR
- * 
- * Este servicio recibe el payload/mensaje del backend y genera la imagen QR
- * en el navegador para reducir carga del servidor y mejorar escalabilidad.
+ * Responsabilidad: Coordinacion entre WebSocket y renderizado de QR
  */
 import QRCode from 'qrcode';
-import { QRProjectionComponent } from '../presentation/qr-projection.component';
-import { WebSocketClient } from '../../websocket/infrastructure/websocket.client';
+import type { QRDisplayComponent } from '../ui/qr-display.component';
+import type { WebSocketClient } from '../../../shared/websocket/ws-client';
 
 interface ConnectionPayload {
   status: string;
@@ -28,19 +25,19 @@ interface ErrorPayload {
 }
 
 export class QRProjectionService {
-  private readonly component: QRProjectionComponent;
+  private readonly component: QRDisplayComponent;
   private readonly wsClient: WebSocketClient;
 
-  constructor(component: QRProjectionComponent, wsClient: WebSocketClient) {
+  constructor(component: QRDisplayComponent, wsClient: WebSocketClient) {
     this.component = component;
     this.wsClient = wsClient;
   }
 
   initialize(): void {
-    this.wsClient.on('connection', (data) => this.handleConnection(data));
-    this.wsClient.on('countdown', (payload) => this.handleCountdown(payload));
-    this.wsClient.on('qr-update', (payload) => this.handleQRUpdate(payload));
-    this.wsClient.on('error', (payload) => this.handleError(payload));
+    this.wsClient.on('connection', (data: unknown) => this.handleConnection(data));
+    this.wsClient.on('countdown', (payload: unknown) => this.handleCountdown(payload));
+    this.wsClient.on('qr-update', (payload: unknown) => this.handleQRUpdate(payload));
+    this.wsClient.on('error', (payload: unknown) => this.handleError(payload));
   }
 
   private handleConnection(data: unknown): void {
@@ -68,7 +65,7 @@ export class QRProjectionService {
       this.component.showQRCode(qrImageDataURL);
     } catch (error) {
       console.error('[QRProjectionService] Error generando imagen QR:', error);
-      this.component.showError('Error al generar código QR');
+      this.component.showError('Error al generar codigo QR');
     }
   }
 

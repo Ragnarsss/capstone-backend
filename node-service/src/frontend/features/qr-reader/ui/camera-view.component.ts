@@ -1,6 +1,6 @@
 /**
- * QR Reader Component
- * Responsabilidad: Controlar la UI del lector QR
+ * Camera View Component
+ * Responsabilidad: Renderizado UI del lector QR
  */
 type VoidHandler = () => void;
 
@@ -13,7 +13,7 @@ interface DOMRefs {
   result: HTMLElement | null;
 }
 
-export class QRReaderComponent {
+export class CameraViewComponent {
   private refs: DOMRefs;
   private startHandlers: VoidHandler[];
   private stopHandlers: VoidHandler[];
@@ -52,25 +52,25 @@ export class QRReaderComponent {
   }
 
   showWaitingAuth(): void {
-    this.updateStatus('Esperando autenticación...');
+    this.updateStatus('Esperando autenticacion...');
     this.setOverlay('Camara inactiva');
     this.toggleButtons({ start: true, stop: true });
   }
 
   showReady(): void {
-    this.updateStatus('Listo para iniciar la cámara');
+    this.updateStatus('Listo para iniciar la camara');
     this.setOverlay('Camara inactiva');
     this.toggleButtons({ start: false, stop: true });
   }
 
   showScanning(): void {
-    this.updateStatus('Leyendo código...');
+    this.updateStatus('Leyendo codigo...');
     this.setOverlay(null);
     this.toggleButtons({ start: true, stop: false });
   }
 
   showResult(message: string): void {
-    this.updateStatus('Código detectado');
+    this.updateStatus('Codigo detectado');
     this.renderResult(message, 'success');
   }
 
@@ -82,7 +82,7 @@ export class QRReaderComponent {
   }
 
   resetResult(): void {
-    this.renderResult('Ningún código detectado todavía');
+    this.renderResult('Ningun codigo detectado todavia');
   }
 
   private updateStatus(message: string): void {
@@ -99,9 +99,9 @@ export class QRReaderComponent {
       this.refs.overlay.textContent = '';
       return;
     }
+    this.refs.overlay.textContent = message;
     this.refs.overlay.style.opacity = '1';
     this.refs.overlay.style.pointerEvents = 'auto';
-    this.refs.overlay.textContent = message;
   }
 
   private toggleButtons(state: { start: boolean; stop: boolean }): void {
@@ -113,12 +113,9 @@ export class QRReaderComponent {
     }
   }
 
-  private renderResult(message: string, type: 'success' | 'error' | 'neutral' = 'neutral'): void {
+  private renderResult(message: string, type?: 'success' | 'error'): void {
     if (!this.refs.result) return;
     this.refs.result.textContent = message;
-    this.refs.result.classList.remove('success', 'error');
-    if (type !== 'neutral') {
-      this.refs.result.classList.add(type);
-    }
+    this.refs.result.className = type ? `result-${type}` : '';
   }
 }

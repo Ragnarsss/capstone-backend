@@ -1,6 +1,6 @@
 /**
- * QR Projection Component
- * Responsabilidad: Renderizado y actualización de UI para proyección de QR
+ * QR Display Component
+ * Responsabilidad: Renderizado UI para proyeccion de QR
  */
 interface DOMElements {
   status: HTMLElement | null;
@@ -9,7 +9,7 @@ interface DOMElements {
   qrImage: HTMLImageElement | null;
 }
 
-export class QRProjectionComponent {
+export class QRDisplayComponent {
   private readonly elements: DOMElements;
 
   constructor() {
@@ -59,7 +59,7 @@ export class QRProjectionComponent {
   }
 
   showWaitingAuth(): void {
-    this.updateStatus('Esperando autenticación...');
+    this.updateStatus('Esperando autenticacion...');
   }
 
   showConnecting(): void {

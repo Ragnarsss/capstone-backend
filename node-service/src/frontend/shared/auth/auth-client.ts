@@ -1,8 +1,8 @@
 /**
- * Auth Service Module
- * Responsabilidad: Lógica de autenticación y manejo de tokens JWT
+ * Auth Client
+ * Responsabilidad: Autenticacion JWT via postMessage y almacenamiento
  */
-import { TokenStorage } from '../infrastructure/token-storage';
+import { TokenStorage } from './token-storage';
 
 interface AuthMessage {
   type: 'AUTH_TOKEN' | 'TOKEN_REFRESH';
@@ -11,7 +11,7 @@ interface AuthMessage {
 
 type AuthCallback = () => void;
 
-export class AuthService {
+export class AuthClient {
   private readonly tokenStorage: TokenStorage;
   private isAuthenticated: boolean;
   private readonly onAuthCallbacks: AuthCallback[];

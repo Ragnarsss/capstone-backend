@@ -1,6 +1,6 @@
 /**
- * Token Storage Module
- * Responsabilidad: Gestión de almacenamiento de tokens JWT
+ * Token Storage
+ * Responsabilidad: Gestion de almacenamiento de tokens JWT
  */
 export class TokenStorage {
   private readonly storageKey: string;

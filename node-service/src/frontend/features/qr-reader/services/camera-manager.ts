@@ -7,7 +7,13 @@ import {
   IScannerControls,
 } from '@zxing/browser';
 import { NotFoundException } from '@zxing/library';
-import type { ScannerCallback } from '../domain/qr-reader.types';
+
+export interface ScannerResult {
+  text: string;
+  timestamp: number;
+}
+
+export type ScannerCallback = (result: ScannerResult) => void;
 
 export class CameraManager {
   private readonly reader: BrowserMultiFormatReader;
@@ -24,7 +30,7 @@ export class CameraManager {
     try {
       const devices = await BrowserMultiFormatReader.listVideoInputDevices();
       if (!devices.length) {
-        onError('No se encontraron cámaras disponibles');
+        onError('No se encontraron camaras disponibles');
         return;
       }
 
@@ -51,7 +57,7 @@ export class CameraManager {
         }
       );
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'No se pudo iniciar la cámara';
+      const message = error instanceof Error ? error.message : 'No se pudo iniciar la camara';
       onError(message);
     }
   }

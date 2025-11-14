@@ -1,18 +1,18 @@
 /**
- * QR Reader Service
+ * QR Scan Service
  * Responsabilidad: Orquestar el flujo de lectura y estado del lector
  */
-import type { ScannerResult } from '../domain/qr-reader.types';
-import { CameraManager } from '../infrastructure/camera-manager';
-import { QRReaderComponent } from '../presentation/qr-reader.component';
+import type { ScannerResult } from './camera-manager';
+import { CameraManager } from './camera-manager';
+import type { CameraViewComponent } from '../ui/camera-view.component';
 
-export class QRReaderService {
-  private readonly component: QRReaderComponent;
+export class QRScanService {
+  private readonly component: CameraViewComponent;
   private readonly cameraManager: CameraManager;
   private authReady: boolean;
   private scanning: boolean;
 
-  constructor(component: QRReaderComponent, cameraManager: CameraManager) {
+  constructor(component: CameraViewComponent, cameraManager: CameraManager) {
     this.component = component;
     this.cameraManager = cameraManager;
     this.authReady = false;
@@ -40,7 +40,7 @@ export class QRReaderService {
 
   async start(): Promise<void> {
     if (!this.authReady) {
-      this.component.showError('Aún no se valida la sesión');
+      this.component.showError('Aun no se valida la sesion');
       return;
     }
     if (this.scanning) return;

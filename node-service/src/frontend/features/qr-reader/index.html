@@ -5,13 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <base href="/asistencia/" />
   <title>Asistencia - Lector QR</title>
-  <link rel="stylesheet" href="shared/styles/base.css" />
-  <link rel="stylesheet" href="modules/qr-reader/qr-reader.styles.css" />
+  <link rel="stylesheet" href="../../shared/styles/base.css" />
 </head>
 <body>
   <div class="container scanner">
     <h1>Lector QR</h1>
-    <p id="scanner-status" class="scanner__status">Esperando autenticación...</p>
+    <p id="scanner-status" class="scanner__status">Esperando autenticacion...</p>
 
     <div class="scanner__video-wrapper">
       <video id="camera-feed" autoplay muted playsinline></video>
@@ -19,15 +18,15 @@
     </div>
 
     <div class="scanner__controls">
-      <button id="start-scan" class="btn primary">Iniciar cámara</button>
+      <button id="start-scan" class="btn primary">Iniciar camara</button>
       <button id="stop-scan" class="btn secondary" disabled>Detener</button>
     </div>
 
     <div id="scan-result" class="scanner__result" aria-live="polite">
-      Ningún código detectado todavía
+      Ningun codigo detectado todavia
     </div>
   </div>
 
-  <script type="module" src="app/reader.ts"></script>
+  <script type="module" src="./main.ts"></script>
 </body>
 </html>
