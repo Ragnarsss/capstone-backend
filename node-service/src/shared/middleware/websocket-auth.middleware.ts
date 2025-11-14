@@ -1,7 +1,7 @@
 import type { WebSocket } from 'ws';
-import { JWTUtils } from '../../auth/domain/jwt-utils';
-import { UserId } from '../../auth/domain/user-id';
-import type { AuthenticatedUser } from '../../auth/domain/models';
+import { JWTUtils } from '../../backend/auth/domain/jwt-utils';
+import { UserId } from '../../backend/auth/domain/user-id';
+import type { AuthenticatedUser } from '../../backend/auth/domain/models';
 
 /**
  * Resultado de la autenticación WebSocket
@@ -21,10 +21,12 @@ interface AuthMessage {
 }
 
 /**
- * Guard para autenticación WebSocket
+ * WebSocket Auth Middleware
  * Responsabilidad: Manejar el proceso de autenticación JWT en conexiones WebSocket
+ *
+ * Cross-cutting concern compartido entre todos los módulos que usen WebSocket
  */
-export class WebSocketAuthGuard {
+export class WebSocketAuthMiddleware {
   private readonly jwtUtils: JWTUtils;
   private readonly authTimeoutMs: number;
 
@@ -43,7 +45,6 @@ export class WebSocketAuthGuard {
       let authTimeout: NodeJS.Timeout;
       let messageHandler: ((data: any) => void) | null = null;
 
-      // Configurar timeout de autenticación
       authTimeout = setTimeout(() => {
         this.cleanupListeners(socket, messageHandler);
         console.log('[WebSocket Auth] Timeout de autenticación');
@@ -57,12 +58,10 @@ export class WebSocketAuthGuard {
         resolve({ success: false, error: 'Auth timeout' });
       }, this.authTimeoutMs);
 
-      // Handler para el mensaje de autenticación
       messageHandler = async (data: any) => {
         try {
           const msg: AuthMessage = JSON.parse(data.toString());
 
-          // Validar que sea mensaje de autenticación
           if (msg.type !== 'AUTH') {
             this.cleanupListeners(socket, messageHandler);
             clearTimeout(authTimeout);
@@ -78,7 +77,6 @@ export class WebSocketAuthGuard {
             return;
           }
 
-          // Validar presencia de token
           if (!msg.token) {
             this.cleanupListeners(socket, messageHandler);
             clearTimeout(authTimeout);
@@ -94,7 +92,6 @@ export class WebSocketAuthGuard {
             return;
           }
 
-          // Verificar token JWT
           try {
             const payload = this.jwtUtils.verify(msg.token);
             const user: AuthenticatedUser = {
@@ -143,10 +140,8 @@ export class WebSocketAuthGuard {
         }
       };
 
-      // Registrar handler de mensaje
       socket.on('message', messageHandler);
 
-      // Si el socket se cierra antes de autenticar
       socket.once('close', () => {
         this.cleanupListeners(socket, messageHandler);
         clearTimeout(authTimeout);
@@ -161,18 +156,12 @@ export class WebSocketAuthGuard {
     });
   }
 
-  /**
-   * Limpia listeners temporales del socket
-   */
   private cleanupListeners(socket: WebSocket, messageHandler: ((data: any) => void) | null): void {
     if (messageHandler) {
       socket.removeListener('message', messageHandler);
     }
   }
 
-  /**
-   * Envía mensaje al cliente si el socket está abierto
-   */
   private sendMessage(socket: WebSocket, message: any): void {
     if (socket.readyState === 1) {
       socket.send(JSON.stringify(message));

@@ -6,6 +6,7 @@ import {
   securityHeadersMiddleware,
   corsMiddleware,
   requestLoggerMiddleware,
+  WebSocketAuthMiddleware,
 } from './shared/middleware';
 import { WebSocketController } from './backend/qr-projection/presentation/websocket-controller';
 import { EnrollmentController } from './backend/enrollment/presentation/enrollment-controller';
@@ -17,7 +18,6 @@ import { JWTUtils } from './backend/auth/domain/jwt-utils';
 import { AuthService } from './backend/auth/application/auth.service';
 import { AuthMiddleware } from './backend/auth/presentation/auth-middleware';
 import { QRProjectionService } from './backend/qr-projection/application/qr-projection.service';
-import { WebSocketAuthGuard } from './backend/qr-projection/presentation/websocket-auth.guard';
 import { QRMetadataRepository } from './backend/qr-projection/infrastructure/qr-metadata.repository';
 import { ProjectionQueueRepository } from './backend/qr-projection/infrastructure/projection-queue.repository';
 
@@ -27,7 +27,7 @@ import { ProjectionQueueRepository } from './backend/qr-projection/infrastructur
  *
  * Separación de Concerns:
  * - Infraestructura compartida (Valkey, logging, WebSocket)
- * - Middlewares globales (seguridad, CORS, logging)
+ * - Middlewares globales (seguridad, CORS, logging, WebSocket auth)
  * - Módulos de dominio backend (QR Projection, Enrollment)
  * - Plugin de frontend (desarrollo/producción) - registrado último
  */
@@ -70,12 +70,12 @@ export async function createApp() {
     qrMetadataRepository,
     projectionQueueRepository
   );
-  const wsAuthGuard = new WebSocketAuthGuard(jwtUtils, 5000);
+  const wsAuthMiddleware = new WebSocketAuthMiddleware(jwtUtils, 5000);
 
   // ========================================
   // 4. MÓDULOS BACKEND (rutas específicas)
   // ========================================
-  const wsController = new WebSocketController(qrProjectionService, wsAuthGuard);
+  const wsController = new WebSocketController(qrProjectionService, wsAuthMiddleware);
   await wsController.register(fastify);
 
   // Enrollment repositories

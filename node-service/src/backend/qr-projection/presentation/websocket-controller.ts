@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import type { WebSocket } from 'ws';
 import { QRProjectionService, type ProjectionCallbacks } from '../application/qr-projection.service';
 import type { CountdownMessageDTO, QRUpdateMessageDTO } from './types';
-import { WebSocketAuthGuard } from './websocket-auth.guard';
+import { WebSocketAuthMiddleware } from '../../../shared/middleware';
 import type { AuthenticatedUser } from '../../auth/domain/models';
 
 /**
@@ -11,11 +11,11 @@ import type { AuthenticatedUser } from '../../auth/domain/models';
  */
 export class WebSocketController {
   private service: QRProjectionService;
-  private authGuard: WebSocketAuthGuard;
+  private authMiddleware: WebSocketAuthMiddleware;
 
-  constructor(service: QRProjectionService, authGuard: WebSocketAuthGuard) {
+  constructor(service: QRProjectionService, authMiddleware: WebSocketAuthMiddleware) {
     this.service = service;
-    this.authGuard = authGuard;
+    this.authMiddleware = authMiddleware;
   }
 
   async register(fastify: FastifyInstance): Promise<void> {
@@ -28,10 +28,10 @@ export class WebSocketController {
 
     console.log('[WebSocket] Nueva conexión, esperando autenticación...');
 
-    // Autenticar usando el guard
-    const authResult = await this.authGuard.authenticate(socket);
+    // Autenticar usando el middleware
+    const authResult = await this.authMiddleware.authenticate(socket);
 
-    // Si la autenticación falla, el guard ya cerró la conexión
+    // Si la autenticación falla, el middleware ya cerró la conexión
     if (!authResult.success || !authResult.user) {
       console.log('[WebSocket] Autenticación fallida, conexión terminada');
       return;
