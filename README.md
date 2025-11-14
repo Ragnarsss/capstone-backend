@@ -70,6 +70,13 @@ Cliente → PHP (Valida sesión + Emite JWT)
 Cliente → Apache (Reverse Proxy)
        ↓
 Cliente → Node.js (Valida JWT + Lógica)
+       ↓
+       Middlewares Globales:
+       - Security Headers
+       - CORS
+       - Request Logger
+       ↓
+       Módulos Backend (QR Projection, Enrollment)
 ```
 
 **Características de seguridad:**
@@ -78,6 +85,9 @@ Cliente → Node.js (Valida JWT + Lógica)
 - WebSocket con autenticación obligatoria
 - Node.js NO expuesto directamente
 - Códigos de cierre personalizados (4401, 4403, 4408)
+- Headers de seguridad HTTP (X-Frame-Options, CSP, etc)
+- CORS configurado por entorno (dev/prod)
+- Logging centralizado de requests
 
 ---
 
@@ -200,8 +210,9 @@ podman compose logs -f php-service
 ```text
 Flujo Anfitrión (Profesor):  ████████████████████████ 100%
 Flujo Invitado (Alumno):     ████░░░░░░░░░░░░░░░░░░░░  15% (en desarrollo)
+Middlewares (T1-T4):         ████████████████████████ 100%
 
-Sistema Completo:            ████████░░░░░░░░░░░░░░░░  57%
+Sistema Completo:            ████████████░░░░░░░░░░░░  62%
 ```
 
 **Funcionalidades:**
@@ -209,8 +220,22 @@ Sistema Completo:            ████████░░░░░░░░░
 - [OK] Autenticación JWT completa
 - [OK] WebSocket seguro con proyección QR
 - [OK] Infraestructura de desarrollo y producción
+- [OK] Middlewares de seguridad (Security Headers, CORS, Cache Control)
+- [OK] Request Logger centralizado
 - [WIP] Enrollment FIDO2 (en desarrollo)
 - [WIP] Validación de asistencia (en desarrollo)
+- [PENDING] Error Handler Middleware
+- [PENDING] Validation Middleware
+- [PENDING] Rate Limiting
+
+**Últimas actualizaciones:**
+
+- 2025-11-14: Middlewares foundation (T1-T4) completados
+  - Security Headers Middleware (X-Frame-Options, CSP, etc)
+  - CORS Middleware (dev/prod configuration)
+  - Cache Control Middleware (reutilizable)
+  - Request Logger Middleware (centralizado)
+  - Fixes de compilación TypeScript y rutas de producción
 
 Ver **[documents/planificacion/13-estado-implementacion.md](documents/planificacion/13-estado-implementacion.md)** para detalles completos.
 
@@ -232,4 +257,6 @@ Este proyecto es parte de un trabajo de titulación universitario.
 
 ---
 
-**Última actualización:** 2025-11-12
+**Última actualización:** 2025-11-14
+
+**Tag actual:** `middleware-foundation` (T1-T4 completados)
