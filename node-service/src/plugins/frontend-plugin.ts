@@ -33,12 +33,25 @@ export async function frontendPlugin(
     fastify.log.info('[Frontend] Development mode: proxying to Vite dev server');
     fastify.log.info(`[Frontend] Vite URL: ${viteUrl}${vitePath}`);
 
+    // Rutas HTML especificas para features
+    fastify.get('/', async (_request, reply) => {
+      return reply.redirect(`${vitePath}features/qr-host/`);
+    });
+
+    fastify.get('/lector', async (_request, reply) => {
+      return reply.redirect(`${vitePath}features/qr-reader/`);
+    });
+
+    fastify.get('/lector/', async (_request, reply) => {
+      return reply.redirect(`${vitePath}features/qr-reader/`);
+    });
+
     await fastify.register(fastifyHttpProxy, {
       upstream: viteUrl,
       prefix: '/',
       rewritePrefix: vitePath,
       http2: false,
-      websocket: false, // WebSocket manejado por módulo backend
+      websocket: false, // WebSocket manejado por modulo backend
     });
   } else {
     // Modo producción: Servir archivos estáticos compilados
