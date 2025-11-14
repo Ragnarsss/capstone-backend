@@ -49,6 +49,14 @@ export async function frontendPlugin(
     fastify.log.info('[Frontend] Production mode: serving static files');
     fastify.log.info(`[Frontend] Static path: ${staticPath}`);
 
+    // Servir assets con prefijo /asistencia/ para que coincida con base de Vite
+    await fastify.register(fastifyStatic, {
+      root: staticPath,
+      prefix: '/asistencia/',
+      decorateReply: false,
+    });
+
+    // También servir en raíz para compatibilidad
     await fastify.register(fastifyStatic, {
       root: staticPath,
       prefix: '/',
