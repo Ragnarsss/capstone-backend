@@ -44,7 +44,7 @@ podman compose down
 
 ## Estructura del Proyecto
 
-```
+```bash
 Asistencia/
 ├── php-service/           # Frontend + Emisor JWT
 │   ├── src/               # Código PHP
@@ -73,6 +73,7 @@ Cliente → Node.js (Valida JWT + Lógica)
 ```
 
 **Características de seguridad:**
+
 - JWT con TTL 5 minutos
 - WebSocket con autenticación obligatoria
 - Node.js NO expuesto directamente
@@ -91,6 +92,7 @@ Cliente → Node.js (Valida JWT + Lógica)
 ### Documentación Técnica Completa
 
 Ver carpeta **[documents/](documents/)** para:
+
 - Arquitectura general del sistema
 - Componentes criptográficos (FIDO2, ECDH, TOTP)
 - Flujos de enrollment y asistencia
@@ -112,6 +114,47 @@ Ver carpeta **[documents/](documents/)** para:
 | Base de Datos | PostgreSQL | 18 |
 | Cache | Valkey | 7 |
 | Contenedores | Podman/Docker | Latest |
+
+---
+
+## Reglas de Desarrollo
+
+### Arquitectura
+
+1. Mantener el monolito modular.
+2. Respetar el enfoque de vertical slicing.
+3. Mantener separación estricta de responsabilidades (SoC).
+4. Respetar el orden de carga definido en `app.ts`: infraestructura → módulos → plugin.
+<!--
+5. La migración desde `Asistencia2/` a `Asistencia/` no debe generar integración entre ambos; es traslado de funcionalidad, no fusión. (debe quedar en termnos generales esta regla y no hablar de Asustencia 2 o Asistencia)
+-->
+### Estilo de implementación
+
+1. El módulo `Asistencia/` ya muestra QR; la lectura debe integrarse sin romper el patrón existente.
+2. Al detectar un QR, mostrar su mensaje bajo la vista de cámara.
+3. El flujo de acceso debe replicar el mismo patrón usado para mostrar el QR, pero activado desde un nuevo botón en PHP.
+4. No usar emoticones ni emojis.
+
+### Stack y entorno
+
+1. Mantener el stack declarado en la sección "Stack Tecnológico" (versiones y componentes).
+2. Considerar siempre que el host no contiene `npm`; toda instalación de paquetes se realiza dentro de contenedores.
+3. Usar `podman compose` (no `podman-compose`).
+4. Reconstruir contenedores cuando se instalen paquetes o cambien dependencias.
+5. Antes de cualquier propuesta o implementación, revisar el `Containerfile` y los archivos de `podman compose` en `Asistencia/`, ya que definen los modos dev y prod.
+
+### Reglas de desarrollo
+
+1. Analizar y respetar los flujos existentes antes de introducir cambios.
+2. No romper la estructura modular existente ni mezclar responsabilidades entre módulos.
+3. Mantener la implementación simple, coherente y predecible dentro del patrón actual.
+
+### Comentarios en código
+
+1. Los comentarios deben ser concisos y pertinentes.
+2. Deben servir como recordatorios personales, no como explicaciones condescendientes.
+3. No incluir ambigüedades ni redundancias.
+4. No usar emoticones ni emojis en comentarios.
 
 ---
 
@@ -162,6 +205,7 @@ Sistema Completo:            ████████░░░░░░░░░
 ```
 
 **Funcionalidades:**
+
 - [OK] Autenticación JWT completa
 - [OK] WebSocket seguro con proyección QR
 - [OK] Infraestructura de desarrollo y producción
