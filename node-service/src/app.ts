@@ -2,7 +2,11 @@ import Fastify from 'fastify';
 import fastifyWebSocket from '@fastify/websocket';
 import { config } from './shared/config';
 import { ValkeyClient } from './shared/infrastructure/valkey/valkey-client';
-import { securityHeadersMiddleware, corsMiddleware } from './shared/middleware';
+import {
+  securityHeadersMiddleware,
+  corsMiddleware,
+  requestLoggerMiddleware,
+} from './shared/middleware';
 import { WebSocketController } from './backend/qr-projection/presentation/websocket-controller';
 import { EnrollmentController } from './backend/enrollment/presentation/enrollment-controller';
 import { EnrollmentService } from './backend/enrollment/application/enrollment.service';
@@ -23,7 +27,7 @@ import { ProjectionQueueRepository } from './backend/qr-projection/infrastructur
  *
  * Separación de Concerns:
  * - Infraestructura compartida (Valkey, logging, WebSocket)
- * - Middlewares globales (seguridad, CORS)
+ * - Middlewares globales (seguridad, CORS, logging)
  * - Módulos de dominio backend (QR Projection, Enrollment)
  * - Plugin de frontend (desarrollo/producción) - registrado último
  */
@@ -47,6 +51,7 @@ export async function createApp() {
   // ========================================
   securityHeadersMiddleware(fastify);
   corsMiddleware(fastify, { isDevelopment: config.env.isDevelopment });
+  requestLoggerMiddleware(fastify);
 
   // ========================================
   // 3. DEPENDENCY INJECTION - Composition Root

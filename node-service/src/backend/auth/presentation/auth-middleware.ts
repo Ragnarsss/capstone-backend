@@ -25,20 +25,8 @@ export class AuthMiddleware {
         const user = this.authService.authenticateFromHeader(request.headers.authorization);
         request.user = user;
 
-        request.log.info({
-          userId: user.userId,
-          username: user.username,
-          endpoint: request.url,
-        }, 'Usuario autenticado via JWT');
-
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Error de autenticación';
-
-        request.log.warn({
-          error: errorMessage,
-          endpoint: request.url,
-          ip: request.ip,
-        }, 'Fallo de autenticación JWT');
 
         return reply.status(401).send({
           success: false,
@@ -58,7 +46,7 @@ export class AuthMiddleware {
           request.user = user;
         }
       } catch (error) {
-        request.log.debug({ error }, 'Token JWT opcional no válido');
+        // Token opcional inválido, simplemente no se adjunta usuario
       }
     };
   }

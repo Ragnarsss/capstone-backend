@@ -43,11 +43,6 @@ export class EnrollmentController {
       const user = request.user!;
       const { displayName } = request.body || {};
 
-      request.log.info({
-        userId: user.userId.toNumber(),
-        username: user.username,
-      }, 'Iniciando enrolamiento FIDO2');
-
       const result = await this.service.createEnrollmentChallenge(
         user.userId.toNumber(),
         user.username,
@@ -80,11 +75,6 @@ export class EnrollmentController {
       const user = request.user!;
       const { credential } = request.body;
 
-      request.log.info({
-        userId: user.userId.toNumber(),
-        credentialId: credential?.id,
-      }, 'Finalizando enrolamiento FIDO2');
-
       const result = await this.service.verifyAndCompleteEnrollment(user.userId.toNumber(), credential);
 
       const response: FinishEnrollmentResponseDTO = {
@@ -114,10 +104,6 @@ export class EnrollmentController {
       const user = request.user!;
       const { publicKey, assertion } = request.body;
 
-      request.log.info({
-        userId: user.userId.toNumber(),
-      }, 'Login ECDH iniciado');
-
       const result = await this.service.performECDHLogin(user.userId.toNumber(), publicKey, assertion);
 
       const response: LoginECDHResponseDTO = {
@@ -144,10 +130,6 @@ export class EnrollmentController {
   ): Promise<void> {
     try {
       const user = request.user!;
-
-      request.log.info({
-        userId: user.userId.toNumber(),
-      }, 'Verificando estado de enrolamiento');
 
       const result = await this.service.checkEnrollmentStatus(user.userId.toNumber());
 
