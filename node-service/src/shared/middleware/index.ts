@@ -14,3 +14,10 @@ export {
   userIdKeyGenerator,
   ipEndpointKeyGenerator,
 } from './rate-limit.middleware';
+export {
+  errorHandlerMiddleware,
+  setupGlobalErrorHandlers,
+} from './error-handler.middleware';
+
+// Error classes and utilities
+export * from './errors/index';

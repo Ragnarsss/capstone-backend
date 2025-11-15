@@ -1,7 +1,11 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { EnrollmentService } from '../application/enrollment.service';
 import { AuthMiddleware } from '../../auth/presentation/auth-middleware';
-import { createEndpointRateLimiter, userIdKeyGenerator } from '../../../shared/middleware';
+import {
+  createEndpointRateLimiter,
+  userIdKeyGenerator,
+  InternalServerError,
+} from '../../../shared/middleware';
 import type {
   StartEnrollmentRequestDTO,
   StartEnrollmentResponseDTO,
@@ -68,116 +72,76 @@ export class EnrollmentController {
     request: FastifyRequest<{ Body: StartEnrollmentRequestDTO }>,
     reply: FastifyReply
   ): Promise<void> {
-    try {
-      const user = request.user!;
-      const { displayName } = request.body || {};
+    const user = request.user!;
+    const { displayName } = request.body || {};
 
-      const result = await this.service.createEnrollmentChallenge(
-        user.userId.toNumber(),
-        user.username,
-        displayName || user.nombreCompleto
-      );
+    const result = await this.service.createEnrollmentChallenge(
+      user.userId.toNumber(),
+      user.username,
+      displayName || user.nombreCompleto
+    );
 
-      const response: StartEnrollmentResponseDTO = {
-        success: true,
-        challenge: result.challenge,
-        options: result.options,
-      };
+    const response: StartEnrollmentResponseDTO = {
+      success: true,
+      challenge: result.challenge,
+      options: result.options,
+    };
 
-      reply.send(response);
-    } catch (error) {
-      request.log.error({ error }, 'Error en startEnrollment');
-      const response: StartEnrollmentResponseDTO = {
-        success: false,
-        error: 'SERVICE_ERROR',
-        message: 'Error al iniciar enrolamiento',
-      };
-      reply.status(500).send(response);
-    }
+    reply.send(response);
   }
 
   private async finishEnrollment(
     request: FastifyRequest<{ Body: FinishEnrollmentRequestDTO }>,
     reply: FastifyReply
   ): Promise<void> {
-    try {
-      const user = request.user!;
-      const { credential } = request.body;
+    const user = request.user!;
+    const { credential } = request.body;
 
-      const result = await this.service.verifyAndCompleteEnrollment(user.userId.toNumber(), credential);
+    const result = await this.service.verifyAndCompleteEnrollment(user.userId.toNumber(), credential);
 
-      const response: FinishEnrollmentResponseDTO = {
-        success: true,
-        deviceId: result.deviceId,
-        aaguid: result.aaguid,
-        message: 'Dispositivo enrolado exitosamente',
-      };
+    const response: FinishEnrollmentResponseDTO = {
+      success: true,
+      deviceId: result.deviceId,
+      aaguid: result.aaguid,
+      message: 'Dispositivo enrolado exitosamente',
+    };
 
-      reply.send(response);
-    } catch (error) {
-      request.log.error({ error }, 'Error en finishEnrollment');
-      const response: FinishEnrollmentResponseDTO = {
-        success: false,
-        error: 'SERVICE_ERROR',
-        message: 'Error al finalizar enrolamiento',
-      };
-      reply.status(500).send(response);
-    }
+    reply.send(response);
   }
 
   private async loginECDH(
     request: FastifyRequest<{ Body: LoginECDHRequestDTO }>,
     reply: FastifyReply
   ): Promise<void> {
-    try {
-      const user = request.user!;
-      const { publicKey, assertion } = request.body;
+    const user = request.user!;
+    const { publicKey, assertion } = request.body;
 
-      const result = await this.service.performECDHLogin(user.userId.toNumber(), publicKey, assertion);
+    const result = await this.service.performECDHLogin(user.userId.toNumber(), publicKey, assertion);
 
-      const response: LoginECDHResponseDTO = {
-        success: true,
-        serverPublicKey: result.serverPublicKey,
-        TOTPu: result.TOTPu,
-      };
+    const response: LoginECDHResponseDTO = {
+      success: true,
+      serverPublicKey: result.serverPublicKey,
+      TOTPu: result.TOTPu,
+    };
 
-      reply.send(response);
-    } catch (error) {
-      request.log.error({ error }, 'Error en loginECDH');
-      const response: LoginECDHResponseDTO = {
-        success: false,
-        error: 'SERVICE_ERROR',
-        message: 'Error en login ECDH',
-      };
-      reply.status(500).send(response);
-    }
+    reply.send(response);
   }
 
   private async checkEnrollmentStatus(
     request: FastifyRequest,
     reply: FastifyReply
   ): Promise<void> {
-    try {
-      const user = request.user!;
+    const user = request.user!;
 
-      const result = await this.service.checkEnrollmentStatus(user.userId.toNumber());
+    const result = await this.service.checkEnrollmentStatus(user.userId.toNumber());
 
-      const response: EnrollmentStatusResponseDTO = {
-        success: true,
-        enrolled: result.enrolled,
-        deviceCount: result.deviceCount,
-        message: 'Usuario no enrolado (stub)',
-      };
+    const response: EnrollmentStatusResponseDTO = {
+      success: true,
+      enrolled: result.enrolled,
+      deviceCount: result.deviceCount,
+      message: 'Usuario no enrolado (stub)',
+    };
 
-      reply.send(response);
-    } catch (error) {
-      request.log.error({ error }, 'Error en checkEnrollmentStatus');
-      const response: EnrollmentStatusResponseDTO = {
-        success: false,
-        error: 'SERVICE_ERROR',
-        message: 'Error al verificar estado de enrolamiento',
-      };
-      reply.status(500).send(response);
-    }
+    reply.send(response);
   }
 }

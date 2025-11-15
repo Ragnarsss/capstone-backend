@@ -8,6 +8,7 @@ import {
   requestLoggerMiddleware,
   WebSocketAuthMiddleware,
   rateLimitMiddleware,
+  errorHandlerMiddleware,
 } from './shared/middleware';
 import { WebSocketController } from './backend/qr-projection/presentation/websocket-controller';
 import { EnrollmentController } from './backend/enrollment/presentation/enrollment-controller';
@@ -50,6 +51,9 @@ export async function createApp() {
   // ========================================
   // 2. MIDDLEWARES GLOBALES
   // ========================================
+  // Error handler debe registrarse primero
+  errorHandlerMiddleware(fastify);
+  
   securityHeadersMiddleware(fastify);
   corsMiddleware(fastify, { isDevelopment: config.env.isDevelopment });
   requestLoggerMiddleware(fastify);
