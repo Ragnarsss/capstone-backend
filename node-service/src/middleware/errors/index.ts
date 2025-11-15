@@ -17,10 +17,10 @@ export {
   UnsupportedMediaTypeError,
   isOperationalError,
   isAppError,
-} from './app-error.js';
+} from './app-error';
 
 export {
   formatErrorResponse,
   sendErrorResponse,
   type ErrorResponse,
-} from './error-formatter.js';
+} from './error-formatter';

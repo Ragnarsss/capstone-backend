@@ -14,7 +14,7 @@
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import Redis from 'ioredis';
-import { config } from '../config/index.js';
+import { config } from '../shared/config/index.js';
 
 interface RateLimitConfig {
   /** Número máximo de requests permitidos en la ventana */

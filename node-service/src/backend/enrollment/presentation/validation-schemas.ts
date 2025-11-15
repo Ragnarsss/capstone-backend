@@ -5,7 +5,7 @@
  * Usa validación manual hasta que Zod esté instalado.
  */
 
-import { ValidationError } from '../../../shared/middleware';
+import { ValidationError } from '../../../middleware';
 
 /**
  * Validación manual para StartEnrollmentRequest

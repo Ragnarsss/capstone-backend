@@ -1,7 +1,7 @@
 import type { WebSocket } from 'ws';
-import { JWTUtils } from '../../backend/auth/domain/jwt-utils';
-import { UserId } from '../../backend/auth/domain/user-id';
-import type { AuthenticatedUser } from '../../backend/auth/domain/models';
+import { JWTUtils } from '../backend/auth/domain/jwt-utils';
+import { UserId } from '../backend/auth/domain/user-id';
+import type { AuthenticatedUser } from '../backend/auth/domain/models';
 
 /**
  * Resultado de la autenticación WebSocket

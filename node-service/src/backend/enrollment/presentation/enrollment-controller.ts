@@ -7,7 +7,7 @@ import {
   InternalServerError,
   validateRequest,
   jsonOnly,
-} from '../../../shared/middleware';
+} from '../../../middleware';
 import {
   startEnrollmentSchema,
   finishEnrollmentSchema,

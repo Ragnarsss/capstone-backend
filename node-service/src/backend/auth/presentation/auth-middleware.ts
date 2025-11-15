@@ -1,6 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { AuthService } from '../application/auth.service';
-import { AuthenticationError } from '../../../shared/middleware';
+import { AuthenticationError } from '../../../middleware';
 import type { AuthenticatedUser } from '../domain/models';
 
 declare module 'fastify' {

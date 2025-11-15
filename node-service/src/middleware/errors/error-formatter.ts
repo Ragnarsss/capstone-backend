@@ -7,7 +7,7 @@
 
 import { FastifyReply } from 'fastify';
 import { AppError, isAppError } from './app-error.js';
-import { config } from '../../config/index.js';
+import { config } from '../../shared/config/index.js';
 
 /**
  * Estructura de respuesta de error estándar

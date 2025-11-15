@@ -7,9 +7,9 @@
  */
 
 import type { FastifyInstance, FastifyError, FastifyRequest, FastifyReply } from 'fastify';
-import { AppError, isAppError, isOperationalError } from './errors/app-error.js';
-import { sendErrorResponse } from './errors/error-formatter.js';
-import { config } from '../config/index.js';
+import { AppError, isAppError, isOperationalError } from './errors/app-error';
+import { sendErrorResponse } from './errors/error-formatter';
+import { config } from '../shared/config/index.js';
 
 /**
  * Registra el error handler global de Fastify

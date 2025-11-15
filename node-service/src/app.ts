@@ -9,7 +9,7 @@ import {
   WebSocketAuthMiddleware,
   rateLimitMiddleware,
   errorHandlerMiddleware,
-} from './shared/middleware';
+} from './middleware';
 import { WebSocketController } from './backend/qr-projection/presentation/websocket-controller';
 import { EnrollmentController } from './backend/enrollment/presentation/enrollment-controller';
 import { EnrollmentService } from './backend/enrollment/application/enrollment.service';
