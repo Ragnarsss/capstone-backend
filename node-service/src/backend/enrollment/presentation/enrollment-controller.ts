@@ -5,7 +5,13 @@ import {
   createEndpointRateLimiter,
   userIdKeyGenerator,
   InternalServerError,
+  validateRequest,
 } from '../../../shared/middleware';
+import {
+  startEnrollmentSchema,
+  finishEnrollmentSchema,
+  loginECDHSchema,
+} from './validation-schemas';
 import type {
   StartEnrollmentRequestDTO,
   StartEnrollmentResponseDTO,
@@ -48,19 +54,28 @@ export class EnrollmentController {
     await fastify.register(async (enrollmentRoutes) => {
       enrollmentRoutes.addHook('preHandler', this.authMiddleware.authenticate());
 
-      // Aplicar rate limiting específico a cada endpoint
+      // Aplicar rate limiting y validación específica a cada endpoint
       enrollmentRoutes.post('/api/enrollment/start', {
-        preHandler: enrollmentRateLimit,
+        preHandler: [
+          enrollmentRateLimit,
+          validateRequest({ body: startEnrollmentSchema }),
+        ],
         handler: this.startEnrollment.bind(this),
       });
 
       enrollmentRoutes.post('/api/enrollment/finish', {
-        preHandler: enrollmentRateLimit,
+        preHandler: [
+          enrollmentRateLimit,
+          validateRequest({ body: finishEnrollmentSchema }),
+        ],
         handler: this.finishEnrollment.bind(this),
       });
 
       enrollmentRoutes.post('/api/enrollment/login', {
-        preHandler: loginRateLimit,
+        preHandler: [
+          loginRateLimit,
+          validateRequest({ body: loginECDHSchema }),
+        ],
         handler: this.loginECDH.bind(this),
       });
 

@@ -18,6 +18,10 @@ export {
   errorHandlerMiddleware,
   setupGlobalErrorHandlers,
 } from './error-handler.middleware';
+export {
+  validateRequest,
+  CommonSchemas,
+} from './validation.middleware';
 
 // Error classes and utilities
 export * from './errors/index';
