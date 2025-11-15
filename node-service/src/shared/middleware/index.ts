@@ -22,6 +22,14 @@ export {
   validateRequest,
   CommonSchemas,
 } from './validation.middleware';
+export {
+  contentTypeMiddleware,
+  validateContentType,
+  ContentType,
+  jsonOnly,
+  jsonOrForm,
+  multipartOnly,
+} from './content-type.middleware';
 
 // Error classes and utilities
 export * from './errors/index';

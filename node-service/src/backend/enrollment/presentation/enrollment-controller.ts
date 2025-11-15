@@ -6,6 +6,7 @@ import {
   userIdKeyGenerator,
   InternalServerError,
   validateRequest,
+  jsonOnly,
 } from '../../../shared/middleware';
 import {
   startEnrollmentSchema,
@@ -54,9 +55,10 @@ export class EnrollmentController {
     await fastify.register(async (enrollmentRoutes) => {
       enrollmentRoutes.addHook('preHandler', this.authMiddleware.authenticate());
 
-      // Aplicar rate limiting y validación específica a cada endpoint
+      // Aplicar Content-Type, rate limiting y validación específica a cada endpoint
       enrollmentRoutes.post('/api/enrollment/start', {
         preHandler: [
+          jsonOnly,
           enrollmentRateLimit,
           validateRequest({ body: startEnrollmentSchema }),
         ],
@@ -65,6 +67,7 @@ export class EnrollmentController {
 
       enrollmentRoutes.post('/api/enrollment/finish', {
         preHandler: [
+          jsonOnly,
           enrollmentRateLimit,
           validateRequest({ body: finishEnrollmentSchema }),
         ],
@@ -73,6 +76,7 @@ export class EnrollmentController {
 
       enrollmentRoutes.post('/api/enrollment/login', {
         preHandler: [
+          jsonOnly,
           loginRateLimit,
           validateRequest({ body: loginECDHSchema }),
         ],
