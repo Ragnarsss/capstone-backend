@@ -1,6 +1,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { EnrollmentService } from '../application/enrollment.service';
 import { AuthMiddleware } from '../../auth/presentation/auth-middleware';
+import { createEndpointRateLimiter, userIdKeyGenerator } from '../../../shared/middleware';
 import type {
   StartEnrollmentRequestDTO,
   StartEnrollmentResponseDTO,
@@ -25,12 +26,40 @@ export class EnrollmentController {
   }
 
   async register(fastify: FastifyInstance): Promise<void> {
+    // Rate limiters específicos para enrollment (más restrictivos)
+    const enrollmentRateLimit = createEndpointRateLimiter({
+      max: 5, // 5 intentos por minuto
+      windowSeconds: 60,
+      keyGenerator: userIdKeyGenerator,
+      message: 'Too many enrollment attempts, please try again later',
+    });
+
+    const loginRateLimit = createEndpointRateLimiter({
+      max: 10, // 10 intentos de login por minuto
+      windowSeconds: 60,
+      keyGenerator: userIdKeyGenerator,
+      message: 'Too many login attempts, please try again later',
+    });
+
     await fastify.register(async (enrollmentRoutes) => {
       enrollmentRoutes.addHook('preHandler', this.authMiddleware.authenticate());
 
-      enrollmentRoutes.post('/api/enrollment/start', this.startEnrollment.bind(this));
-      enrollmentRoutes.post('/api/enrollment/finish', this.finishEnrollment.bind(this));
-      enrollmentRoutes.post('/api/enrollment/login', this.loginECDH.bind(this));
+      // Aplicar rate limiting específico a cada endpoint
+      enrollmentRoutes.post('/api/enrollment/start', {
+        preHandler: enrollmentRateLimit,
+        handler: this.startEnrollment.bind(this),
+      });
+
+      enrollmentRoutes.post('/api/enrollment/finish', {
+        preHandler: enrollmentRateLimit,
+        handler: this.finishEnrollment.bind(this),
+      });
+
+      enrollmentRoutes.post('/api/enrollment/login', {
+        preHandler: loginRateLimit,
+        handler: this.loginECDH.bind(this),
+      });
+
       enrollmentRoutes.get('/api/enrollment/status', this.checkEnrollmentStatus.bind(this));
     });
   }

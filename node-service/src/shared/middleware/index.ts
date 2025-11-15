@@ -8,3 +8,9 @@ export { corsMiddleware } from './cors.middleware';
 export { cacheControlMiddleware, noCacheHeaders } from './cache-control.middleware';
 export { requestLoggerMiddleware } from './request-logger.middleware';
 export { WebSocketAuthMiddleware, type WebSocketAuthResult } from './websocket-auth.middleware';
+export {
+  rateLimitMiddleware,
+  createEndpointRateLimiter,
+  userIdKeyGenerator,
+  ipEndpointKeyGenerator,
+} from './rate-limit.middleware';

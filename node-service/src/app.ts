@@ -7,6 +7,7 @@ import {
   corsMiddleware,
   requestLoggerMiddleware,
   WebSocketAuthMiddleware,
+  rateLimitMiddleware,
 } from './shared/middleware';
 import { WebSocketController } from './backend/qr-projection/presentation/websocket-controller';
 import { EnrollmentController } from './backend/enrollment/presentation/enrollment-controller';
@@ -52,6 +53,13 @@ export async function createApp() {
   securityHeadersMiddleware(fastify);
   corsMiddleware(fastify, { isDevelopment: config.env.isDevelopment });
   requestLoggerMiddleware(fastify);
+
+  // Rate limiting global: 100 requests por minuto por IP
+  await rateLimitMiddleware(fastify, {
+    max: 100,
+    windowSeconds: 60,
+    message: 'Too many requests from this IP, please try again later',
+  });
 
   // ========================================
   // 3. DEPENDENCY INJECTION - Composition Root
