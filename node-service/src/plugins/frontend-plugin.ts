@@ -1,7 +1,7 @@
 import { FastifyInstance, FastifyReply } from 'fastify';
 import fastifyStatic from '@fastify/static';
 import fastifyHttpProxy from '@fastify/http-proxy';
-import { noCacheHeaders } from '../shared/middleware';
+import { noCacheHeaders } from '../middleware';
 
 /**
  * Frontend Plugin

@@ -1,5 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { AuthService } from '../application/auth.service';
+import { AuthenticationError } from '../../../middleware';
 import type { AuthenticatedUser } from '../domain/models';
 
 declare module 'fastify' {
@@ -24,15 +25,9 @@ export class AuthMiddleware {
       try {
         const user = this.authService.authenticateFromHeader(request.headers.authorization);
         request.user = user;
-
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Error de autenticación';
-
-        return reply.status(401).send({
-          success: false,
-          error: 'UNAUTHORIZED',
-          message: errorMessage,
-        });
+        const errorMessage = error instanceof Error ? error.message : 'Authentication required';
+        throw new AuthenticationError(errorMessage);
       }
     };
   }
