@@ -12,11 +12,18 @@
 require_once __DIR__ . '/../domain/AuthenticationService.php';
 require_once __DIR__ . '/../domain/IntegrationGateway.php';
 require_once __DIR__ . '/../config/Config.php';
+require_once __DIR__ . '/../lib/crypto/JWT.php';
+require_once __DIR__ . '/api/UserDataController.php';
+require_once __DIR__ . '/api/CourseDataController.php';
+require_once __DIR__ . '/api/EnrollmentDataController.php';
 
 class Router
 {
     private $authService;
     private $nodeClient;
+    private $userDataController;
+    private $courseDataController;
+    private $enrollmentDataController;
 
     /**
      * Inyecta AuthenticationService
@@ -36,6 +43,18 @@ class Router
     public function setNodeClient(IntegrationGateway $nodeClient): void
     {
         $this->nodeClient = $nodeClient;
+    }
+
+    /**
+     * Configura controllers para endpoints de datos
+     * 
+     * @param JWT $jwtLibrary Biblioteca JWT para validación interna
+     */
+    public function setDataControllers(JWT $jwtLibrary): void
+    {
+        $this->userDataController = new UserDataController($jwtLibrary);
+        $this->courseDataController = new CourseDataController($jwtLibrary);
+        $this->enrollmentDataController = new EnrollmentDataController($jwtLibrary);
     }
 
     /**
@@ -69,6 +88,18 @@ class Router
 
             case '/api/log-event':
                 $this->handleLogEvent();
+                break;
+
+            case '/api/user-data':
+                $this->handleUserData();
+                break;
+
+            case '/api/course-data':
+                $this->handleCourseData();
+                break;
+
+            case '/api/enrollment-data':
+                $this->handleEnrollmentData();
                 break;
 
             default:
@@ -123,6 +154,39 @@ class Router
             'success' => true,
             'message' => 'Evento registrado'
         ]);
+    }
+
+    /**
+     * Handler: GET /api/user-data
+     * Provee datos de usuario a Node service
+     */
+    private function handleUserData(): void
+    {
+        $result = $this->userDataController->handle();
+        $statusCode = $result['success'] ? 200 : ($result['error'] === 'UNAUTHORIZED' ? 401 : 400);
+        $this->sendJson($result, $statusCode);
+    }
+
+    /**
+     * Handler: GET /api/course-data
+     * Provee datos de curso a Node service
+     */
+    private function handleCourseData(): void
+    {
+        $result = $this->courseDataController->handle();
+        $statusCode = $result['success'] ? 200 : ($result['error'] === 'UNAUTHORIZED' ? 401 : 400);
+        $this->sendJson($result, $statusCode);
+    }
+
+    /**
+     * Handler: GET /api/enrollment-data
+     * Provee datos de inscripciones a Node service
+     */
+    private function handleEnrollmentData(): void
+    {
+        $result = $this->enrollmentDataController->handle();
+        $statusCode = $result['success'] ? 200 : ($result['error'] === 'UNAUTHORIZED' ? 401 : 400);
+        $this->sendJson($result, $statusCode);
     }
 
     /**

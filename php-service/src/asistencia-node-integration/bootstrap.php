@@ -46,8 +46,11 @@ $authService = new AuthenticationService(
     $jwtLibrary
 );
 
+$jwtLibraryInternal = new JWT(Config::getJwtSecretInternal());
+
 $router = new Router();
 $router->setAuthService($authService);
 $router->setNodeClient($nodeClient);
+$router->setDataControllers($jwtLibraryInternal);
 
 return $router;
