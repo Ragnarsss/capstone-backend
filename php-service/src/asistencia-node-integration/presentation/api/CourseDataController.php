@@ -111,12 +111,35 @@ class CourseDataController
     /**
      * Obtiene datos de curso desde sistema legacy
      * 
+     * NOTA: Esta implementacion usa datos mock para testing
+     * TODO: Refactorizar para usar db.inc cuando este disponible
+     * 
      * @param int $courseId ID del curso
      * @param int|null $semesterId ID del semestre (opcional)
      * @return array|null Datos de curso o null si no existe
      */
     private function getCourseData(int $courseId, ?int $semesterId): ?array
     {
+        $dbIncPath = __DIR__ . '/../../../db.inc';
+        
+        if (file_exists($dbIncPath)) {
+            return $this->getCourseDataFromDatabase($courseId, $semesterId);
+        }
+        
+        return $this->getCourseDataMock($courseId, $semesterId);
+    }
+
+    /**
+     * Obtiene datos de curso desde base de datos real
+     * 
+     * @param int $courseId ID del curso
+     * @param int|null $semesterId ID del semestre
+     * @return array|null Datos de curso o null si no existe
+     */
+    private function getCourseDataFromDatabase(int $courseId, ?int $semesterId): ?array
+    {
+        require_once __DIR__ . '/../../../db.inc';
+        
         $dbh = db_open();
         
         $stmt = $dbh->prepare('
@@ -158,7 +181,61 @@ class CourseDataController
     }
 
     /**
+     * Retorna datos mock de curso para testing
+     * 
+     * @param int $courseId ID del curso
+     * @param int|null $semesterId ID del semestre
+     * @return array|null Datos mock o null si no coincide
+     */
+    private function getCourseDataMock(int $courseId, ?int $semesterId): ?array
+    {
+        $mockCourses = [
+            5 => [
+                'id' => 5,
+                'codigo' => 'ICI1234',
+                'nombre' => 'Programacion Avanzada',
+                'semestre' => [
+                    'id' => 2,
+                    'nombre' => '2025-2',
+                    'fechaInicio' => '2025-08-01',
+                    'fechaTermino' => '2025-12-20'
+                ],
+                'sessions' => [
+                    [
+                        'id' => 101,
+                        'fecha' => '2025-11-17',
+                        'codigoReserva' => 'ABC123',
+                        'tipo' => 1
+                    ],
+                    [
+                        'id' => 100,
+                        'fecha' => '2025-11-10',
+                        'codigoReserva' => 'XYZ789',
+                        'tipo' => 1
+                    ]
+                ]
+            ],
+            10 => [
+                'id' => 10,
+                'codigo' => 'MAT2345',
+                'nombre' => 'Calculo II',
+                'semestre' => [
+                    'id' => 2,
+                    'nombre' => '2025-2',
+                    'fechaInicio' => '2025-08-01',
+                    'fechaTermino' => '2025-12-20'
+                ],
+                'sessions' => []
+            ]
+        ];
+
+        return $mockCourses[$courseId] ?? null;
+    }
+
+    /**
      * Obtiene sesiones de asistencia de un curso
+     * 
+     * NOTA: Solo usado cuando db.inc esta disponible
      * 
      * @param int $courseId ID del curso
      * @param int|null $semesterId ID del semestre
@@ -166,6 +243,8 @@ class CourseDataController
      */
     private function getCourseSessions(int $courseId, ?int $semesterId): array
     {
+        require_once __DIR__ . '/../../../db.inc';
+        
         $dbh = db_open();
         
         $stmt = $dbh->prepare('

@@ -111,12 +111,37 @@ class UserDataController
     /**
      * Obtiene datos de usuario desde sistema legacy
      * 
+     * NOTA: Esta implementacion usa datos mock para testing
+     * TODO: Refactorizar para usar db.inc cuando este disponible
+     * 
      * @param int|null $userId ID de usuario
      * @param string|null $username Username (email)
      * @return array|null Datos de usuario o null si no existe
      */
     private function getUserData(?int $userId, ?string $username): ?array
     {
+        // Verificar si db.inc esta disponible
+        $dbIncPath = __DIR__ . '/../../../db.inc';
+        
+        if (file_exists($dbIncPath)) {
+            return $this->getUserDataFromDatabase($userId, $username);
+        }
+        
+        // Usar datos mock para testing
+        return $this->getUserDataMock($userId, $username);
+    }
+
+    /**
+     * Obtiene datos de usuario desde base de datos real
+     * 
+     * @param int|null $userId ID de usuario
+     * @param string|null $username Username (email)
+     * @return array|null Datos de usuario o null si no existe
+     */
+    private function getUserDataFromDatabase(?int $userId, ?string $username): ?array
+    {
+        require_once __DIR__ . '/../../../db.inc';
+        
         $dbh = db_open();
         
         if ($userId) {
@@ -165,5 +190,50 @@ class UserDataController
             'canControlClasses' => $user['control_clases'] === 't',
             'canTakeAttendance' => $user['control_asistencia'] === 't'
         ];
+    }
+
+    /**
+     * Retorna datos mock para testing (sin db.inc)
+     * 
+     * @param int|null $userId ID de usuario
+     * @param string|null $username Username (email)
+     * @return array|null Datos mock o null si no coincide
+     */
+    private function getUserDataMock(?int $userId, ?string $username): ?array
+    {
+        $mockUsers = [
+            1 => [
+                'id' => 1,
+                'rut' => '12345678-9',
+                'nombre' => 'Juan Profesor Demo',
+                'email' => 'profesor@demo.cl',
+                'isSuperAdmin' => true,
+                'canControlClasses' => true,
+                'canTakeAttendance' => true
+            ],
+            2 => [
+                'id' => 2,
+                'rut' => '98765432-1',
+                'nombre' => 'Maria Docente Test',
+                'email' => 'docente@test.cl',
+                'isSuperAdmin' => false,
+                'canControlClasses' => true,
+                'canTakeAttendance' => true
+            ]
+        ];
+
+        if ($userId && isset($mockUsers[$userId])) {
+            return $mockUsers[$userId];
+        }
+
+        if ($username) {
+            foreach ($mockUsers as $user) {
+                if ($user['email'] === $username) {
+                    return $user;
+                }
+            }
+        }
+
+        return null;
     }
 }

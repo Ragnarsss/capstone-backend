@@ -67,6 +67,9 @@ class Router
 
         $parsedUrl = parse_url($path);
         $path = $parsedUrl['path'];
+        
+        $path = str_replace('/asistencia-node-integration', '', $path);
+        
         parse_str($parsedUrl['query'] ?? '', $queryParams);
 
         header('Content-Type: application/json');

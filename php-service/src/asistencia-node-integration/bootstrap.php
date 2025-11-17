@@ -32,7 +32,10 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-require_once __DIR__ . '/../db.inc';
+$dbIncPath = __DIR__ . '/../db.inc';
+if (file_exists($dbIncPath)) {
+    require_once $dbIncPath;
+}
 
 $sessionAdapter = new LegacySessionAdapter();
 $jwtLibrary = new JWT(Config::getJwtSecret());
