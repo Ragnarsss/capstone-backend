@@ -17,7 +17,7 @@ Módulo autocontenido que integra el sistema legacy PHP con el servicio Node.js 
 
 ## Arquitectura
 
-```
+```bash
 asistencia-node-integration/
 ├── bootstrap.php              # Composition root (DI manual)
 ├── index.php                  # Entry point HTTP
@@ -50,6 +50,7 @@ asistencia-node-integration/
 ```
 
 **Principios aplicados:**
+
 - DDD (Domain-Driven Design)
 - SoC (Separation of Concerns)
 - Dependency Inversion Principle
@@ -97,10 +98,36 @@ chmod 755 /var/www/html/asistencia-node-integration
 
 ### Paso 2: Configurar Variables de Entorno
 
-Opción A: Variables de entorno del sistema
+**Opción A: Usando Podman Compose (Recomendado para Producción)**
+
+Las variables de entorno se configuran automáticamente via `compose.yaml`:
 
 ```bash
-# En /etc/environment o .env del servidor
+# 1. Copiar archivo de ejemplo
+cp .env.example .env
+
+# 2. Editar con valores reales
+vi .env
+
+# 3. Generar secrets fuertes (min 32 caracteres)
+openssl rand -base64 32  # Para JWT_SECRET
+openssl rand -base64 32  # Para JWT_SECRET_INTERNAL
+
+# 4. Actualizar .env
+JWT_SECRET="<secret-generado-1>"
+JWT_SECRET_INTERNAL="<secret-generado-2>"
+NODE_MODULE_ENABLED=true
+
+# 5. Levantar servicios
+podman-compose -f compose.yaml -f compose.prod.yaml up -d
+```
+
+El archivo `compose.yaml` ya incluye las variables necesarias en `php-service` y `node-service`.
+
+**Opción B: Variables de entorno del sistema (Manual)**
+
+```bash
+# En /etc/environment o perfil del usuario
 export NODE_MODULE_ENABLED=true
 export NODE_ENV=production
 export JWT_SECRET="tu-clave-secreta-min-32-caracteres"
@@ -108,7 +135,7 @@ export JWT_SECRET_INTERNAL="tu-clave-interna-min-32-caracteres"
 export NODE_SERVICE_URL="http://node-service:3000"
 ```
 
-Opción B: Archivo .env local (requiere modificar Config.php)
+**Opción C: Archivo .env local (Desarrollo)**
 
 ```php
 # Copiar template
@@ -274,17 +301,19 @@ mv asistencia-node-integration asistencia-node-integration.disabled
 
 ### Autenticación (Usuario → Node)
 
-**GET /asistencia-node-integration/api/token**
+**GET /asistencia-node-integration/api/token:**
 
 Genera JWT para usuario autenticado.
 
 Request:
+
 ```http
 GET /asistencia-node-integration/api/token HTTP/1.1
 Cookie: PHPSESSID=abc123...
 ```
 
 Response:
+
 ```json
 {
   "success": true,
@@ -295,11 +324,12 @@ Response:
 }
 ```
 
-**GET /asistencia-node-integration/api/validate-session**
+**GET /asistencia-node-integration/api/validate-session:**
 
 Valida sesión sin generar token.
 
 Response:
+
 ```json
 {
   "success": true,
@@ -336,14 +366,16 @@ Registra evento de log.
 ### Test JWT Flow
 
 Abrir en navegador:
-```
+
+```web
 http://localhost/asistencia-node-integration/test/test-jwt.html
 ```
 
 ### Test Modal
 
 Abrir en navegador:
-```
+
+```web
 http://localhost/asistencia-node-integration/test/test-modal.html
 ```
 
@@ -367,6 +399,7 @@ curl -H "Authorization: Bearer <jwt_interno>" \
 **Causa:** `NODE_MODULE_ENABLED=false` o módulo renombrado a `.disabled`
 
 **Solución:**
+
 ```bash
 export NODE_MODULE_ENABLED=true
 # o renombrar carpeta
@@ -383,6 +416,7 @@ export NODE_MODULE_ENABLED=true
 **Causa:** Node service no está ejecutándose o URL incorrecta
 
 **Solución:**
+
 ```bash
 # Verificar Node service
 curl http://node-service:3000/health
@@ -409,7 +443,7 @@ export ENABLE_LOGGING=true
 
 ### Ubicación Logs
 
-```
+```bash
 asistencia-node-integration/logs/
 ├── events-2025-11-17.log
 ├── events-2025-11-18.log
@@ -418,7 +452,7 @@ asistencia-node-integration/logs/
 
 ### Formato
 
-```
+```bash
 [2025-11-17 10:30:45] TOKEN_REQUESTED | IP: 192.168.1.100 | Data: {"success":true,"userId":123}
 [2025-11-17 10:31:02] USER_DATA_QUERY | IP: 172.17.0.1 | Data: {"userId":123}
 ```
@@ -432,11 +466,13 @@ asistencia-node-integration/logs/
 1. **Secrets fuertes:** Mínimo 32 caracteres aleatorios
 2. **HTTPS obligatorio:** No usar HTTP en producción
 3. **Logs deshabilitados:** `ENABLE_LOGGING=false` en producción
-4. **Permisos restrictivos:** 
+4. **Permisos restrictivos:**
+
    ```bash
    chmod 750 asistencia-node-integration/
    chmod 640 asistencia-node-integration/config/*
    ```
+
 5. **No commitear secrets:** Agregar `.env.php` a `.gitignore`
 6. **Rate limiting:** Configurar en Apache/Nginx
 7. **Firewall:** Node service NO debe ser accesible desde internet
