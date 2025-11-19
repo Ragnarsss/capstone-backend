@@ -28,6 +28,16 @@ export class CameraManager {
 
   async start(onResult: ScannerCallback, onError: (message: string) => void): Promise<void> {
     try {
+      if (typeof window !== 'undefined' && !window.isSecureContext) {
+        onError('El lector necesita HTTPS o localhost para acceder a la camara');
+        return;
+      }
+
+      if (!navigator.mediaDevices?.enumerateDevices) {
+        onError('Tu navegador no soporta enumerar camaras (revisa permisos o actualiza)');
+        return;
+      }
+
       const devices = await BrowserMultiFormatReader.listVideoInputDevices();
       if (!devices.length) {
         onError('No se encontraron camaras disponibles');

@@ -19,97 +19,46 @@ podman compose -f compose.yaml -f compose.dev.yaml up --build
 
 # Producción
 podman compose -f compose.yaml -f compose.prod.yaml up -d --build
-```
 
-### Acceso
-
-| Servicio | Puerto | URL/Host | Descripción | Entorno |
-|----------|--------|----------|-------------|---------|
-| **Frontend** | 9500 | <http://localhost:9500> | Aplicación principal | Todos |
-| **Ejemplo JWT** | 9500 | <http://localhost:9500/ejemplo-jwt-client.html> | Demo autenticación | Todos |
-| PostgreSQL | 9501 | localhost:9501 | Base de datos | Dev + Prod |
-| Valkey | 9502 | localhost:9502 | Cache (Redis) | Dev + Prod |
-| Node.js API | 9503 | <http://localhost:9503> | API directa (bypass proxy) | **Solo Dev** |
-| Vite Dev Server | 9504 | <http://localhost:9504> | Frontend con HMR | **Solo Dev** |
-
-**Nota:** En producción, Node.js NO está expuesto directamente. Todo el tráfico pasa por el proxy Apache en el puerto 9500.
-
-### Detener Servicios
-
-```bash
+# Detener servicios
 podman compose down
 ```
 
----
+### Puertos y Acceso
 
-## Estructura del Proyecto
+| Servicio | Puerto | URL | Entorno |
+|----------|--------|-----|---------|
+| **Frontend Principal (HTTP)** | 9500 | <http://localhost:9500> | Todos |
+| **Frontend Principal (HTTPS)** | 9505 | <https://localhost:9505> | Todos |
+| PostgreSQL | 9501 | localhost:9501 | Dev |
+| Valkey (Redis) | 9502 | localhost:9502 | Dev |
+| Node.js API (directo) | 9503 | <http://localhost:9503> | **Solo Dev** |
+| Vite Dev Server | 9504 | <http://localhost:9504> | **Solo Dev** |
 
-```bash
-Asistencia/
-├── php-service/           # Frontend + Emisor JWT
-│   ├── src/               # Código PHP
-│   └── apache-config/     # Configuración Apache
-├── node-service/          # Backend + WebSocket
-│   ├── src/               # Código TypeScript
-│   └── frontend/          # Apps frontend
-├── documents/             # Documentación técnica completa
-│   ├── ARQUITECTURA_JWT.md
-│   ├── INSTRUCCIONES_JWT.md
-│   ├── 10-guia-integracion-php-node.md
-│   └── planificacion/     # Docs de arquitectura
-└── compose*.yaml          # Configuraciones Docker/Podman
-```
+**Nota:** En producción, Node.js NO está expuesto. Todo pasa por Apache (puerto 9500 HTTP / 9505 HTTPS).
 
 ---
 
-## Arquitectura Segura
+## Arquitectura
 
 ```text
-Cliente → PHP (Valida sesión + Emite JWT) 
+Cliente → Apache (PHP Service - Puerto 9500)
        ↓
-Cliente → Apache (Reverse Proxy)
+    Emite JWT + Reverse Proxy
        ↓
-Cliente → Node.js (Valida JWT + Lógica)
+Cliente → Node.js Backend (Puerto 3000 interno)
        ↓
-       Middlewares Globales:
-       - Security Headers
-       - CORS
-       - Request Logger
+    Middlewares → Módulos (QR Projection, Enrollment, Attendance)
        ↓
-       Módulos Backend (QR Projection, Enrollment)
+    PostgreSQL + Valkey
 ```
 
-**Características de seguridad:**
+**Características:**
 
-- JWT con TTL 5 minutos
-- WebSocket con autenticación obligatoria
-- Node.js NO expuesto directamente
-- Códigos de cierre personalizados (4401, 4403, 4408)
-- Headers de seguridad HTTP (X-Frame-Options, CSP, etc)
-- CORS configurado por entorno (dev/prod)
-- Logging centralizado de requests
-
----
-
-## Documentación
-
-### Para Desarrolladores
-
-- **[documents/INSTRUCCIONES_JWT.md](documents/INSTRUCCIONES_JWT.md)** - Guía paso a paso
-- **[documents/ARQUITECTURA_JWT.md](documents/ARQUITECTURA_JWT.md)** - Arquitectura completa
-- **[documents/10-guia-integracion-php-node.md](documents/10-guia-integracion-php-node.md)** - Integración PHP-Node
-
-### Documentación Técnica Completa
-
-Ver carpeta **[documents/](documents/)** para:
-
-- Arquitectura general del sistema
-- Componentes criptográficos (FIDO2, ECDH, TOTP)
-- Flujos de enrollment y asistencia
-- Decisiones arquitectónicas
-- Estado de implementación
-- Protocolos WebSocket
-- Diagramas de secuencia
+- JWT con TTL 5 minutos (PHP emite, Node valida)
+- WebSocket autenticado con códigos de cierre personalizados (4401, 4403, 4408)
+- Node.js no expuesto en producción
+- Monolito modular con vertical slicing y DDD
 
 ---
 
@@ -118,81 +67,17 @@ Ver carpeta **[documents/](documents/)** para:
 | Componente | Tecnología | Versión |
 |------------|------------|---------|
 | Frontend (PHP) | PHP + Apache | 7.4 / 2.4 |
-| Frontend (Node) | TypeScript + Vite | Latest |
-| Backend | Node.js + TypeScript | 20 LTS |
-| Framework Backend | Fastify | Latest |
+| Frontend (TS) | TypeScript + Vite | Latest |
+| Backend | Node.js + Fastify | 20 LTS |
 | Base de Datos | PostgreSQL | 18 |
 | Cache | Valkey | 7 |
 | Contenedores | Podman/Docker | Latest |
 
 ---
 
-## Reglas de Desarrollo
+## Comandos Útiles
 
-### Arquitectura
-
-1. Mantener el monolito modular.
-2. Respetar el enfoque de vertical slicing.
-3. Mantener separación estricta de responsabilidades (SoC).
-4. Respetar el orden de carga definido en `app.ts`: infraestructura → módulos → plugin.
-<!--
-5. La migración desde `Asistencia2/` a `Asistencia/` no debe generar integración entre ambos; es traslado de funcionalidad, no fusión. (debe quedar en termnos generales esta regla y no hablar de Asustencia 2 o Asistencia)
--->
-### Estilo de implementación
-
-1. El módulo `Asistencia/` ya muestra QR; la lectura debe integrarse sin romper el patrón existente.
-2. Al detectar un QR, mostrar su mensaje bajo la vista de cámara.
-3. El flujo de acceso debe replicar el mismo patrón usado para mostrar el QR, pero activado desde un nuevo botón en PHP.
-4. No usar emoticones ni emojis.
-
-### Stack y entorno
-
-1. Mantener el stack declarado en la sección "Stack Tecnológico" (versiones y componentes).
-2. Considerar siempre que el host no contiene `npm`; toda instalación de paquetes se realiza dentro de contenedores.
-3. Usar `podman compose` (no `podman-compose`).
-4. Reconstruir contenedores cuando se instalen paquetes o cambien dependencias.
-5. Antes de cualquier propuesta o implementación, revisar el `Containerfile` y los archivos de `podman compose` en `Asistencia/`, ya que definen los modos dev y prod.
-
-### Reglas de desarrollo
-
-1. Analizar y respetar los flujos existentes antes de introducir cambios.
-2. No romper la estructura modular existente ni mezclar responsabilidades entre módulos.
-3. Mantener la implementación simple, coherente y predecible dentro del patrón actual.
-
-### Comentarios en código
-
-1. Los comentarios deben ser concisos y pertinentes.
-2. Deben servir como recordatorios personales, no como explicaciones condescendientes.
-3. No incluir ambigüedades ni redundancias.
-4. No usar emoticones ni emojis en comentarios.
-
----
-
-## Troubleshooting
-
-### Puertos en uso
-
-```bash
-# Verificar puertos
-sudo lsof -i :9500
-sudo lsof -i :9501
-sudo lsof -i :9502
-sudo lsof -i :9503
-sudo lsof -i :9504  # Solo en desarrollo
-
-# Detener servicios anteriores
-podman compose down
-```
-
-### Rebuild completo
-
-```bash
-# Limpiar todo y reconstruir
-podman compose down -v
-podman compose -f compose.yaml -f compose.dev.yaml up --build --force-recreate
-```
-
-### Ver logs
+### Logs de servicios
 
 ```bash
 # Todos los servicios
@@ -203,60 +88,102 @@ podman compose logs -f node-service
 podman compose logs -f php-service
 ```
 
+### Reconstruir desde cero
+
+```bash
+# Limpiar todo y reconstruir
+podman compose down -v
+podman compose -f compose.yaml -f compose.dev.yaml up --build --force-recreate
+```
+
+### Verificar puertos en uso
+
+```bash
+sudo lsof -i :9500
+sudo lsof -i :9501
+sudo lsof -i :9502
+sudo lsof -i :9503  # Solo en desarrollo
+sudo lsof -i :9504  # Solo en desarrollo
+sudo lsof -i :9505  # HTTPS
+```
+
+---
+
+## Documentación Técnica Completa
+
+Ver carpeta **[documents/](documents/)** para:
+
+- `03-especificaciones-tecnicas/` - Arquitectura, componentes, flujos, esquemas
+- `04-planes-implementacion/` - Planes de implementación por módulo
+- `02-sistema-base-php/` - Integración PHP-Node y autenticación
+- `01-contexto/` - Antecedentes del sistema base
+
+---
+
+## Reglas de Desarrollo
+
+### Principios Arquitectónicos
+
+1. Monolito modular con vertical slicing
+2. Separación estricta de responsabilidades (SoC)
+3. Domain-Driven Design (DDD)
+4. Orden de carga en `app.ts`: infraestructura → módulos → plugin
+
+### Stack y Entorno
+
+1. Stack definido en "Stack Tecnológico" (no modificar sin revisión)
+2. Host sin `npm`: toda instalación dentro de contenedores
+3. Usar `podman compose` (no `podman-compose`)
+4. Reconstruir al cambiar dependencias
+
+### Implementación
+
+1. Analizar flujos existentes antes de cambiar
+2. No romper estructura modular ni mezclar responsabilidades
+3. Comentarios concisos y pertinentes (sin emojis)
+4. No usar emoticones en código ni comentarios
+
+---
+
+---
+
+## Troubleshooting
+
+### Puertos ocupados
+
+```bash
+# Verificar puertos
+sudo lsof -i :9500
+sudo lsof -i :9501
+sudo lsof -i :9502
+sudo lsof -i :9503  # Solo en desarrollo
+sudo lsof -i :9504  # Solo en desarrollo
+sudo lsof -i :9505  # HTTPS
+
+# Detener servicios anteriores
+podman compose down
+```
+
+### Problemas de permisos
+
+```bash
+# Recrear volúmenes
+podman compose down -v
+podman compose -f compose.yaml -f compose.dev.yaml up --build
+```
+
 ---
 
 ## Estado del Proyecto
 
-```text
-Flujo Anfitrión (Profesor):  ████████████████████████ 100%
-Flujo Invitado (Alumno):     ████░░░░░░░░░░░░░░░░░░░░  15% (en desarrollo)
-Middlewares (T1-T4):         ████████████████████████ 100%
+Ver **[documents/03-especificaciones-tecnicas/13-estado-implementacion.md](documents/03-especificaciones-tecnicas/13-estado-implementacion.md)** para:
 
-Sistema Completo:            ████████████░░░░░░░░░░░░  62%
-```
-
-**Funcionalidades:**
-
-- [OK] Autenticación JWT completa
-- [OK] WebSocket seguro con proyección QR
-- [OK] Infraestructura de desarrollo y producción
-- [OK] Middlewares de seguridad (Security Headers, CORS, Cache Control)
-- [OK] Request Logger centralizado
-- [WIP] Enrollment FIDO2 (en desarrollo)
-- [WIP] Validación de asistencia (en desarrollo)
-- [PENDING] Error Handler Middleware
-- [PENDING] Validation Middleware
-- [PENDING] Rate Limiting
-
-**Últimas actualizaciones:**
-
-- 2025-11-14: Middlewares foundation (T1-T4) completados
-  - Security Headers Middleware (X-Frame-Options, CSP, etc)
-  - CORS Middleware (dev/prod configuration)
-  - Cache Control Middleware (reutilizable)
-  - Request Logger Middleware (centralizado)
-  - Fixes de compilación TypeScript y rutas de producción
-
-Ver **[documents/planificacion/13-estado-implementacion.md](documents/planificacion/13-estado-implementacion.md)** para detalles completos.
-
----
-
-## Contribuir
-
-1. Fork el proyecto
-2. Crear branch (`git checkout -b feature/nueva-funcionalidad`)
-3. Commit cambios (`git commit -am 'Agregar nueva funcionalidad'`)
-4. Push al branch (`git push origin feature/nueva-funcionalidad`)
-5. Crear Pull Request
+- Estado de implementación por módulo
+- Funcionalidades completadas y pendientes
+- Roadmap de desarrollo
 
 ---
 
 ## Licencia
 
 Este proyecto es parte de un trabajo de titulación universitario.
-
----
-
-**Última actualización:** 2025-11-14
-
-**Tag actual:** `middleware-foundation` (T1-T4 completados)
