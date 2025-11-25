@@ -1,9 +1,8 @@
 # Separación de Flujos por Rol (Anfitrión vs Invitado)
 
-**Versión:** 2.0
+**Version:** 2.0
 **Fecha:** 2025-11-03
-**Estado:** Documento de Arquitectura - Actualizado según implementación real
-**Autor:** Sistema (actualizado post-análisis de código implementado)
+**Estado:** Documento de Arquitectura - Actualizado segun implementacion real
 
 ---
 
@@ -872,13 +871,13 @@ Esta propuesta se considera **completamente implementada** cuando:
 6. [FAIL] **Testing automatizado:** >80% cobertura (PENDIENTE)
 7. [WIP] **Documentación:** Actualizada parcialmente (EN PROGRESO)
 
-### Métricas de Éxito (Objetivos)
+### Metricas de Exito (Objetivos)
 
-- **Cobertura código:** >80% (actual: ~60% solo Anfitrión)
-- **Tiempo response:** <2s validación QR
+- **Cobertura codigo:** >80% (actual: ~60% solo Anfitrion)
+- **Tiempo response:** <2s validacion QR
 - **Tasa error:** <1% enrollment
-- **Satisfacción:** >4.5/5 en encuesta usuarios
-- **Disponibilidad:** >99% uptime producción
+- **Usabilidad:** Flujo intuitivo sin documentacion adicional
+- **Disponibilidad:** >99% uptime produccion
 
 ### Estado Actual (2025-11-03)
 
@@ -933,12 +932,11 @@ Sistema Completo:  ████████░░░░░░░░░░░░�
 ### Preguntas Pendientes
 
 - ¿Se requiere implementación completa antes de fin de 2025?
-- ¿Hay presupuesto para librerías jsQR o similares?
-- ¿Dispositivos mínimos soportados? (para FIDO2)
-- ¿Se requiere fallback HTTP si WebSocket falla?
+- Hay presupuesto para librerias jsQR o similares?
+- Dispositivos minimos soportados? (para FIDO2)
+- Se requiere fallback HTTP si WebSocket falla?
 
 ---
 
 **Documento actualizado:** 2025-11-03  
-**Próxima revisión:** Después de completar Sprint 1  
-**Autor:** Sistema (análisis automatizado + validación arquitectura real)
+**Proxima revision:** Despues de completar Sprint 1

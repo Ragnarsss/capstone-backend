@@ -94,11 +94,11 @@ documents/
 - Ejemplos de cliente JavaScript
 - Referencias a archivos concretos implementados
 
-**Para quién:** Desarrolladores full-stack, integradores de sistemas
+**Uso:** Consultar para implementar integraciones entre PHP y Node.
 
 ---
 
-### Documentación de Planificación (`planificacion/`)
+### Documentación de Planificacion (`planificacion/`)
 
 #### 01. Arquitectura General  ACTUALIZADO (2025-11-03)
 
@@ -113,13 +113,13 @@ documents/
 - Arquitectura de monolito modular (vertical slicing)
 - Stack tecnológico
 - Flujo general (8 fases)
-- Código de implementación JWT (PHP + Node)
+- Codigo de implementacion JWT (PHP + Node)
 
-**Para quién:** Arquitectos, líderes técnicos, stakeholders
+**Uso:** Punto de partida para entender la arquitectura completa.
 
 ---
 
-#### 02. Componentes Criptográficos
+#### 02. Componentes Criptograficos
 
 **Archivo:** `planificacion/02-componentes-criptograficos.md`
 
@@ -132,9 +132,9 @@ documents/
 - AES-256-GCM
 - Device-Bound Passkeys
 - Attestation Certificates
-- Integración de componentes
+- Integracion de componentes
 
-**Para quién:** Desarrolladores backend, especialistas en seguridad
+**Uso:** Referencia para implementar los componentes criptograficos.
 
 ---
 
@@ -152,7 +152,7 @@ documents/
 - Manejo de errores
 - Re-enrolamiento
 
-**Para quién:** Desarrolladores frontend y backend
+**Uso:** Guia para implementar el proceso FIDO2.
 
 ---
 
@@ -172,7 +172,7 @@ documents/
 - Cálculo de umbral de certeza
 - Manejo de errores y reintentos
 
-**Para quién:** Desarrolladores, QA engineers
+**Uso:** Guia para implementar el flujo de validacion de asistencia.
 
 ---
 
@@ -192,7 +192,7 @@ documents/
 - Queries útiles
 - Backup y mantenimiento
 
-**Para quién:** DBAs, desarrolladores backend
+**Uso:** Referencia para estructura y consultas de base de datos.
 
 ---
 
@@ -211,11 +211,11 @@ documents/
 - Cálculo de umbral (Mermaid)
 - Flujo completo simplificado (Mermaid)
 
-**Para quién:** Todo el equipo técnico, visualización de flujos
+**Uso:** Visualizacion rapida de flujos para entender el sistema.
 
 ---
 
-#### 07. Decisiones Arquitectónicas  ACTUALIZADO (2025-11-03)
+#### 07. Decisiones Arquitectonicas  ACTUALIZADO (2025-11-03)
 
 **Archivo:** `planificacion/07-decisiones-arquitectonicas.md`
 
@@ -235,13 +235,13 @@ documents/
 - **NUEVO DA-012:** Separación de Flujos por Entry Points
 - Tabla de resumen con estados de implementación
 
-Cada decisión incluye: alternativas, justificación, código, consecuencias, estado
+Cada decision incluye: alternativas, justificacion, codigo, consecuencias, estado
 
-**Para quién:** Arquitectos, líderes técnicos, auditores
+**Uso:** Referencia para entender el razonamiento detras de cada decision tecnica.
 
 ---
 
-#### 08. Plan de Implementación (LEGACY)
+#### 08. Plan de Implementacion (LEGACY)
 
 **Archivo:** `planificacion/08-plan-implementacion-LEGACY-12-16semanas.md`
 
@@ -254,9 +254,9 @@ Cada decisión incluye: alternativas, justificación, código, consecuencias, es
 - Fase 3: Validación Estadística (2 semanas)
 - Fase 4: Optimización y Producción (2-4 semanas)
 
-**NOTA:** Plan de la versión original. Ver `13-estado-implementacion.md` para plan actual.
+**NOTA:** Plan de la version original. Ver `13-estado-implementacion.md` para plan actual.
 
-**Para quién:** Project managers, desarrolladores, stakeholders
+**Uso:** Contexto historico de la planificacion inicial.
 
 ---
 
@@ -272,9 +272,9 @@ Cada decisión incluye: alternativas, justificación, código, consecuencias, es
 - **NUEVO:** Flujo de handshake con timeout
 - Mensajes: AUTH, auth-ok, countdown, qr-update, error
 - Manejo de conexiones y eventos
-- Rotación de códigos QR en tiempo real
+- Rotacion de codigos QR en tiempo real
 
-**Para quién:** Desarrolladores backend y frontend
+**Uso:** Especificacion del protocolo WebSocket para implementacion.
 
 ---
 
@@ -286,13 +286,13 @@ Cada decisión incluye: alternativas, justificación, código, consecuencias, es
 
 - Estrategias de testing para el sistema
 - Unit tests, integration tests, E2E tests
-- Testing de seguridad y criptografía
+- Testing de seguridad y criptografia
 
-**Para quién:** QA engineers, desarrolladores
+**Uso:** Guia para implementar tests del sistema.
 
 ---
 
-#### 12. Propuesta Separación de Roles  ACTUALIZADO (2025-11-03)
+#### 12. Propuesta Separacion de Roles  ACTUALIZADO (2025-11-03)
 
 **Archivo:** `planificacion/12-propuesta-separacion-roles-anfitrion-invitado.md`
 
@@ -306,11 +306,11 @@ Cada decisión incluye: alternativas, justificación, código, consecuencias, es
 - Plan de sprints detallado
 - Referencias cruzadas actualizadas
 
-**Para quién:** Arquitectos, desarrolladores full-stack
+**Uso:** Referencia para la arquitectura de separacion de roles.
 
 ---
 
-#### 13. Estado de Implementación  NUEVO (2025-11-03)
+#### 13. Estado de Implementacion  NUEVO (2025-11-03)
 
 **Archivo:** `planificacion/13-estado-implementacion.md`
 
@@ -325,11 +325,11 @@ Cada decisión incluye: alternativas, justificación, código, consecuencias, es
 - Plan de acción inmediato con sprints
 - Matriz de compatibilidad (navegadores, ambientes)
 
-**Para quién:** Todo el equipo, stakeholders, project managers
+**Uso:** Documento vivo para seguimiento del progreso del proyecto.
 
 ---
 
-#### Recomendación Original
+#### Recomendacion Original
 
 **Archivo:** `planificacion/recomendacion.md`
 
@@ -338,13 +338,13 @@ Cada decisión incluye: alternativas, justificación, código, consecuencias, es
 - Recomendación de la IA amiga sobre arquitectura JWT
 - Análisis del problema con el patrón proxy
 - Propuesta del patrón "Portero" (PHP emite JWT)
-- Justificación técnica del cambio
+- Justificacion tecnica del cambio
 
-**Para quién:** Arquitectos, desarrolladores que quieran entender el "por qué" del cambio
+**Uso:** Contexto para entender el razonamiento del cambio a JWT.
 
 ---
 
-## Características de la Documentación
+## Caracteristicas de la Documentacion
 
 ### Documentos de Planificación vs Implementación
 
@@ -477,12 +477,12 @@ Esta documentación debe actualizarse cuando:
 - Se modifique el esquema de base de datos
 - Se agreguen nuevos módulos o features
 - Se cambien flujos o procesos
-- Se identifiquen errores o ambigüedades
+- Se identifiquen errores o ambiguedades
 
-**Responsable:** Equipo de desarrollo + Arquitecto técnico
+**Importante:** Mantener la documentacion actualizada con cada cambio significativo.
 
 ---
 
-## Contacto
+## Contactonales
 
-Para preguntas sobre esta documentación, contactar al equipo técnico del proyecto.
+Esta documentacion sirve como referencia centralizada para el desarrollo del proyecto. Mantener actualizada con cada cambio significativo.

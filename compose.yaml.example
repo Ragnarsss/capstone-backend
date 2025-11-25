@@ -15,8 +15,15 @@ services:
       context: ./php-service
       dockerfile: Containerfile
     container_name: asistencia-php
+    environment:
+      # Variables JWT para modulo asistencia-node-integration
+      - JWT_SECRET=${JWT_SECRET:-change_this_secret_in_production}
+      - JWT_SECRET_INTERNAL=${JWT_SECRET_INTERNAL:-change_this_internal_secret_in_production}
+      - NODE_MODULE_ENABLED=${NODE_MODULE_ENABLED:-true}
+      - NODE_SERVICE_URL=http://node-service:3000
     ports:
       - "9500:80"
+      - "9505:443"
     depends_on:
       - node-service
       - postgres
@@ -34,6 +41,8 @@ services:
       - PORT=3000
       - VALKEY_HOST=valkey
       - VALKEY_PORT=6379
+      # Variables JWT para validacion de tokens internos desde PHP
+      - JWT_SECRET_INTERNAL=${JWT_SECRET_INTERNAL:-change_this_internal_secret_in_production}
     depends_on:
       - valkey
     networks:

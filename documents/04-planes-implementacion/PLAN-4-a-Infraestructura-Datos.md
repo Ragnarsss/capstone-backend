@@ -95,9 +95,7 @@ Esta parte es requisito para:
 
 #### User Story 1.1 - Schemas PostgreSQL
 
-**Como** desarrollador
-**Quiero** tener los schemas de base de datos creados
-**Para** poder persistir datos de enrollment y attendance
+**Objetivo:** Crear los schemas de base de datos para persistir datos de enrollment y attendance.
 
 ##### Tareas - User Story 1.1
 
@@ -267,9 +265,7 @@ CREATE INDEX idx_devices_active ON enrollment.devices(is_active) WHERE is_active
 
 #### User Story 1.3: Datos de Prueba
 
-**Como** desarrollador
-**Quiero** datos de prueba en la base de datos
-**Para** poder probar sin crear datos manualmente
+**Objetivo:** Crear datos de prueba en la base de datos para probar sin crear datos manualmente.
 
 ##### Tareas - User Story 1.3
 
@@ -349,9 +345,7 @@ CREATE INDEX idx_devices_active ON enrollment.devices(is_active) WHERE is_active
 
 #### User Story 1.5: Testing DB
 
-**Como** desarrollador
-**Quiero** validar que la base de datos funciona correctamente
-**Para** asegurar que no hay errores en el schema
+**Objetivo:** Validar que la base de datos funciona correctamente para asegurar que no hay errores en el schema.
 
 ##### Tareas - Parte 6
 

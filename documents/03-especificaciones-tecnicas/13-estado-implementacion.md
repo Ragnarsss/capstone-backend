@@ -438,9 +438,8 @@ COBERTURA TOTAL:       ████████████░░░░░░░
 
 ---
 
-**Última actualización:** 2025-11-03  
-**Próxima revisión:** Después de cada sprint  
-**Mantenido por:** Equipo de desarrollo
+**Ultima actualizacion:** 2025-11-03  
+**Proxima revision:** Despues de cada sprint  
 
 ---
 

@@ -113,9 +113,7 @@ Esta parte provee:
 
 #### User Story 2.1: Domain Layer Attendance
 
-**Como** desarrollador
-**Quiero** las entidades de dominio definidas
-**Para** tener un modelo rico del negocio
+**Objetivo:** Definir las entidades de dominio para tener un modelo rico del negocio.
 
 ##### Tareas - User Story 2.1
 
@@ -178,9 +176,7 @@ Esta parte provee:
 
 #### User Story 2.2: Domain Services Attendance
 
-**Como** desarrollador
-**Quiero** servicios de dominio para lógica compleja
-**Para** mantener entidades limpias
+**Objetivo:** Implementar servicios de dominio para logica compleja y mantener entidades limpias.
 
 ##### Tareas - User Story 2.2
 
@@ -224,9 +220,7 @@ Esta parte provee:
 
 #### User Story 2.3: Infrastructure Layer Attendance
 
-**Como** desarrollador
-**Quiero** repositorios para persistencia
-**Para** guardar datos en PostgreSQL y Valkey
+**Objetivo:** Implementar repositorios para persistencia en PostgreSQL y Valkey.
 
 ##### Tareas - User Story 2.3
 
@@ -301,9 +295,7 @@ Esta parte provee:
 
 #### User Story 2.4: Application Layer Attendance
 
-**Como** desarrollador
-**Quiero** casos de uso bien definidos
-**Para** orquestar la lógica de negocio
+**Objetivo:** Implementar casos de uso bien definidos para orquestar la logica de negocio.
 
 ##### Tareas - User Story 2.4
 
@@ -457,11 +449,9 @@ Esta parte provee:
 
 ---
 
-#### User Story 2.7: Documentación Attendance
+#### User Story 2.7: Documentacion Attendance
 
-**Como** desarrollador nuevo
-**Quiero** documentación clara del módulo
-**Para** entender cómo funciona
+**Objetivo:** Crear documentacion clara del modulo para facilitar la comprension del funcionamiento.
 
 ##### Tareas - User Story 2.7
 

@@ -11,6 +11,8 @@
 services:
   # Override PHP service para desarrollo
   php-service:
+    environment:
+      - NODE_ENV=development
     volumes:
       # Monta codigo PHP para cambios en vivo
       # :z para compatibilidad SELinux en Podman (shared access)

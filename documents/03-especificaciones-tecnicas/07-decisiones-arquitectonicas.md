@@ -25,9 +25,9 @@ Documentar las decisiones técnicas clave tomadas en el diseño del sistema, jus
 - **Escala actual:** 50-200 usuarios concurrentes no justifica complejidad operacional de microservicios
 - **Simplicidad operacional:** 1 deploy, 1 monitor, 1 proceso de debugging
 - **Sin latencia de red interna:** Llamadas entre módulos son in-process
-- **Arquitectura de datos independientes:** 3 bases de datos (PHP Legacy, Node Cache, Node Persistente) con comunicación vía HTTP
-- **Equipo pequeño:** Menor overhead de coordinación
-- **Migración futura posible:** Interfaces claras permiten extraer a microservicios si escala
+- **Arquitectura de datos independientes:** 3 bases de datos (PHP Legacy, Node Cache, Node Persistente) con comunicacion via HTTP
+- **Desarrollo individual:** Menor overhead de coordinacion
+- **Migracion futura posible:** Interfaces claras permiten extraer a microservicios si escala
 
 **SoC mantenida mediante:**
 
