@@ -9,3 +9,6 @@ export type { GetEnrollmentStatusInput, GetEnrollmentStatusOutput, DeviceInfo } 
 
 export { LoginEcdhUseCase } from './login-ecdh.use-case';
 export type { LoginEcdhInput, LoginEcdhOutput } from './login-ecdh.use-case';
+
+export { RevokeDeviceUseCase } from './revoke-device.use-case';
+export type { RevokeDeviceInput, RevokeDeviceOutput } from './revoke-device.use-case';

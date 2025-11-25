@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
-import { StartEnrollmentController, FinishEnrollmentController, EnrollmentStatusController, LoginEcdhController } from './controllers';
-import { StartEnrollmentUseCase, FinishEnrollmentUseCase, GetEnrollmentStatusUseCase, LoginEcdhUseCase } from '../application/use-cases';
+import { StartEnrollmentController, FinishEnrollmentController, EnrollmentStatusController, LoginEcdhController, RevokeDeviceController } from './controllers';
+import { StartEnrollmentUseCase, FinishEnrollmentUseCase, GetEnrollmentStatusUseCase, LoginEcdhUseCase, RevokeDeviceUseCase } from '../application/use-cases';
 import { Fido2Service, DeviceRepository, EnrollmentChallengeRepository, HkdfService, SessionKeyRepository, EcdhService } from '../infrastructure';
 import { AuthMiddleware } from '../../auth/presentation/auth-middleware';
 import { AuthService } from '../../auth/application/auth.service';
@@ -48,11 +48,14 @@ export async function registerEnrollmentRoutes(fastify: FastifyInstance): Promis
     fido2Service
   );
 
+  const revokeDeviceUseCase = new RevokeDeviceUseCase(deviceRepository);
+
   // Instanciar controllers
   const startEnrollmentController = new StartEnrollmentController(startEnrollmentUseCase);
   const finishEnrollmentController = new FinishEnrollmentController(finishEnrollmentUseCase);
   const enrollmentStatusController = new EnrollmentStatusController(getEnrollmentStatusUseCase);
   const loginEcdhController = new LoginEcdhController(loginEcdhUseCase);
+  const revokeDeviceController = new RevokeDeviceController(revokeDeviceUseCase);
 
   // Middleware de autenticación
   const jwtUtils = new JWTUtils({
@@ -106,6 +109,11 @@ export async function registerEnrollmentRoutes(fastify: FastifyInstance): Promis
     enrollmentRoutes.post('/api/enrollment/login', {
       preHandler: [jsonOnly, loginRateLimit],
       handler: loginEcdhController.handle.bind(loginEcdhController),
+    });
+
+    // DELETE /api/enrollment/devices/:deviceId - Revocar dispositivo
+    enrollmentRoutes.delete('/api/enrollment/devices/:deviceId', {
+      handler: revokeDeviceController.handle.bind(revokeDeviceController),
     });
   });
 }
