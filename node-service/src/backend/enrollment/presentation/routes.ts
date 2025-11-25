@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
-import { StartEnrollmentController } from './controllers';
-import { StartEnrollmentUseCase } from '../application/use-cases';
-import { Fido2Service, DeviceRepository, EnrollmentChallengeRepository } from '../infrastructure';
+import { StartEnrollmentController, FinishEnrollmentController } from './controllers';
+import { StartEnrollmentUseCase, FinishEnrollmentUseCase } from '../application/use-cases';
+import { Fido2Service, DeviceRepository, EnrollmentChallengeRepository, HkdfService } from '../infrastructure';
 import { AuthMiddleware } from '../../auth/presentation/auth-middleware';
 import { AuthService } from '../../auth/application/auth.service';
 import { JWTUtils } from '../../auth/domain/jwt-utils';
@@ -20,6 +20,7 @@ export async function registerEnrollmentRoutes(fastify: FastifyInstance): Promis
   const fido2Service = new Fido2Service();
   const deviceRepository = new DeviceRepository();
   const challengeRepository = new EnrollmentChallengeRepository();
+  const hkdfService = new HkdfService();
 
   // Instanciar use cases
   const startEnrollmentUseCase = new StartEnrollmentUseCase(
@@ -28,8 +29,16 @@ export async function registerEnrollmentRoutes(fastify: FastifyInstance): Promis
     challengeRepository
   );
 
+  const finishEnrollmentUseCase = new FinishEnrollmentUseCase(
+    fido2Service,
+    deviceRepository,
+    challengeRepository,
+    hkdfService
+  );
+
   // Instanciar controllers
   const startEnrollmentController = new StartEnrollmentController(startEnrollmentUseCase);
+  const finishEnrollmentController = new FinishEnrollmentController(finishEnrollmentUseCase);
 
   // Middleware de autenticación
   const jwtUtils = new JWTUtils({
@@ -60,8 +69,13 @@ export async function registerEnrollmentRoutes(fastify: FastifyInstance): Promis
       handler: startEnrollmentController.handle.bind(startEnrollmentController),
     });
 
+    // POST /api/enrollment/finish
+    enrollmentRoutes.post('/api/enrollment/finish', {
+      preHandler: [jsonOnly, enrollmentRateLimit],
+      handler: finishEnrollmentController.handle.bind(finishEnrollmentController),
+    });
+
     // TODO: Agregar más rutas en las siguientes fases
-    // - POST /api/enrollment/finish
     // - POST /api/enrollment/login
     // - GET /api/enrollment/status
   });
