@@ -9,3 +9,4 @@ export type {
 // Repositories
 export { EnrollmentChallengeRepository } from './enrollment-challenge.repository';
 export { SessionKeyRepository } from './session-key.repository';
+export { DeviceRepository } from './repositories';
