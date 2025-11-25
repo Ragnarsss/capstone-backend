@@ -171,17 +171,6 @@ podman compose down
 podman compose down -v
 podman compose -f compose.yaml -f compose.dev.yaml up --build
 ```
-
----
-
-## Estado del Proyecto
-
-Ver **[documents/03-especificaciones-tecnicas/13-estado-implementacion.md](documents/03-especificaciones-tecnicas/13-estado-implementacion.md)** para:
-
-- Estado de implementación por módulo
-- Funcionalidades completadas y pendientes
-- Roadmap de desarrollo
-
 ---
 
 ## Licencia
