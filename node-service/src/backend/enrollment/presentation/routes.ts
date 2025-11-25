@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
-import { StartEnrollmentController, FinishEnrollmentController } from './controllers';
-import { StartEnrollmentUseCase, FinishEnrollmentUseCase } from '../application/use-cases';
+import { StartEnrollmentController, FinishEnrollmentController, EnrollmentStatusController } from './controllers';
+import { StartEnrollmentUseCase, FinishEnrollmentUseCase, GetEnrollmentStatusUseCase } from '../application/use-cases';
 import { Fido2Service, DeviceRepository, EnrollmentChallengeRepository, HkdfService } from '../infrastructure';
 import { AuthMiddleware } from '../../auth/presentation/auth-middleware';
 import { AuthService } from '../../auth/application/auth.service';
@@ -36,9 +36,12 @@ export async function registerEnrollmentRoutes(fastify: FastifyInstance): Promis
     hkdfService
   );
 
+  const getEnrollmentStatusUseCase = new GetEnrollmentStatusUseCase(deviceRepository);
+
   // Instanciar controllers
   const startEnrollmentController = new StartEnrollmentController(startEnrollmentUseCase);
   const finishEnrollmentController = new FinishEnrollmentController(finishEnrollmentUseCase);
+  const enrollmentStatusController = new EnrollmentStatusController(getEnrollmentStatusUseCase);
 
   // Middleware de autenticación
   const jwtUtils = new JWTUtils({
@@ -75,8 +78,12 @@ export async function registerEnrollmentRoutes(fastify: FastifyInstance): Promis
       handler: finishEnrollmentController.handle.bind(finishEnrollmentController),
     });
 
+    // GET /api/enrollment/status
+    enrollmentRoutes.get('/api/enrollment/status', {
+      handler: enrollmentStatusController.handle.bind(enrollmentStatusController),
+    });
+
     // TODO: Agregar más rutas en las siguientes fases
-    // - POST /api/enrollment/login
-    // - GET /api/enrollment/status
+    // - POST /api/enrollment/login (ECDH key exchange)
   });
 }
