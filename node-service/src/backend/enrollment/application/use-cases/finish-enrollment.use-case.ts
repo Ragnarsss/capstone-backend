@@ -1,5 +1,5 @@
 import type { RegistrationResponseJSON } from '@simplewebauthn/types';
-import { Fido2Service, DeviceRepository, EnrollmentChallengeRepository, HkdfService } from '../../infrastructure';
+import { Fido2Service, DeviceRepository, EnrollmentChallengeRepository, HkdfService, PenaltyService } from '../../infrastructure';
 import type { CreateDeviceDto } from '../../domain/entities';
 
 /**
@@ -19,6 +19,10 @@ export interface FinishEnrollmentOutput {
   credentialId: string;
   aaguid: string;
   success: true;
+  penaltyInfo?: {
+    newEnrollmentCount: number;
+    nextDelayMinutes: number;
+  };
 }
 
 /**
@@ -30,15 +34,17 @@ export interface FinishEnrollmentOutput {
  * 3. Extraer credentialId, publicKey, aaguid
  * 4. Derivar handshake_secret con HKDF
  * 5. Guardar dispositivo en PostgreSQL
- * 6. Eliminar challenge de Valkey
- * 7. Retornar deviceId y metadata
+ * 6. Registrar penalización (incrementar contador)
+ * 7. Eliminar challenge de Valkey
+ * 8. Retornar deviceId y metadata
  */
 export class FinishEnrollmentUseCase {
   constructor(
     private readonly fido2Service: Fido2Service,
     private readonly deviceRepository: DeviceRepository,
     private readonly challengeRepository: EnrollmentChallengeRepository,
-    private readonly hkdfService: HkdfService
+    private readonly hkdfService: HkdfService,
+    private readonly penaltyService?: PenaltyService
   ) {}
 
   async execute(input: FinishEnrollmentInput): Promise<FinishEnrollmentOutput> {
@@ -108,15 +114,27 @@ export class FinishEnrollmentUseCase {
 
     const device = await this.deviceRepository.create(deviceDto);
 
-    // 7. Eliminar challenge de Valkey (ya fue consumido)
+    // 7. Registrar enrollment en sistema de penalizaciones
+    let penaltyInfo: { newEnrollmentCount: number; nextDelayMinutes: number } | undefined;
+    
+    if (this.penaltyService) {
+      const penaltyResult = await this.penaltyService.recordEnrollment(userId.toString());
+      penaltyInfo = {
+        newEnrollmentCount: penaltyResult.newCount,
+        nextDelayMinutes: penaltyResult.nextDelayMinutes,
+      };
+    }
+
+    // 8. Eliminar challenge de Valkey (ya fue consumido)
     await this.challengeRepository.delete(userId);
 
-    // 8. Retornar información del dispositivo enrolado
+    // 9. Retornar información del dispositivo enrolado
     return {
       deviceId: device.deviceId,
       credentialId: device.credentialId,
       aaguid: device.aaguid,
       success: true,
+      penaltyInfo,
     };
   }
 }

@@ -1,5 +1,5 @@
 import type { PublicKeyCredentialCreationOptionsJSON } from '@simplewebauthn/types';
-import { Fido2Service, DeviceRepository, EnrollmentChallengeRepository } from '../../infrastructure';
+import { Fido2Service, DeviceRepository, EnrollmentChallengeRepository, PenaltyService } from '../../infrastructure';
 import type { RegistrationOptionsInput } from '../../infrastructure';
 import type { Device } from '../../domain/entities';
 
@@ -17,29 +17,54 @@ export interface StartEnrollmentInput {
  */
 export interface StartEnrollmentOutput {
   options: PublicKeyCredentialCreationOptionsJSON;
+  penaltyInfo?: {
+    enrollmentCount: number;
+    nextDelayMinutes: number;
+  };
 }
 
 /**
  * Use Case: Iniciar proceso de enrollment FIDO2
  * 
  * Flujo:
- * 1. Verificar que el usuario no tenga el máximo de dispositivos
- * 2. Obtener dispositivos existentes (para excludeCredentials)
- * 3. Generar challenge y opciones WebAuthn
- * 4. Guardar challenge en Valkey con TTL 5 minutos
- * 5. Retornar opciones para navigator.credentials.create()
+ * 1. Verificar penalización (delays exponenciales)
+ * 2. Verificar que el usuario no tenga el máximo de dispositivos
+ * 3. Obtener dispositivos existentes (para excludeCredentials)
+ * 4. Generar challenge y opciones WebAuthn
+ * 5. Guardar challenge en Valkey con TTL 5 minutos
+ * 6. Retornar opciones para navigator.credentials.create()
  */
 export class StartEnrollmentUseCase {
   constructor(
     private readonly fido2Service: Fido2Service,
     private readonly deviceRepository: DeviceRepository,
-    private readonly challengeRepository: EnrollmentChallengeRepository
+    private readonly challengeRepository: EnrollmentChallengeRepository,
+    private readonly penaltyService?: PenaltyService
   ) {}
 
   async execute(input: StartEnrollmentInput): Promise<StartEnrollmentOutput> {
     const { userId, username, displayName } = input;
 
-    // 1. Verificar límite de dispositivos (máximo 5 por usuario)
+    // 1. Verificar penalización (si el servicio está configurado)
+    let penaltyInfo: { enrollmentCount: number; nextDelayMinutes: number } | undefined;
+    
+    if (this.penaltyService) {
+      const eligibility = await this.penaltyService.checkEnrollmentEligibility(userId.toString());
+      
+      if (!eligibility.canEnroll) {
+        throw new Error(
+          `PENALTY_ACTIVE: Debe esperar ${eligibility.waitMinutes} minutos antes de enrolar otro dispositivo. ` +
+          `Próximo intento permitido: ${eligibility.nextEnrollmentAt?.toISOString()}`
+        );
+      }
+      
+      penaltyInfo = {
+        enrollmentCount: eligibility.enrollmentCount,
+        nextDelayMinutes: this.penaltyService.getDelayMinutes(eligibility.enrollmentCount + 1),
+      };
+    }
+
+    // 2. Verificar límite de dispositivos (máximo 5 por usuario)
     const deviceCount = await this.deviceRepository.countByUserId(userId);
     if (deviceCount >= 5) {
       throw new Error('MAX_DEVICES_REACHED: El usuario ya tiene 5 dispositivos enrolados');
@@ -77,6 +102,6 @@ export class StartEnrollmentUseCase {
     );
 
     // 5. Retornar opciones para el cliente
-    return { options };
+    return { options, penaltyInfo };
   }
 }

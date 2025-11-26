@@ -1,11 +1,12 @@
 import type { FastifyInstance } from 'fastify';
 import { StartEnrollmentController, FinishEnrollmentController, EnrollmentStatusController, LoginEcdhController, RevokeDeviceController } from './controllers';
 import { StartEnrollmentUseCase, FinishEnrollmentUseCase, GetEnrollmentStatusUseCase, LoginEcdhUseCase, RevokeDeviceUseCase } from '../application/use-cases';
-import { Fido2Service, DeviceRepository, EnrollmentChallengeRepository, HkdfService, SessionKeyRepository, EcdhService } from '../infrastructure';
+import { Fido2Service, DeviceRepository, EnrollmentChallengeRepository, HkdfService, SessionKeyRepository, EcdhService, PenaltyService } from '../infrastructure';
 import { AuthMiddleware } from '../../auth/presentation/auth-middleware';
 import { AuthService } from '../../auth/application/auth.service';
 import { JWTUtils } from '../../auth/domain/jwt-utils';
 import { config } from '../../../shared/config';
+import { ValkeyClient } from '../../../shared/infrastructure/valkey/valkey-client';
 import { 
   createEndpointRateLimiter, 
   userIdKeyGenerator,
@@ -23,19 +24,25 @@ export async function registerEnrollmentRoutes(fastify: FastifyInstance): Promis
   const sessionKeyRepository = new SessionKeyRepository();
   const hkdfService = new HkdfService();
   const ecdhService = new EcdhService();
+  
+  // Servicio de penalizaciones (usa Valkey para contadores)
+  const valkeyClient = ValkeyClient.getInstance();
+  const penaltyService = new PenaltyService(valkeyClient);
 
   // Instanciar use cases
   const startEnrollmentUseCase = new StartEnrollmentUseCase(
     fido2Service,
     deviceRepository,
-    challengeRepository
+    challengeRepository,
+    penaltyService
   );
 
   const finishEnrollmentUseCase = new FinishEnrollmentUseCase(
     fido2Service,
     deviceRepository,
     challengeRepository,
-    hkdfService
+    hkdfService,
+    penaltyService
   );
 
   const getEnrollmentStatusUseCase = new GetEnrollmentStatusUseCase(deviceRepository);
