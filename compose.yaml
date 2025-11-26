@@ -50,8 +50,10 @@ services:
       # Variables JWT para validacion de tokens internos desde PHP
       - JWT_SECRET_INTERNAL=${JWT_SECRET_INTERNAL:-change_this_internal_secret_in_production}
     depends_on:
-      - valkey
-      - postgres
+      valkey:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
     networks:
       - asistencia-network
     expose:
@@ -70,6 +72,12 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./database:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U asistencia -d asistencia_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   # Valkey (Redis compatible) para cache y sesiones
   valkey:
@@ -80,6 +88,12 @@ services:
     volumes:
       - valkey-data:/data
     command: ["valkey-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
 
 networks:
   asistencia-network:
