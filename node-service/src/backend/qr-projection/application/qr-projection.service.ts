@@ -2,6 +2,7 @@ import { QRGenerator } from '../domain/qr-generator';
 import type { QRPayload, QRPayloadEnvelope } from '../domain/models';
 import { QRMetadataRepository } from '../infrastructure/qr-metadata.repository';
 import { ProjectionQueueRepository } from '../infrastructure/projection-queue.repository';
+import { QRPayloadRepository } from '../infrastructure/qr-payload.repository';
 import { SessionId } from '../domain/session-id';
 import { CryptoService } from '../../../shared/infrastructure/crypto';
 
@@ -11,6 +12,8 @@ import { CryptoService } from '../../../shared/infrastructure/crypto';
 export interface QRProjectionConfig {
   countdownSeconds: number;
   regenerationInterval: number;
+  /** TTL de payloads en Valkey (segundos). Default: 30 */
+  payloadTTL?: number;
 }
 
 /**
@@ -50,6 +53,7 @@ export class QRProjectionService {
   private qrGenerator: QRGenerator;
   private metadataRepository: QRMetadataRepository;
   private queueRepository: ProjectionQueueRepository;
+  private payloadRepository: QRPayloadRepository;
   private readonly config: QRProjectionConfig;
   private activeIntervals: Map<string, NodeJS.Timeout> = new Map();
 
@@ -57,13 +61,16 @@ export class QRProjectionService {
     config: QRProjectionConfig,
     metadataRepository: QRMetadataRepository,
     queueRepository: ProjectionQueueRepository,
-    cryptoService?: CryptoService
+    cryptoService?: CryptoService,
+    payloadRepository?: QRPayloadRepository
   ) {
     this.config = config;
     // Inyectar CryptoService al QRGenerator
     this.qrGenerator = new QRGenerator(cryptoService ?? new CryptoService());
     this.metadataRepository = metadataRepository;
     this.queueRepository = queueRepository;
+    // Crear PayloadRepository con TTL configurado
+    this.payloadRepository = payloadRepository ?? new QRPayloadRepository(config.payloadTTL ?? 30);
   }
 
   generateSessionId(): SessionId {
@@ -139,15 +146,24 @@ export class QRProjectionService {
     // Usar userId del contexto o 0 como fallback (desarrollo)
     const userId = context?.userId ?? 0;
 
-    const interval = setInterval(() => {
+    const interval = setInterval(async () => {
       if (callbacks.shouldStop()) {
         this.stopProjection(sessionId);
         return;
       }
 
       try {
-        // Usar nuevo método V1
+        // Generar nuevo payload V1 encriptado
         const envelope = this.qrGenerator.generateV1(sessionId, userId);
+        
+        // Almacenar en Valkey para validación posterior
+        await this.payloadRepository.store(
+          envelope.payload,
+          envelope.payloadString,
+          this.config.payloadTTL
+        );
+        
+        // Enviar al frontend
         callbacks.onQRUpdate(envelope);
       } catch (error) {
         console.error(`[QRProjectionService] Error generando payload QR para ${sessionId.toString()}:`, error);
@@ -156,6 +172,32 @@ export class QRProjectionService {
     }, this.config.regenerationInterval);
 
     this.activeIntervals.set(sessionId.toString(), interval);
+  }
+
+  /**
+   * Valida un payload escaneado
+   * @param payload - Payload V1 desencriptado
+   * @returns Resultado de validación
+   */
+  async validatePayload(payload: import('../domain/models').QRPayloadV1): Promise<{ valid: boolean; reason?: string }> {
+    return this.payloadRepository.validate(payload);
+  }
+
+  /**
+   * Marca un payload como consumido (escaneado exitosamente)
+   * @param nonce - Nonce del payload
+   * @param studentId - ID del estudiante que escaneo
+   * @returns true si se marco exitosamente
+   */
+  async consumePayload(nonce: string, studentId: number): Promise<boolean> {
+    return this.payloadRepository.markAsConsumed(nonce, studentId);
+  }
+
+  /**
+   * Obtiene el repositorio de payloads (para testing/debug)
+   */
+  getPayloadRepository(): QRPayloadRepository {
+    return this.payloadRepository;
   }
 
   private sleep(ms: number): Promise<void> {
