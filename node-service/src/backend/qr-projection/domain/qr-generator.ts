@@ -1,6 +1,7 @@
 import { randomBytes } from 'crypto';
 import type { QRPayload, QRPayloadV1, QRPayloadEnvelope } from './models';
 import { SessionId } from './session-id';
+import { CryptoService } from '../../../shared/infrastructure/crypto';
 
 /**
  * Domain service: Generación de payloads QR
@@ -11,6 +12,15 @@ import { SessionId } from './session-id';
  */
 export class QRGenerator {
   private roundCounters: Map<string, number> = new Map();
+  private readonly cryptoService: CryptoService;
+
+  /**
+   * Constructor
+   * @param cryptoService - Servicio de criptografía (opcional, usa mock si no se provee)
+   */
+  constructor(cryptoService?: CryptoService) {
+    this.cryptoService = cryptoService ?? new CryptoService();
+  }
 
   /**
    * Genera un nonce criptográfico de 16 bytes
@@ -59,8 +69,7 @@ export class QRGenerator {
   }
 
   /**
-   * Convierte el payload a string JSON para el QR
-   * En Fase 2+ esto será encriptado con AES-256-GCM
+   * Convierte el payload a string JSON (sin encriptar)
    * @param payload - Payload V1 estructurado
    * @returns String JSON del payload
    */
@@ -69,13 +78,40 @@ export class QRGenerator {
   }
 
   /**
-   * Genera payload completo con envelope
+   * Encripta el payload usando AES-256-GCM
+   * Formato de salida: iv.ciphertext.authTag (base64)
+   * @param payload - Payload V1 estructurado
+   * @returns String encriptado para el QR
+   */
+  encryptPayload(payload: QRPayloadV1): string {
+    const plaintext = this.toQRString(payload);
+    const encrypted = this.cryptoService.encryptToPayload(plaintext);
+    return encrypted.encrypted;
+  }
+
+  /**
+   * Genera payload completo con envelope (encriptado)
    * Método principal para uso en producción
    * @param sessionId - ID de la sesión
    * @param userId - ID del usuario anfitrión
-   * @returns Envelope con payload y metadata
+   * @returns Envelope con payload encriptado
    */
   generateV1(sessionId: SessionId, userId: number): QRPayloadEnvelope {
+    const payload = this.buildPayloadV1(sessionId, userId);
+    return {
+      payload,
+      payloadString: this.encryptPayload(payload),
+      sessionId,
+    };
+  }
+
+  /**
+   * Genera payload sin encriptar (para debug/testing)
+   * @param sessionId - ID de la sesión
+   * @param userId - ID del usuario anfitrión
+   * @returns Envelope con payload en texto plano
+   */
+  generateV1Unencrypted(sessionId: SessionId, userId: number): QRPayloadEnvelope {
     const payload = this.buildPayloadV1(sessionId, userId);
     return {
       payload,

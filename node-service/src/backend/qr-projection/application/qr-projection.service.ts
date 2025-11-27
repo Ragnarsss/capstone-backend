@@ -3,6 +3,7 @@ import type { QRPayload, QRPayloadEnvelope } from '../domain/models';
 import { QRMetadataRepository } from '../infrastructure/qr-metadata.repository';
 import { ProjectionQueueRepository } from '../infrastructure/projection-queue.repository';
 import { SessionId } from '../domain/session-id';
+import { CryptoService } from '../../../shared/infrastructure/crypto';
 
 /**
  * Configuración requerida por QRProjectionService
@@ -55,10 +56,12 @@ export class QRProjectionService {
   constructor(
     config: QRProjectionConfig,
     metadataRepository: QRMetadataRepository,
-    queueRepository: ProjectionQueueRepository
+    queueRepository: ProjectionQueueRepository,
+    cryptoService?: CryptoService
   ) {
     this.config = config;
-    this.qrGenerator = new QRGenerator();
+    // Inyectar CryptoService al QRGenerator
+    this.qrGenerator = new QRGenerator(cryptoService ?? new CryptoService());
     this.metadataRepository = metadataRepository;
     this.queueRepository = queueRepository;
   }
