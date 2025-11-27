@@ -14,11 +14,37 @@ interface CountdownPayload {
   seconds: number;
 }
 
-interface QRUpdatePayload {
+/**
+ * Payload V1 - Estructura preparada para encriptación
+ */
+interface QRPayloadV1 {
+  v: 1;
+  sid: string;
+  uid: number;
+  r: number;
+  ts: number;
+  n: string;
+}
+
+/**
+ * Formato de mensaje QR Update V1
+ */
+interface QRUpdatePayloadV1 {
+  data: QRPayloadV1;
+  qrContent: string;
+  sessionId: string;
+}
+
+/**
+ * @deprecated Formato legacy - será removido en Fase 3
+ */
+interface QRUpdatePayloadLegacy {
   message: string;
   timestamp: number;
   sessionId: string;
 }
+
+type QRUpdatePayload = QRUpdatePayloadV1 | QRUpdatePayloadLegacy;
 
 interface ErrorPayload {
   message?: string;
@@ -52,17 +78,43 @@ export class QRProjectionService {
     this.component.showCountdown(countdownPayload.seconds);
   }
 
+  /**
+   * Extrae el contenido para el QR, soportando ambos formatos
+   */
+  private extractQRContent(payload: QRUpdatePayload): string {
+    // V1: usa qrContent directamente
+    if ('qrContent' in payload && payload.qrContent) {
+      return payload.qrContent;
+    }
+    // Legacy: usa message
+    if ('message' in payload && payload.message) {
+      return payload.message;
+    }
+    throw new Error('Formato de payload no reconocido');
+  }
+
   private async handleQRUpdate(payload: unknown): Promise<void> {
     const qrPayload = payload as QRUpdatePayload;
     
     try {
-      const qrImageDataURL = await QRCode.toDataURL(qrPayload.message, {
+      const content = this.extractQRContent(qrPayload);
+      
+      const qrImageDataURL = await QRCode.toDataURL(content, {
         errorCorrectionLevel: 'M',
         margin: 1,
         width: 300,
       });
       
       this.component.showQRCode(qrImageDataURL);
+      
+      // Log para debug (solo en desarrollo)
+      if ('data' in qrPayload) {
+        console.debug('[QRProjectionService] V1 payload:', {
+          version: qrPayload.data.v,
+          round: qrPayload.data.r,
+          timestamp: qrPayload.data.ts,
+        });
+      }
     } catch (error) {
       console.error('[QRProjectionService] Error generando imagen QR:', error);
       this.component.showError('Error al generar codigo QR');

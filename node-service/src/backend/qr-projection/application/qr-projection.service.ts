@@ -1,5 +1,5 @@
 import { QRGenerator } from '../domain/qr-generator';
-import type { QRPayload } from '../domain/models';
+import type { QRPayload, QRPayloadEnvelope } from '../domain/models';
 import { QRMetadataRepository } from '../infrastructure/qr-metadata.repository';
 import { ProjectionQueueRepository } from '../infrastructure/projection-queue.repository';
 import { SessionId } from '../domain/session-id';
@@ -13,9 +13,26 @@ export interface QRProjectionConfig {
 }
 
 /**
- * Callbacks para eventos de proyección
+ * Contexto de proyección - información del usuario autenticado
+ */
+export interface ProjectionContext {
+  userId: number;
+  username: string;
+}
+
+/**
+ * Callbacks para eventos de proyección (V1)
  */
 export interface ProjectionCallbacks {
+  onCountdown(seconds: number): Promise<void>;
+  onQRUpdate(envelope: QRPayloadEnvelope): Promise<void>;
+  shouldStop(): boolean;
+}
+
+/**
+ * @deprecated Usar ProjectionCallbacks con QRPayloadEnvelope
+ */
+export interface ProjectionCallbacksLegacy {
   onCountdown(seconds: number): Promise<void>;
   onQRUpdate(payload: QRPayload): Promise<void>;
   shouldStop(): boolean;
@@ -51,9 +68,16 @@ export class QRProjectionService {
   }
 
   /**
-   * Inicia una proyección completa: countdown + rotación de QR
+   * Inicia una proyección completa: countdown + rotación de QR (V1)
+   * @param sessionId - ID de sesión generado
+   * @param context - Contexto con información del usuario
+   * @param callbacks - Callbacks para eventos
    */
-  async startProjection(sessionId: SessionId, callbacks: ProjectionCallbacks): Promise<void> {
+  async startProjection(
+    sessionId: SessionId, 
+    callbacks: ProjectionCallbacks,
+    context?: ProjectionContext
+  ): Promise<void> {
     // Fase 1: Countdown
     await this.runCountdownPhase(sessionId, callbacks);
 
@@ -63,7 +87,7 @@ export class QRProjectionService {
     }
 
     // Fase 2: Rotación de QR
-    await this.startQRRotation(sessionId, callbacks);
+    await this.startQRRotation(sessionId, callbacks, context);
   }
 
   /**
@@ -75,6 +99,8 @@ export class QRProjectionService {
     if (interval) {
       clearInterval(interval);
       this.activeIntervals.delete(key);
+      // Limpiar contador de rondas
+      this.qrGenerator.resetRoundCounter(sessionId);
       console.log(`[QRProjectionService] Rotación detenida para ${key}`);
     }
   }
@@ -104,8 +130,12 @@ export class QRProjectionService {
 
   private async startQRRotation(
     sessionId: SessionId,
-    callbacks: ProjectionCallbacks
+    callbacks: ProjectionCallbacks,
+    context?: ProjectionContext
   ): Promise<void> {
+    // Usar userId del contexto o 0 como fallback (desarrollo)
+    const userId = context?.userId ?? 0;
+
     const interval = setInterval(() => {
       if (callbacks.shouldStop()) {
         this.stopProjection(sessionId);
@@ -113,8 +143,9 @@ export class QRProjectionService {
       }
 
       try {
-        const qrPayload = this.qrGenerator.generate(sessionId);
-        callbacks.onQRUpdate(qrPayload);
+        // Usar nuevo método V1
+        const envelope = this.qrGenerator.generateV1(sessionId, userId);
+        callbacks.onQRUpdate(envelope);
       } catch (error) {
         console.error(`[QRProjectionService] Error generando payload QR para ${sessionId.toString()}:`, error);
         this.stopProjection(sessionId);
