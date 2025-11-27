@@ -13,6 +13,7 @@ import {
 } from './middleware';
 import { WebSocketController } from './backend/qr-projection/presentation/websocket-controller';
 import { registerEnrollmentRoutes } from './backend/enrollment/presentation/routes';
+import { registerAttendanceRoutes } from './backend/attendance/presentation/routes';
 import { frontendPlugin } from './plugins/frontend-plugin';
 import { JWTUtils } from './backend/auth/domain/jwt-utils';
 import { QRProjectionService } from './backend/qr-projection/application/qr-projection.service';
@@ -94,6 +95,9 @@ export async function createApp() {
 
   // Enrollment module - nuevas rutas con arquitectura limpia
   await registerEnrollmentRoutes(fastify);
+
+  // Attendance module - validación de payloads QR
+  await registerAttendanceRoutes(fastify);
 
   // Health check endpoint
   fastify.get('/health', async () => {
