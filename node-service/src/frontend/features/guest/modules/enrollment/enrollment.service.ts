@@ -33,7 +33,9 @@ export interface EnrollmentFinishResponse {
 export class EnrollmentService {
   private readonly baseUrl: string;
 
-  constructor(baseUrl: string = '') {
+  constructor(baseUrl: string = '/minodo-api') {
+    // Usar /minodo-api que Apache proxea a Node.js
+    // Apache: /minodo-api/* -> http://node-service:3000/api/*
     this.baseUrl = baseUrl;
   }
 
@@ -41,7 +43,7 @@ export class EnrollmentService {
    * Obtiene el estado de enrollment del usuario
    */
   async getStatus(token: string): Promise<EnrollmentStatus> {
-    const response = await fetch(`${this.baseUrl}/api/enrollment/status`, {
+    const response = await fetch(`${this.baseUrl}/enrollment/status`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -62,7 +64,7 @@ export class EnrollmentService {
    * Retorna las opciones para navigator.credentials.create()
    */
   async startEnrollment(token: string): Promise<EnrollmentStartResponse> {
-    const response = await fetch(`${this.baseUrl}/api/enrollment/start`, {
+    const response = await fetch(`${this.baseUrl}/enrollment/start`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -98,7 +100,7 @@ export class EnrollmentService {
   ): Promise<EnrollmentFinishResponse> {
     const credentialData = this.serializeCredential(credential);
 
-    const response = await fetch(`${this.baseUrl}/api/enrollment/finish`, {
+    const response = await fetch(`${this.baseUrl}/enrollment/finish`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,

@@ -4,9 +4,20 @@ import { GetEnrollmentStatusUseCase } from '../../application/use-cases';
 /**
  * Controller para GET /api/enrollment/status
  * Responsabilidad: Obtener estado de enrollment del usuario
+ * 
+ * STUB MODE: Configurable via ENROLLMENT_STUB_MODE=true
+ * Cuando está activo, siempre retorna isEnrolled: true para permitir
+ * desarrollo del flujo de asistencia sin enrollment real.
  */
 export class EnrollmentStatusController {
-  constructor(private readonly useCase: GetEnrollmentStatusUseCase) {}
+  private readonly stubMode: boolean;
+
+  constructor(private readonly useCase: GetEnrollmentStatusUseCase) {
+    this.stubMode = process.env.ENROLLMENT_STUB_MODE === 'true';
+    if (this.stubMode) {
+      console.log('[EnrollmentStatusController] ⚠️  STUB MODE ACTIVO - Enrollment siempre retorna enrolled');
+    }
+  }
 
   async handle(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
@@ -17,7 +28,29 @@ export class EnrollmentStatusController {
         return;
       }
 
-      // Ejecutar use case
+      // STUB MODE: Retornar siempre enrolled para desarrollo
+      if (this.stubMode) {
+        console.log(`[EnrollmentStatusController] STUB: Usuario ${user.userId} → enrolled=true`);
+        reply.code(200).send({
+          success: true,
+          enrollment: {
+            isEnrolled: true,
+            deviceCount: 1,
+            maxDevices: 5,
+            canEnrollMore: true,
+            devices: [{
+              deviceId: 0,
+              aaguid: 'stub-device',
+              enrolledAt: new Date().toISOString(),
+              lastUsedAt: null,
+              isActive: true,
+            }],
+          },
+        });
+        return;
+      }
+
+      // Modo normal: Ejecutar use case real
       const output = await this.useCase.execute({
         userId: user.userId.toNumber(),
       });

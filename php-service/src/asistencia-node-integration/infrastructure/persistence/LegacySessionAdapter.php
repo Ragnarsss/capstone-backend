@@ -9,22 +9,28 @@
  * permitiendo que el domain layer trabaje con una interface estable
  */
 
+require_once __DIR__ . '/../../config/Config.php';
+
 class LegacySessionAdapter
 {
     /**
      * Verifica si usuario está autenticado
      * 
-     * NOTA: En modo testing (sin sesion real), retorna true para permitir pruebas
+     * NOTA: En modo development (sin sesion real), retorna true para permitir pruebas
      * 
      * @return bool True si hay sesión activa con usuario
      */
     public function isAuthenticated(): bool
     {
-        if (session_status() !== PHP_SESSION_ACTIVE) {
-            return $this->isTestMode();
+        // Primero verificar si hay sesion real con datos
+        if (session_status() === PHP_SESSION_ACTIVE && 
+            isset($_SESSION['user_id']) && 
+            isset($_SESSION['username'])) {
+            return true;
         }
         
-        return isset($_SESSION['user_id']) && isset($_SESSION['username']);
+        // En desarrollo, permitir autenticacion mock
+        return $this->isTestMode();
     }
 
     /**
@@ -126,13 +132,12 @@ class LegacySessionAdapter
     }
 
     /**
-     * Verifica si estamos en modo testing (sin sesiones reales)
+     * Verifica si estamos en modo development (sesiones mock permitidas)
      * 
-     * @return bool True si NODE_ENV es development o testing
+     * @return bool True si NODE_ENV es development
      */
     private function isTestMode(): bool
     {
-        $nodeEnv = getenv('NODE_ENV') ?: 'production';
-        return in_array($nodeEnv, ['development', 'testing', 'test']);
+        return Config::isDevelopment();
     }
 }

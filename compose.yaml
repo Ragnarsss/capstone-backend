@@ -47,7 +47,8 @@ services:
       - POSTGRES_DB=asistencia_db
       - POSTGRES_USER=asistencia
       - POSTGRES_PASSWORD=asistencia_pass
-      # Variables JWT para validacion de tokens internos desde PHP
+      # Variables JWT para validacion de tokens desde PHP
+      - JWT_SECRET=${JWT_SECRET:-change_this_secret_in_production}
       - JWT_SECRET_INTERNAL=${JWT_SECRET_INTERNAL:-change_this_internal_secret_in_production}
     depends_on:
       valkey:

@@ -237,7 +237,7 @@ if (!can_control_asistencia() && !has_super_access()) {
                 
                 modal.style.display = 'block';
                 
-                iframe.src = '/asistencia/features/qr-host/';
+                iframe.src = '/asistencia/host/';
                 
                 iframe.onload = function() {
                     console.log('[Host] Iframe cargado, enviando token JWT...');

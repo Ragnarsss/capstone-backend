@@ -3,8 +3,14 @@
  * State Machine para flujo de estudiante: enrollment → scanner → attendance
  */
 
+console.log('[Guest] ====== main.ts LOADING ======');
+console.log('[Guest] Location:', window.location.href);
+console.log('[Guest] Parent:', window.parent !== window ? 'in iframe' : 'top window');
+
 import { AuthClient } from '../../shared/auth/auth-client';
 import { EnrollmentService } from './modules/enrollment/enrollment.service';
+
+console.log('[Guest] Imports completed successfully');
 
 // Estados de la aplicación
 type AppState = 

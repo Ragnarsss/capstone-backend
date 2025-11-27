@@ -36,7 +36,7 @@ export const config = {
     regenerationInterval: 300,
   },
   jwt: {
-    // Secret para firmar JWT (debe coincidir con PHP)
+    // Secret para validar JWT desde PHP (debe coincidir con JWT_SECRET de PHP)
     // En produccion, usar variable de entorno segura
     secret: process.env.JWT_SECRET || 'CAMBIAR_EN_PRODUCCION_SECRET_KEY_COMPARTIDO_PHP_NODE',
     // Tiempo de expiracion del token (5 minutos)

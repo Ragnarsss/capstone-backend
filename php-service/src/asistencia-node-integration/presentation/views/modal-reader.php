@@ -254,8 +254,8 @@ $rol = $_SESSION['rol'] ?? 'usuario';
                 
                 modal.style.display = 'block';
                 
-                // Cargar frontend guest que maneja enrollment + scanner
-                iframe.src = '/asistencia/features/guest/';
+                // Ruta unificada: /asistencia/reader/
+                iframe.src = '/asistencia/reader/';
                 
                 iframe.onload = function() {
                     console.log('[Reader] Iframe cargado, enviando token JWT...');

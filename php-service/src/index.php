@@ -225,11 +225,10 @@ session_start();
     </div>
 
     <script>
-        // ============================================
-        // JWT + postMessage Integration (Proyección y Lector)
-        // ============================================
+        // Integracion JWT + postMessage
+        // Endpoint unico: /asistencia-node-integration/api/token
         async function fetchAuthToken() {
-            const response = await fetch('/api_puente_minodo.php?action=get_token', {
+            const response = await fetch('/asistencia-node-integration/api/token', {
                 credentials: 'include'
             });
 
@@ -253,7 +252,7 @@ session_start();
                 const data = await fetchAuthToken();
 
                 if (!data.success) {
-                    alert('Error de autenticación. Por favor recarga la página.');
+                    alert('Error de autenticacion. Por favor recarga la pagina.');
                     console.error('[Modal] Error obteniendo JWT:', data.message);
                     return;
                 }
@@ -269,7 +268,7 @@ session_start();
                 modal.classList.add('active');
             } catch (error) {
                 console.error('[Modal] Error:', error);
-                alert('Error de conexión. Intenta de nuevo.');
+                alert('Error de conexion. Intenta de nuevo.');
             }
         }
 
@@ -283,22 +282,25 @@ session_start();
             iframe.src = '';
         }
 
+        // Host: Proyector QR (profesor)
         function openAsistenciaModal() {
-            openSecureModal('modalOverlay', 'asistenciaFrame', '/asistencia/');
+            openSecureModal('modalOverlay', 'asistenciaFrame', '/asistencia/host/');
         }
 
         function closeAsistenciaModal() {
             closeModal('modalOverlay', 'asistenciaFrame');
         }
 
+        // Reader: Lector QR (alumno)
         function openLectorModal() {
-            openSecureModal('modalReaderOverlay', 'lectorFrame', '/asistencia/lector/');
+            openSecureModal('modalReaderOverlay', 'lectorFrame', '/asistencia/reader/');
         }
 
         function closeLectorModal() {
             closeModal('modalReaderOverlay', 'lectorFrame');
         }
 
+        // Cerrar modal al hacer click fuera
         ['modalOverlay', 'modalReaderOverlay'].forEach((modalId) => {
             const modal = document.getElementById(modalId);
             if (!modal) return;
@@ -313,6 +315,7 @@ session_start();
             });
         });
 
+        // Cerrar con Escape
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
                 closeAsistenciaModal();
