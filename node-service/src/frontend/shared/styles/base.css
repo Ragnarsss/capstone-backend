@@ -141,6 +141,12 @@ h1 {
   border: 1px solid #f5c6cb;
 }
 
+.result-pending {
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeeba;
+}
+
 /* Button styles */
 .btn {
   padding: 12px 24px;

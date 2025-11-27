@@ -74,6 +74,23 @@ export class CameraViewComponent {
     this.renderResult(message, 'success');
   }
 
+  showValidating(): void {
+    this.updateStatus('Validando asistencia...');
+    this.renderResult('Procesando codigo...', 'pending');
+  }
+
+  showValidationSuccess(message: string): void {
+    this.updateStatus('Asistencia registrada');
+    this.renderResult(message, 'success');
+    this.setOverlay('Escaneo completado');
+    this.toggleButtons({ start: false, stop: true });
+  }
+
+  showValidationError(message: string): void {
+    this.updateStatus('Error de validacion');
+    this.renderResult(message, 'error');
+  }
+
   showError(message: string): void {
     this.updateStatus(message);
     this.renderResult(message, 'error');
@@ -113,7 +130,7 @@ export class CameraViewComponent {
     }
   }
 
-  private renderResult(message: string, type?: 'success' | 'error'): void {
+  private renderResult(message: string, type?: 'success' | 'error' | 'pending'): void {
     if (!this.refs.result) return;
     this.refs.result.textContent = message;
     this.refs.result.className = type ? `result-${type}` : '';
