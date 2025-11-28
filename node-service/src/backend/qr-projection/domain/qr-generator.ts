@@ -106,6 +106,33 @@ export class QRGenerator {
   }
 
   /**
+   * Genera payload para un estudiante específico en un round específico
+   * Usado por el módulo de attendance para generar QRs individuales
+   * 
+   * @param options - Opciones de generación
+   * @returns Payload y string encriptado
+   */
+  generateForStudent(options: {
+    sessionId: string;
+    userId: number;
+    round: number;
+    hostUserId: number;
+  }): { payload: QRPayloadV1; encrypted: string } {
+    const payload: QRPayloadV1 = {
+      v: 1,
+      sid: options.sessionId,
+      uid: options.hostUserId,
+      r: options.round,
+      ts: Date.now(),
+      n: this.generateNonce(),
+    };
+
+    const encrypted = this.encryptPayload(payload);
+
+    return { payload, encrypted };
+  }
+
+  /**
    * Genera payload sin encriptar (para debug/testing)
    * @param sessionId - ID de la sesión
    * @param userId - ID del usuario anfitrión
