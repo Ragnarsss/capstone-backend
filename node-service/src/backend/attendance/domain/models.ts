@@ -63,6 +63,8 @@ export interface ValidatePayloadResult {
   validatedAt?: number;
   /** Si completó todos los rounds */
   isComplete?: boolean;
+  /** ID de la sesión (para notificar al parent cuando completa) */
+  sessionId?: string;
   /** Datos del siguiente round (si no completó) */
   nextRound?: {
     round: number;

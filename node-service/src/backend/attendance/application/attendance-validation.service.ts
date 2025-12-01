@@ -3,6 +3,7 @@ import type { ValidatePayloadResult, AttendanceRecord } from '../domain/models';
 import { CryptoService } from '../../../shared/infrastructure/crypto';
 import { QRPayloadRepository } from '../../qr-projection/infrastructure/qr-payload.repository';
 import { StudentSessionRepository } from '../infrastructure/student-session.repository';
+import { ProjectionPoolRepository } from '../infrastructure/projection-pool.repository';
 import { QRGenerator } from '../../qr-projection/domain/qr-generator';
 
 /**
@@ -19,23 +20,36 @@ const DEFAULT_CONFIG: ValidationServiceConfig = {
 };
 
 /**
+ * Estructura de la respuesta encriptada del estudiante
+ */
+interface StudentResponse {
+  original: QRPayloadV1;  // Payload desencriptado del QR
+  studentId: number;      // ID del alumno que escanea
+  receivedAt: number;     // Timestamp de recepcion
+  // TODO: totp - se agregara cuando se integre con enrollment
+}
+
+/**
  * Application Service para validación de asistencia
  * 
  * Responsabilidad: Orquestar el proceso de validación de payloads escaneados
  * 
  * Flujo:
- * 1. Recibir payload encriptado del estudiante
+ * 1. Recibir respuesta encriptada del estudiante
  * 2. Desencriptar con session_key (mock por ahora)
- * 3. Validar contra Valkey (existe, no consumido)
- * 4. Validar round correcto para el estudiante
- * 5. Marcar como consumido y avanzar round
- * 6. Generar siguiente QR si no completó
- * 7. Retornar resultado con stats si completó
+ * 3. Extraer payload original y validar estructura
+ * 4. Validar contra Valkey (existe, no consumido)
+ * 5. Validar round correcto para el estudiante
+ * 6. TODO: Validar TOTP cuando se integre con enrollment
+ * 7. Marcar como consumido y avanzar round
+ * 8. Generar siguiente QR si no completo
+ * 9. Retornar resultado con stats si completo
  */
 export class AttendanceValidationService {
   private readonly cryptoService: CryptoService;
   private readonly payloadRepository: QRPayloadRepository;
   private readonly studentRepository: StudentSessionRepository;
+  private readonly poolRepository: ProjectionPoolRepository;
   private readonly qrGenerator: QRGenerator;
   private readonly config: ValidationServiceConfig;
 
@@ -43,11 +57,13 @@ export class AttendanceValidationService {
     cryptoService?: CryptoService,
     payloadRepository?: QRPayloadRepository,
     studentRepository?: StudentSessionRepository,
+    poolRepository?: ProjectionPoolRepository,
     config?: Partial<ValidationServiceConfig>
   ) {
     this.cryptoService = cryptoService ?? new CryptoService();
     this.payloadRepository = payloadRepository ?? new QRPayloadRepository();
     this.studentRepository = studentRepository ?? new StudentSessionRepository();
+    this.poolRepository = poolRepository ?? new ProjectionPoolRepository();
     this.qrGenerator = new QRGenerator(this.cryptoService);
     this.config = { ...DEFAULT_CONFIG, ...config };
   }
@@ -55,8 +71,8 @@ export class AttendanceValidationService {
   /**
    * Valida un payload encriptado escaneado por un estudiante
    * 
-   * @param encrypted - Payload encriptado (formato iv.ciphertext.authTag)
-   * @param studentId - ID del estudiante que escanea
+   * @param encrypted - Respuesta encriptada del estudiante (formato iv.ciphertext.authTag)
+   * @param studentId - ID del estudiante que escanea (para verificacion)
    * @returns Resultado de validación
    */
   async validateScannedPayload(
@@ -69,35 +85,62 @@ export class AttendanceValidationService {
     if (!this.cryptoService.isValidPayloadFormat(encrypted)) {
       return {
         valid: false,
-        reason: 'Formato de payload inválido',
+        reason: 'Formato de payload invalido',
         errorCode: 'INVALID_FORMAT',
       };
     }
 
-    // 2. Desencriptar payload
-    let payload: QRPayloadV1;
+    // 2. Desencriptar respuesta del estudiante
+    let studentResponse: StudentResponse;
     try {
       const decrypted = this.cryptoService.decryptFromPayload(encrypted);
-      payload = JSON.parse(decrypted) as QRPayloadV1;
+      studentResponse = JSON.parse(decrypted) as StudentResponse;
     } catch (error) {
-      console.error('[AttendanceValidation] Error desencriptando:', error);
+      console.error('[AttendanceValidation] Error desencriptando respuesta:', error);
       return {
         valid: false,
-        reason: 'No se pudo desencriptar el payload',
+        reason: 'No se pudo desencriptar la respuesta',
         errorCode: 'DECRYPTION_FAILED',
       };
     }
 
-    // 3. Validar estructura del payload
-    if (!this.isValidPayloadStructure(payload)) {
+    // 3. Validar estructura de la respuesta
+    if (!this.isValidResponseStructure(studentResponse)) {
       return {
         valid: false,
-        reason: 'Estructura de payload inválida',
+        reason: 'Estructura de respuesta invalida',
         errorCode: 'INVALID_FORMAT',
       };
     }
 
-    // 4. Validar que el estudiante está registrado y en el round correcto
+    // 4. Verificar que el studentId coincide
+    if (studentResponse.studentId !== studentId) {
+      console.warn(`[AttendanceValidation] studentId mismatch: body=${studentId}, response=${studentResponse.studentId}`);
+      return {
+        valid: false,
+        reason: 'ID de estudiante no coincide',
+        errorCode: 'USER_MISMATCH',
+      };
+    }
+
+    const payload = studentResponse.original;
+
+    // 5. Validar estructura del payload original
+    if (!this.isValidPayloadStructure(payload)) {
+      return {
+        valid: false,
+        reason: 'Estructura de payload original invalida',
+        errorCode: 'INVALID_FORMAT',
+      };
+    }
+
+    // 6. TODO: Validar TOTP cuando se integre con enrollment
+    // if (studentResponse.totp) {
+    //   const validTotp = await this.validateTotp(studentId, studentResponse.totp);
+    //   if (!validTotp) { return error; }
+    // }
+
+    // 7. Validar que el estudiante esta registrado y en el round correcto
     const roundValidation = await this.studentRepository.validateRoundMatch(
       payload.sid,
       studentId,
@@ -168,15 +211,18 @@ export class AttendanceValidationService {
 
     console.log(`[AttendanceValidation] Payload válido: student=${studentId}, session=${payload.sid}, round=${payload.r}, RT=${responseTime}ms`);
 
-    // 9. Si completó todos los rounds, calcular estadísticas
+    // 9. Si completó todos los rounds, calcular estadísticas y redirigir
     if (isComplete) {
       const stats = this.calculateStats(state.roundsCompleted.map(r => r.responseTime));
+      
+      console.log(`[AttendanceValidation] Asistencia completada para student=${studentId}, session=${payload.sid}`);
       
       return {
         valid: true,
         payload,
         validatedAt,
         isComplete: true,
+        sessionId: payload.sid,
         stats: {
           roundsCompleted: state.roundsCompleted.length,
           avgResponseTime: stats.avg,
@@ -195,6 +241,9 @@ export class AttendanceValidationService {
 
     await this.payloadRepository.store(nextPayload, nextEncrypted, this.config.qrTTL);
     await this.studentRepository.setActiveQR(payload.sid, studentId, nextPayload.n);
+    
+    // 11. Actualizar QR en el pool de proyección
+    await this.poolRepository.upsertStudentQR(payload.sid, studentId, nextEncrypted, state.currentRound);
 
     return {
       valid: true,
@@ -281,6 +330,25 @@ export class AttendanceValidationService {
       typeof p.ts === 'number' &&
       typeof p.n === 'string' &&
       p.n.length === 32 // Nonce debe ser 32 caracteres hex (16 bytes)
+    );
+  }
+
+  /**
+   * Valida la estructura de la respuesta del estudiante
+   */
+  private isValidResponseStructure(response: unknown): response is StudentResponse {
+    if (!response || typeof response !== 'object') {
+      return false;
+    }
+
+    const r = response as Record<string, unknown>;
+
+    return (
+      typeof r.original === 'object' &&
+      r.original !== null &&
+      typeof r.studentId === 'number' &&
+      typeof r.receivedAt === 'number'
+      // TODO: validar r.totp cuando se integre con enrollment
     );
   }
 

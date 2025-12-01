@@ -13,6 +13,10 @@ interface JWTPayload {
   sub?: string;
   user_id?: number;
   userId?: number;
+  name?: string;
+  nombre?: string;
+  nombre_completo?: string;
+  nombreCompleto?: string;
   exp?: number;
   iat?: number;
 }
@@ -24,12 +28,14 @@ export class AuthClient {
   private isAuthenticated: boolean;
   private readonly onAuthCallbacks: AuthCallback[];
   private cachedUserId: number | null;
+  private cachedUserName: string | null;
 
   constructor() {
     this.tokenStorage = new TokenStorage();
     this.isAuthenticated = false;
     this.onAuthCallbacks = [];
     this.cachedUserId = null;
+    this.cachedUserName = null;
   }
 
   initialize(): void {
@@ -65,6 +71,7 @@ export class AuthClient {
     this.tokenStorage.save(token);
     this.isAuthenticated = true;
     this.cachedUserId = this.extractUserIdFromToken(token);
+    this.cachedUserName = this.extractUserNameFromToken(token);
     console.log('[Auth] Token recibido y almacenado');
     this.notifyAuthentication();
   }
@@ -72,6 +79,7 @@ export class AuthClient {
   private handleTokenRefresh(token: string): void {
     this.tokenStorage.save(token);
     this.cachedUserId = this.extractUserIdFromToken(token);
+    this.cachedUserName = this.extractUserNameFromToken(token);
     console.log('[Auth] Token renovado');
   }
 
@@ -86,6 +94,20 @@ export class AuthClient {
       return typeof userId === 'number' && !isNaN(userId) ? userId : null;
     } catch {
       console.warn('[Auth] Error extrayendo userId del token');
+      return null;
+    }
+  }
+
+  private extractUserNameFromToken(token: string): string | null {
+    try {
+      const parts = token.split('.');
+      if (parts.length !== 3) return null;
+      
+      const payload = JSON.parse(atob(parts[1])) as JWTPayload;
+      // Try different common claim names for user name
+      return payload.nombreCompleto ?? payload.nombre_completo ?? payload.nombre ?? payload.name ?? null;
+    } catch {
+      console.warn('[Auth] Error extrayendo nombre del token');
       return null;
     }
   }
@@ -113,6 +135,7 @@ export class AuthClient {
     this.tokenStorage.clear();
     this.isAuthenticated = false;
     this.cachedUserId = null;
+    this.cachedUserName = null;
   }
 
   getUserId(): number | null {
@@ -124,6 +147,20 @@ export class AuthClient {
     if (token) {
       this.cachedUserId = this.extractUserIdFromToken(token);
       return this.cachedUserId;
+    }
+    
+    return null;
+  }
+
+  getUserName(): string | null {
+    if (this.cachedUserName !== null) {
+      return this.cachedUserName;
+    }
+    
+    const token = this.tokenStorage.get();
+    if (token) {
+      this.cachedUserName = this.extractUserNameFromToken(token);
+      return this.cachedUserName;
     }
     
     return null;
