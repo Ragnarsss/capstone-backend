@@ -90,6 +90,20 @@ export class QRGenerator {
   }
 
   /**
+   * Encripta el payload con una clave ALEATORIA (para QRs falsos)
+   * 
+   * El resultado tiene formato válido pero NO puede ser desencriptado
+   * por nadie, ya que la clave se descarta inmediatamente.
+   * 
+   * @param payload - Payload V1 (contenido irrelevante, solo para tamaño similar)
+   * @returns String encriptado indescifrable
+   */
+  encryptPayloadWithRandomKey(payload: QRPayloadV1): string {
+    const plaintext = this.toQRString(payload);
+    return this.cryptoService.encryptWithRandomKey(plaintext);
+  }
+
+  /**
    * Genera payload completo con envelope (encriptado)
    * Método principal para uso en producción
    * @param sessionId - ID de la sesión

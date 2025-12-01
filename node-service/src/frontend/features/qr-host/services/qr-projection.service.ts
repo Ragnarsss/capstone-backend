@@ -99,13 +99,19 @@ export class QRProjectionService {
     try {
       const content = this.extractQRContent(qrPayload);
       
+      // Usar nivel de correccion alto (H) para payloads encriptados
+      // y tamaño mayor para mejor lectura con camara
       const qrImageDataURL = await QRCode.toDataURL(content, {
-        errorCorrectionLevel: 'M',
-        margin: 1,
-        width: 300,
+        errorCorrectionLevel: 'H', // Maximo nivel de correccion
+        margin: 2,
+        width: 400, // Mayor tamaño para mejor deteccion
       });
       
       this.component.showQRCode(qrImageDataURL);
+      
+      // Debug: mostrar contenido encriptado en consola
+      console.log('[QRProjectionService] QR Content (encriptado):', content);
+      console.log('[QRProjectionService] Longitud:', content.length, 'chars');
       
       // Log para debug (solo en desarrollo)
       if ('data' in qrPayload) {

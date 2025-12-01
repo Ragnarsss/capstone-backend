@@ -4,6 +4,7 @@ import { QRProjectionService, type ProjectionCallbacks, type ProjectionContext }
 import type { CountdownMessageDTO, QRUpdateMessageDTO } from './types';
 import { WebSocketAuthMiddleware } from '../../../middleware';
 import type { AuthenticatedUser } from '../../auth/domain/models';
+import { ActiveSessionRepository } from '../../attendance/infrastructure/active-session.repository';
 
 /**
  * WebSocket Controller para QR Projection
@@ -12,10 +13,12 @@ import type { AuthenticatedUser } from '../../auth/domain/models';
 export class WebSocketController {
   private service: QRProjectionService;
   private authMiddleware: WebSocketAuthMiddleware;
+  private activeSessionRepo: ActiveSessionRepository;
 
   constructor(service: QRProjectionService, authMiddleware: WebSocketAuthMiddleware) {
     this.service = service;
     this.authMiddleware = authMiddleware;
+    this.activeSessionRepo = new ActiveSessionRepository();
   }
 
   async register(fastify: FastifyInstance): Promise<void> {
@@ -47,18 +50,31 @@ export class WebSocketController {
 
     // Generar sessionId
     const sessionId = this.service.generateSessionId();
-    console.log(`[WebSocket] Iniciando proyección para sesión: ${sessionId}, usuario: ${user.username} (ID: ${user.userId})`);
+    const sessionIdStr = sessionId.toString();
+    console.log(`[WebSocket] Iniciando proyección para sesión: ${sessionIdStr}, usuario: ${user.username} (ID: ${user.userId})`);
+
+    // Registrar como sesión activa global
+    await this.activeSessionRepo.setActiveSession({
+      sessionId: sessionIdStr,
+      hostUserId: user.userId.toNumber(),
+      hostUsername: user.username,
+      startedAt: Date.now(),
+    });
 
     // Configurar handlers de cleanup
     socket.on('close', () => {
       isClosed = true;
       this.service.stopProjection(sessionId);
+      // Limpiar sesión activa
+      this.activeSessionRepo.clearActiveSession(sessionIdStr);
       console.log(`[WebSocket] Conexión cerrada: ${user.username}`);
     });
 
     socket.on('error', (error) => {
       isClosed = true;
       this.service.stopProjection(sessionId);
+      // Limpiar sesión activa
+      this.activeSessionRepo.clearActiveSession(sessionIdStr);
       console.error('[WebSocket] Error en socket:', error);
     });
 

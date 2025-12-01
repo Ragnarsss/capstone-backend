@@ -1,5 +1,6 @@
 import type { RegisterParticipationResult, GetStatusResult } from '../domain/models';
 import { StudentSessionRepository } from '../infrastructure/student-session.repository';
+import { ProjectionPoolRepository } from '../infrastructure/projection-pool.repository';
 import { QRPayloadRepository } from '../../qr-projection/infrastructure/qr-payload.repository';
 import { QRGenerator } from '../../qr-projection/domain/qr-generator';
 import { CryptoService } from '../../../shared/infrastructure/crypto';
@@ -28,24 +29,28 @@ const DEFAULT_CONFIG: ParticipationServiceConfig = {
  * Responsabilidad: Orquestar el registro de estudiantes y generación de QRs
  * 
  * Flujo:
- * 1. Estudiante solicita participar (al abrir cámara o presionar botón)
+ * 1. Estudiante solicita participar (POST /participation/register)
  * 2. Se crea/recupera estado del estudiante
  * 3. Se genera QR para el round actual
- * 4. Se retorna el QR encriptado y estado
+ * 4. Se agrega QR al pool de proyección
+ * 5. Se retorna el estado al estudiante
  */
 export class ParticipationService {
   private readonly studentRepo: StudentSessionRepository;
+  private readonly poolRepo: ProjectionPoolRepository;
   private readonly payloadRepo: QRPayloadRepository;
   private readonly qrGenerator: QRGenerator;
   private readonly config: ParticipationServiceConfig;
 
   constructor(
     studentRepo?: StudentSessionRepository,
+    poolRepo?: ProjectionPoolRepository,
     payloadRepo?: QRPayloadRepository,
     cryptoService?: CryptoService,
     config?: Partial<ParticipationServiceConfig>
   ) {
     this.studentRepo = studentRepo ?? new StudentSessionRepository();
+    this.poolRepo = poolRepo ?? new ProjectionPoolRepository();
     this.payloadRepo = payloadRepo ?? new QRPayloadRepository(config?.qrTTL ?? DEFAULT_CONFIG.qrTTL);
     this.qrGenerator = new QRGenerator(cryptoService ?? new CryptoService());
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -97,6 +102,9 @@ export class ParticipationService {
 
       // 5. Actualizar estado con QR activo
       await this.studentRepo.setActiveQR(sessionId, studentId, payload.n);
+
+      // 6. Agregar QR al pool de proyección
+      await this.poolRepo.upsertStudentQR(sessionId, studentId, encrypted, state.currentRound);
 
       console.log(`[Participation] Registered student=${studentId} session=${sessionId.substring(0, 8)}... round=${state.currentRound}`);
 
@@ -194,6 +202,9 @@ export class ParticipationService {
 
       await this.payloadRepo.store(payload, encrypted, this.config.qrTTL);
       await this.studentRepo.setActiveQR(sessionId, studentId, payload.n);
+      
+      // Actualizar QR en el pool de proyección
+      await this.poolRepo.upsertStudentQR(sessionId, studentId, encrypted, newState.currentRound);
 
       return {
         success: true,

@@ -1,8 +1,9 @@
 import { QRGenerator } from '../domain/qr-generator';
-import type { QRPayload, QRPayloadEnvelope } from '../domain/models';
+import type { QRPayload, QRPayloadEnvelope, QRPayloadV1 } from '../domain/models';
 import { QRMetadataRepository } from '../infrastructure/qr-metadata.repository';
 import { ProjectionQueueRepository } from '../infrastructure/projection-queue.repository';
 import { QRPayloadRepository } from '../infrastructure/qr-payload.repository';
+import { ProjectionPoolRepository, type PoolEntry } from '../../attendance/infrastructure/projection-pool.repository';
 import { SessionId } from '../domain/session-id';
 import { CryptoService } from '../../../shared/infrastructure/crypto';
 
@@ -14,6 +15,8 @@ export interface QRProjectionConfig {
   regenerationInterval: number;
   /** TTL de payloads en Valkey (segundos). Default: 30 */
   payloadTTL?: number;
+  /** Cantidad de QRs falsos a agregar al pool */
+  fakeQRCount?: number;
 }
 
 /**
@@ -54,6 +57,7 @@ export class QRProjectionService {
   private metadataRepository: QRMetadataRepository;
   private queueRepository: ProjectionQueueRepository;
   private payloadRepository: QRPayloadRepository;
+  private poolRepository: ProjectionPoolRepository;
   private readonly config: QRProjectionConfig;
   private activeIntervals: Map<string, NodeJS.Timeout> = new Map();
 
@@ -62,7 +66,8 @@ export class QRProjectionService {
     metadataRepository: QRMetadataRepository,
     queueRepository: ProjectionQueueRepository,
     cryptoService?: CryptoService,
-    payloadRepository?: QRPayloadRepository
+    payloadRepository?: QRPayloadRepository,
+    poolRepository?: ProjectionPoolRepository
   ) {
     this.config = config;
     // Inyectar CryptoService al QRGenerator
@@ -71,6 +76,7 @@ export class QRProjectionService {
     this.queueRepository = queueRepository;
     // Crear PayloadRepository con TTL configurado
     this.payloadRepository = payloadRepository ?? new QRPayloadRepository(config.payloadTTL ?? 30);
+    this.poolRepository = poolRepository ?? new ProjectionPoolRepository();
   }
 
   generateSessionId(): SessionId {
@@ -143,8 +149,17 @@ export class QRProjectionService {
     callbacks: ProjectionCallbacks,
     context?: ProjectionContext
   ): Promise<void> {
-    // Usar userId del contexto o 0 como fallback (desarrollo)
-    const userId = context?.userId ?? 0;
+    const sessionIdStr = sessionId.toString();
+    
+    // Agregar QRs falsos iniciales al pool si está configurado
+    const fakeCount = this.config.fakeQRCount ?? 3;
+    if (fakeCount > 0) {
+      await this.poolRepository.addFakeQRs(sessionIdStr, fakeCount, () => 
+        this.generateFakeQR(sessionId)
+      );
+    }
+
+    console.log(`[QRProjectionService] Iniciando rotación de pool para sesión ${sessionIdStr.substring(0, 8)}...`);
 
     const interval = setInterval(async () => {
       if (callbacks.shouldStop()) {
@@ -153,25 +168,101 @@ export class QRProjectionService {
       }
 
       try {
-        // Generar nuevo payload V1 encriptado
-        const envelope = this.qrGenerator.generateV1(sessionId, userId);
+        // Obtener siguiente entrada del pool (round-robin)
+        const entry = await this.poolRepository.getNextEntry(sessionIdStr);
         
-        // Almacenar en Valkey para validación posterior
-        await this.payloadRepository.store(
-          envelope.payload,
-          envelope.payloadString,
-          this.config.payloadTTL
-        );
+        if (!entry) {
+          // Pool vacío - generar QR de espera
+          const waitingEnvelope = this.createWaitingQREnvelope(sessionId);
+          callbacks.onQRUpdate(waitingEnvelope);
+          return;
+        }
+
+        // Crear envelope desde la entrada del pool
+        const envelope = this.createEnvelopeFromPoolEntry(sessionId, entry);
         
         // Enviar al frontend
         callbacks.onQRUpdate(envelope);
       } catch (error) {
-        console.error(`[QRProjectionService] Error generando payload QR para ${sessionId.toString()}:`, error);
+        console.error(`[QRProjectionService] Error en rotación para ${sessionIdStr}:`, error);
         this.stopProjection(sessionId);
       }
     }, this.config.regenerationInterval);
 
-    this.activeIntervals.set(sessionId.toString(), interval);
+    this.activeIntervals.set(sessionIdStr, interval);
+  }
+
+  /**
+   * Genera un QR falso encriptado con clave ALEATORIA
+   * 
+   * Los QRs falsos:
+   * - Tienen formato válido (longitud, estructura base64)
+   * - NO pueden ser desencriptados por NADIE
+   * - La clave se descarta inmediatamente
+   * 
+   * Esto confunde a quienes intenten escanear QRs ajenos.
+   */
+  private generateFakeQR(sessionId: SessionId): string {
+    const fakePayload: QRPayloadV1 = {
+      v: 1,
+      sid: sessionId.toString(),
+      uid: 0, // ID 0 indica QR falso (irrelevante, no se puede descifrar)
+      r: Math.ceil(Math.random() * 3), // Round aleatorio 1-3
+      ts: Date.now(),
+      n: this.qrGenerator.generateNonce(),
+    };
+    // Encriptar con clave aleatoria - nadie puede descifrar
+    return this.qrGenerator.encryptPayloadWithRandomKey(fakePayload);
+  }
+
+  /**
+   * Crea un envelope desde una entrada del pool
+   */
+  private createEnvelopeFromPoolEntry(sessionId: SessionId, entry: PoolEntry): QRPayloadEnvelope {
+    // Nota: El payload real está encriptado, aquí creamos un "mock" para el envelope
+    // El frontend solo usa payloadString para renderizar el QR
+    const mockPayload: QRPayloadV1 = {
+      v: 1,
+      sid: sessionId.toString(),
+      uid: entry.studentId,
+      r: entry.round,
+      ts: entry.createdAt,
+      n: entry.id, // Usamos el ID como nonce para el mock
+    };
+
+    return {
+      payload: mockPayload,
+      payloadString: entry.encrypted,
+      sessionId,
+    };
+  }
+
+  /**
+   * Crea un envelope de espera cuando no hay estudiantes registrados
+   */
+  private createWaitingQREnvelope(sessionId: SessionId): QRPayloadEnvelope {
+    // Generar QR de "espera" que indica que no hay estudiantes
+    const waitingPayload: QRPayloadV1 = {
+      v: 1,
+      sid: sessionId.toString(),
+      uid: -1, // ID -1 indica "esperando estudiantes"
+      r: 0,
+      ts: Date.now(),
+      n: 'waiting',
+    };
+    
+    return {
+      payload: waitingPayload,
+      payloadString: this.qrGenerator.encryptPayload(waitingPayload),
+      sessionId,
+    };
+  }
+
+  /**
+   * Obtiene estadísticas del pool de una sesión
+   */
+  async getPoolStats(sessionId: SessionId): Promise<{ total: number; students: number; fakes: number }> {
+    return this.poolRepository.getPoolStats(sessionId.toString());
   }
 
   /**
