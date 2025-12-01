@@ -1,8 +1,9 @@
 # Flujo de Validacion QR con Rounds e Intentos
 
 **Fecha:** 2025-11-28  
+**Actualizado:** 2025-11-29  
 **Estado:** Especificacion Tecnica  
-**Rama:** fase-6-persistencia-asistencia
+**Rama:** fase-6-1-frontend-crypto
 
 ---
 
@@ -18,17 +19,60 @@ Este documento describe el flujo completo de validacion de asistencia mediante Q
 |----------|------------|
 | **Round** | Ciclo de QR unico que el alumno debe completar exitosamente. Default: 3 rounds |
 | **Intento** | Oportunidad de reiniciar si falla un round. Default: 3 intentos |
-| **session_key** | Clave simetrica derivada de ECDH durante enrolamiento |
-| **TOTPu** | TOTP del usuario, derivado de handshake_secret |
+| **session_key** | Clave simetrica derivada de ECDH durante **login/sesion** (cada vez que participa) |
+| **TOTPu** | TOTP del usuario, derivado de **session_key** (ver `14-decision-totp-session-key.md`) |
 | **expectedRound** | Round que el cliente debe buscar, indicado por servidor |
+| **Pool de Proyeccion** | Lista de QRs de estudiantes registrados + QRs falsos que el proyector cicla |
 
 ---
 
 ## Flujo Completo
 
+### Fase 0: Registro en Sesion (PRERREQUISITO)
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│ CLIENTE: Registro Previo                                        │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│ ANTES de escanear QRs, el alumno debe registrarse:             │
+│                                                                 │
+│ 1. Cliente envia POST /participation/register                  │
+│    {sessionId, studentId}                                       │
+│                                                                 │
+│ 2. Servidor:                                                    │
+│    - Verifica que la sesion existe y esta activa               │
+│    - Genera QR inicial para round 1                            │
+│    - Almacena en Valkey:                                        │
+│      * student:session:{sessionId}:{studentId}                 │
+│      * qr:metadata:{sessionId}:{studentId}:{round} (TTL)       │
+│    - Agrega QR encriptado al pool de proyeccion                │
+│                                                                 │
+│ 3. Respuesta: {success: true, expectedRound: 1}                │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│ PROYECTOR: Ciclo de QRs                                         │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│ El proyector NO genera QRs propios. En cambio:                 │
+│                                                                 │
+│ 1. Lee el pool de proyeccion (QRs de estudiantes + falsos)     │
+│ 2. Cicla entre ellos en orden aleatorio                        │
+│ 3. Cada QR se muestra ~500ms antes de rotar                    │
+│ 4. Los QRs falsos tienen formato valido pero clave invalida    │
+│                                                                 │
+│ IMPORTANTE:                                                     │
+│ - En desarrollo (mock key): todos los QRs se descifran OK      │
+│ - En produccion (ECDH): solo el duenio descifra SU QR          │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
 ### Fase 1: Cliente Escanea QRs
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │ CLIENTE (Lector QR)                                             │
 ├─────────────────────────────────────────────────────────────────┤
@@ -63,7 +107,7 @@ Este documento describe el flujo completo de validacion de asistencia mediante Q
 
 ### Fase 2: Servidor Valida
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │ SERVIDOR                                                        │
 ├─────────────────────────────────────────────────────────────────┤
@@ -94,7 +138,7 @@ Este documento describe el flujo completo de validacion de asistencia mediante Q
 
 ### Fase 3: Cliente Continua
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │ CLIENTE (Continua)                                              │
 ├─────────────────────────────────────────────────────────────────┤
@@ -123,7 +167,7 @@ Este documento describe el flujo completo de validacion de asistencia mediante Q
 
 ### Escenario 1: Exito Directo
 
-```
+```text
 Configuracion: maxRounds=3, maxAttempts=3
 
 Cliente: expectedRound = 1
@@ -142,7 +186,7 @@ Cliente: Muestra exito, cierra
 
 ### Escenario 2: Fallo Silencioso en Round 2
 
-```
+```text
 Cliente: expectedRound = 1
 Escanea → encuentra QR con r=1 → envia
 Servidor: OK → responde {success: true, expectedRound: 2}
@@ -160,7 +204,7 @@ Escanea → encuentra QR con r=1 → envia
 
 ### Escenario 3: Agotar Intentos
 
-```
+```text
 (3 fallos consecutivos)
 Servidor: FALLA, intento 3 agotado
          → responde {success: false, noMoreAttempts: true}
@@ -171,9 +215,11 @@ Cliente: Muestra "Acercate al profesor/oficina", cierra
 
 ## Generacion y Vigencia de QR
 
-- El QR del alumno se genera al momento de activar la camara o presionar el boton de lectura
+- El QR del alumno se genera al momento de **registrar participacion** (POST `/participation/register`)
+- El servidor agrega el QR encriptado al **pool de proyeccion** en Valkey
 - Cada QR tiene un TTL controlado por backend (default: 30 segundos)
-- Si el QR expira antes de usarse, el alumno debe solicitar uno nuevo (cuenta como fallo silencioso)
+- Si el QR expira antes de usarse, el servidor genera uno nuevo automaticamente y lo agrega al pool
+- El **proyector** cicla QRs del pool (QRs de estudiantes + QRs falsos) cada ~500ms
 - La vigencia del QR es independiente del estado de la app del cliente
 
 ---
@@ -181,6 +227,7 @@ Cliente: Muestra "Acercate al profesor/oficina", cierra
 ## Identificacion de QR Propio
 
 El cliente identifica que un QR le pertenece cuando:
+
 1. Puede descifrarlo exitosamente con su session_key
 2. El campo `uid` del payload coincide con su userId
 3. El campo `r` coincide con su `expectedRound`
@@ -198,6 +245,7 @@ Al completar los N rounds, el servidor calcula la certeza basandose en:
 - **Promedio** de RTs
 
 Criterios:
+
 - RT consistente (baja desviacion) → mayor certeza
 - RT en rango humano realista (800ms - 3000ms) → mayor certeza
 - RT muy rapido (<300ms) o muy lento (>15s) → menor certeza (sospechoso)
@@ -210,18 +258,20 @@ Criterios:
 
 | Componente | Mock (Actual) | Produccion |
 |------------|---------------|------------|
-| session_key | MOCK_SESSION_KEY hardcodeada | Derivada de ECDH en enrolamiento |
-| TOTPu | Mock fijo o timestamp | TOTP real de handshake_secret |
+| session_key | MOCK_SESSION_KEY hardcodeada | Derivada de ECDH en login/sesion |
+| TOTPu | Mock fijo o timestamp | TOTP real de **session_key** |
 | userId | Parametro en request | Extraido de JWT de PHP |
 
 ### Fases de Implementacion
 
-1. **Fase 6 (actual):** Backend con rounds e intentos
-2. **Fase 6.1:** Frontend con descifrado y flujo completo (mock keys)
-3. **Fase 7:** Persistencia PostgreSQL
-4. **Fase 8:** QRs falsos en proyector
-5. **Fase 9:** Enrolamiento FIDO2
-6. **Fase 10:** Integracion con login PHP real
+1. **Fase 6 (completada):** Backend con rounds e intentos
+2. **Fase 6.1 (completada):** Infraestructura crypto frontend (mock keys)
+3. **Fase 6.2 (completada):** UI state machine lector QR
+4. **Fase 6.3:** Pool de proyeccion (QRs de estudiantes + falsos)
+5. **Fase 7:** Persistencia PostgreSQL
+6. **Fase 8:** QRs falsos adicionales
+7. **Fase 9:** Enrolamiento FIDO2 + ECDH real
+8. **Fase 10:** Integracion con login PHP real
 
 ---
 

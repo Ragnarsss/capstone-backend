@@ -55,12 +55,11 @@ sequenceDiagram
     E->>E: Verifica attestation
     E->>E: Valida AAGUID
     
-    Note over E: Fase 4: Derivación Secrets
-    E->>E: handshake_secret = HKDF(...)
+    Note over E: Fase 4: Almacenamiento de Credenciales
     E->>E: device_fingerprint = SHA256(...)
 
     Note over E,DB: Fase 5: Almacenamiento
-    E->>DB: INSERT INTO enrollment.devices
+    E->>DB: INSERT INTO enrollment.devices (publicKey, credentialId, aaguid)
     DB-->>E: device_id
     E->>DB: INSERT INTO enrollment_history
     
@@ -99,7 +98,7 @@ sequenceDiagram
 
     Note over E: Fase 4: Validación Assertion
     E->>DB: SELECT credential WHERE userId
-    DB-->>E: {credentialId, publicKey, handshake_secret}
+    DB-->>E: {credentialId, publicKey}
     
     E->>E: Verifica assertion.signature con publicKey
     E->>E: Valida challenge, origin
@@ -108,20 +107,21 @@ sequenceDiagram
     E->>E: (privKey_s, pubKey_s) = generateECDHPair()
     E->>E: shared_secret = ECDH(privKey_s, pubKey_c)
     E->>E: session_key = HKDF(shared_secret)
-    E->>E: TOTPu = TOTP(handshake_secret)
+    Note over E: TOTPu se deriva de session_key (ambos la tienen)
     E->>E: Destruye privKey_s
     
     E->>E: Store session_key (TTL 2h)
-    E->>P: {pubKey_s, TOTPu}
+    E->>P: {pubKey_s}
     P->>B: Return response
 
     Note over B: Fase 6: ECDH Cliente
     B->>B: shared_secret = ECDH(privKey_c, pubKey_s)
     B->>B: session_key = HKDF(shared_secret)
+    B->>B: TOTPu = TOTP(session_key)
     B->>B: Destruye privKey_c
     
     Note over B,E: Ambos tienen session_key SIN transmitirla
-    B->>B: Store session_key y TOTPu
+    B->>B: Store session_key
     B->>U: "Sesión iniciada"
 ```
 
@@ -275,9 +275,9 @@ sequenceDiagram
     A->>A: response = AES_GCM_decrypt(input, session_key)
     
     Note over A: Paso 2: Validar TOTPu
-    A->>DB: SELECT handshake_secret WHERE userId
-    DB-->>A: handshake_secret
-    A->>A: TOTPu_expected = TOTP(handshake_secret, T)
+    A->>V: GET session_key from Valkey cache
+    V-->>A: session_key
+    A->>A: TOTPu_expected = TOTP(session_key, T)
     A->>A: Compara response.TOTPu == TOTPu_expected
     
     alt TOTPu inválido

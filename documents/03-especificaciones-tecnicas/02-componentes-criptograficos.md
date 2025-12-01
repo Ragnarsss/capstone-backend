@@ -110,11 +110,12 @@ sequenceDiagram
     S->>S: (privKey_s, pubKey_s) = generateKey()
     S->>S: shared_secret = ECDH(privKey_s, pubKey_c)
     S->>S: session_key = HKDF(shared_secret)
-    S->>S: TOTPu = TOTP(handshake_secret)
-    S->>C: pubKey_s + TOTPu
+    Note over S: TOTPu se calcula con session_key (ambos lados la tienen)
+    S->>C: pubKey_s
     
     C->>C: shared_secret = ECDH(privKey_c, pubKey_s)
     C->>C: session_key = HKDF(shared_secret)
+    C->>C: TOTPu = TOTP(session_key)
     
     Note over C,S: Ambos tienen session_key sin transmitirla
 ```
@@ -420,10 +421,10 @@ authenticatorSelection: {
 
 ### Anti-Compartir
 
-```
+```text
 Cada validación verifica:
   - AAGUID consistente (mismo autenticador)
-  - TOTPu basado en handshake_secret único
+  - TOTPu basado en session_key (derivada por ECDH)
   - Attestation certificate no cambia
 
 Si detecta cambio:
@@ -514,28 +515,28 @@ Validación:
 ```mermaid
 graph TB
     A[FIDO2 Enrolamiento] --> B[Genera credentialId]
-    B --> C[HKDF deriva handshake_secret]
-    C --> D[TOTPu = TOTP handshake_secret]
+    B --> C[Almacena publicKey en servidor]
     
     E[ECDH Key Exchange] --> F[Genera shared_secret]
     F --> G[HKDF deriva session_key]
     
     G --> H[AES-256-GCM encripta payloads]
-    D --> I[Valida sesión]
+    G --> I[TOTPu = TOTP session_key]
+    I --> J[Valida sesión cliente]
     
-    J[TOTPs servidor] --> H
+    K[TOTPs servidor] --> H
     
-    K[AAGUID + Attestation] --> L[Verifica device binding]
-    L --> M[Anti-compartir]
+    L[AAGUID + Attestation] --> M[Verifica device binding]
+    M --> N[Anti-compartir]
 ```
 
 **Flujo completo:**
 
 1. FIDO2 genera credenciales vinculadas a dispositivo
-2. HKDF deriva `handshake_secret` único
-3. ECDH establece `session_key` sin transmitirla
+2. Servidor almacena `publicKey` para verificar assertions
+3. ECDH establece `session_key` sin transmitirla (cada sesión)
 4. AES-GCM encripta/desencripta payloads con `session_key`
-5. TOTPu valida sesión, TOTPs valida QR
+5. TOTPu (basado en `session_key`) valida sesión, TOTPs valida QR
 6. AAGUID y attestation previenen compartir dispositivos
 
 ---

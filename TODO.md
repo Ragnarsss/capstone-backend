@@ -15,6 +15,20 @@
     *   Integración con Valkey para persistencia efímera de estado.
     *   Validado mediante 22 tests unitarios y de integración.
 
+4.  **Fase 6.1 y 6.2 (Frontend Crypto y UI State Machine)**:
+    *   Infraestructura criptográfica AES-256-GCM en frontend (Web Crypto API).
+    *   Máquina de estados UI para el lector QR.
+    *   Mock keys compartidas backend/frontend para desarrollo.
+
+5.  **Fase 6.3 (Pool de Proyección)**:
+    *   ProjectionPoolRepository para manejar QRs en Valkey.
+    *   QRs falsos encriptados con clave aleatoria (indescifrables).
+    *   Integración con ParticipationService y AttendanceValidationService.
+    *   **Sesión activa global**: ActiveSessionRepository para trackear la sesión actual.
+    *   **Flujo simplificado**: Estudiante presiona botón -> Backend busca sesión activa -> Registra automáticamente.
+    *   **Endpoint GET /active-session**: Permite al frontend consultar si hay clase activa.
+    *   **UI Reader mejorada**: Pantalla inicial con botón "Registrar Asistencia", luego muestra escáner.
+
 ---
 
 ## Próximos Pasos: Fase 6 - Integración Frontend

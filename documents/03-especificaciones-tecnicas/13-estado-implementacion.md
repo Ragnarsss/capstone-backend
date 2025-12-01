@@ -1,7 +1,7 @@
 # Estado de Implementación del Sistema
 
-**Versión:** 2.0  
-**Fecha:** 2025-11-28  
+**Versión:** 3.0  
+**Fecha:** 2025-11-29  
 **Propósito:** Documento vivo que refleja el estado actual de implementación de todos los módulos
 
 ---
@@ -12,12 +12,12 @@
 
 ```text
 Flujo Anfitrión:  ████████████████████████ 100% [OK] PRODUCCIÓN
-Flujo Invitado:   ██████████░░░░░░░░░░░░░░  40% [WIP] EN DESARROLLO
+Flujo Invitado:   ██████████████░░░░░░░░░░  55% [WIP] EN DESARROLLO
   ├─ Enrollment:  ██░░░░░░░░░░░░░░░░░░░░░░  10% (stubs backend)
-  ├─ Asistencia:  ██████████████░░░░░░░░░░  60% (backend con rounds OK)
-  └─ Frontend:    ██████░░░░░░░░░░░░░░░░░░  25% (scanner basico OK)
+  ├─ Asistencia:  ██████████████████░░░░░░  75% (backend + crypto frontend OK)
+  └─ Frontend:    ██████████████░░░░░░░░░░  55% (scanner + crypto + UI states OK)
 
-Sistema Completo: ██████████████░░░░░░░░░░  62%
+Sistema Completo: ████████████████░░░░░░░░  68%
 ```
 
 ### Hitos Completados
@@ -29,16 +29,18 @@ Sistema Completo: ██████████████░░░░░░�
 - [OK] **QRPayloadV1 con AES-256-GCM** (cifrado funcional con mock key)
 - [OK] **Backend Attendance con Rounds e Intentos** (22 tests pasando)
 - [OK] **Estado de estudiante en Valkey** (persistencia con TTL)
+- [OK] **Frontend Crypto Infrastructure** (16 tests pasando - Fase 6.1)
+- [OK] **UI State Machine para Scanner** (23 tests pasando - Fase 6.2)
 
 ### Próximos Hitos
 
-- [WIP] **Frontend Invitado con crypto** (descifrado QR + flujo rounds)
+- [WIP] **Pool de Proyección** (QRs de estudiantes registrados + falsos)
 - [TODO] **Persistencia PostgreSQL** (attendance.validations, results)
 - [TODO] **Enrollment WebSocket** (proceso FIDO2 interactivo)
 
 ---
 
-## Fases de Implementación (Rama fase-6-persistencia-asistencia)
+## Fases de Implementación (Rama fase-6-1-frontend-crypto)
 
 ### Historial de Fases Completadas
 
@@ -51,20 +53,32 @@ Sistema Completo: ██████████████░░░░░░�
 | 4 | Endpoint validación | ✅ Completo | `5ce7ea7` |
 | 5 | Frontend scanner | ✅ Completo | `7f7c8a9` |
 | 6 | Rounds e Intentos backend | ✅ Completo | `fa66afb` |
-| 6.1 | Frontend crypto + rounds | 🔄 En curso | - |
+| 6.1 | Frontend crypto infrastructure | ✅ Completo | 16 tests |
+| 6.2 | UI State Machine scanner | ✅ Completo | 23 tests |
+| 6.3 | Pool de proyección | 🔄 En curso | - |
 
-### Fase Actual: 6.1 - Frontend Crypto Integration
+### Fase Actual: 6.3 - Pool de Proyección
 
-**Objetivo:** Integrar frontend con flujo completo de cifrado/descifrado
+**Objetivo:** El proyector debe ciclar QRs del pool de estudiantes registrados + QRs falsos
+
+**Problema identificado:**
+
+- Actualmente el proyector genera QRs con `r` incremental infinito (111, 123, 128...)
+- Debería: obtener QRs del pool de estudiantes que hicieron POST `/participation/register`
+- Cada estudiante tiene su QR con su round específico (1, 2, o 3)
 
 **Tareas pendientes:**
 
-1. Cliente descifra QR con session_key (mock)
-2. Cliente trackea expectedRound
-3. Cliente genera TOTPu (mock)
-4. Cliente cifra respuesta
-5. Manejar expectedRound en respuestas
-6. Estados: complete, noMoreAttempts
+1. Modificar proyector para leer pool desde Valkey
+2. Ciclar QRs de estudiantes registrados
+3. Agregar QRs falsos (indescifrabls)
+4. Rotación visual cada ~500ms
+
+**Nota sobre mock key:**
+
+- Con MOCK_SESSION_KEY todos los QRs se descifran correctamente
+- En producción (ECDH): solo el dueño podrá descifrar SU QR
+- Para desarrollo actual, el cliente identifica su QR por `uid` match
 
 ---
 
@@ -158,20 +172,38 @@ Sin intentos   → {noMoreAttempts: true}
 
 | Componente | Archivo | Estado | Notas |
 |------------|---------|--------|-------|
-| Camera View | `camera-view.component.ts` | [OK] Funcional | UI cámara + overlay |
-| QR Scan Service | `qr-scan.service.ts` | [WIP] Parcial | Escanea pero NO descifra |
-| API Client | `attendance-api.client.ts` | [WIP] Parcial | Falta manejar expectedRound |
+| Camera View | `camera-view.component.ts` | [OK] Funcional | UI cámara + overlay + states |
+| QR Scan Service | `qr-scan.service.ts` | [OK] Funcional | Descifra + debug logs |
+| API Client | `attendance-api.client.ts` | [OK] Funcional | Maneja expectedRound |
 
-**Estado general:** [WIP] **25% - Escanea pero sin crypto**
+### Frontend: shared/crypto
 
-**Pendiente Fase 6.1:**
+| Componente | Archivo | Estado | Notas |
+|------------|---------|--------|-------|
+| AES-GCM | `aes-gcm.ts` | [OK] Funcional | Web Crypto API |
+| Mock Keys | `mock-keys.ts` | [OK] Funcional | MOCK_SESSION_KEY |
 
-- [ ] Descifrar QR con session_key (mock)
-- [ ] Verificar r === expectedRound
+**Estado general:** [OK] **55% - Crypto + UI states completos**
+
+**Completado en Fase 6.1:**
+
+- [x] Descifrar QR con session_key (mock)
+- [x] Módulo `aes-gcm.ts` con Web Crypto API
+- [x] Debug logs para diagnóstico
+
+**Completado en Fase 6.2:**
+
+- [x] UI State Machine (IDLE, SCANNING, PROCESSING, etc.)
+- [x] Cooldown con contador visual
+- [x] Spinner durante procesamiento
+- [x] Manejo de estados complete/error
+
+**Pendiente (depende de Fase 6.3 - Pool):**
+
+- [ ] Verificar r === expectedRound (necesita QRs con round correcto)
 - [ ] Construir response con TOTPu
 - [ ] Cifrar response
-- [ ] Manejar {complete, noMoreAttempts, expectedRound}
-- [ ] UI para progreso de rounds
+- [ ] UI progreso de rounds (1/3, 2/3, 3/3)
 
 ---
 
@@ -212,6 +244,7 @@ Sin intentos   → {noMoreAttempts: true}
 | Cliente base | [OK] Funcional | ValkeyClient implementado |
 | Student Session State | [OK] Funcional | `student:{sessionId}:{studentId}` |
 | QR Metadata | [OK] Funcional | `qr:{nonce}` con TTL |
+| Pool Proyección | [WIP] Pendiente | Lista de QRs por sesión |
 | Sessions storage | [FAIL] No usado | Pendiente |
 
 **Estado general:** [OK] **70% - En uso activo para attendance**
@@ -222,31 +255,30 @@ Sin intentos   → {noMoreAttempts: true}
 
 | Componente | Mock (Actual) | Producción |
 |------------|---------------|------------|
-| session_key | `MOCK_SESSION_KEY` hardcodeada | Derivada de ECDH en enrolamiento |
-| TOTPu | No implementado | TOTP real de handshake_secret |
+| session_key | `MOCK_SESSION_KEY` hardcodeada | Derivada de ECDH en login/sesión |
+| TOTPu | No implementado | TOTP real de **session_key** |
 | userId | Parámetro en request | Extraído de JWT de PHP |
 | Enrollment | Stubs | FIDO2/WebAuthn real |
+| Proyector QRs | QRs genéricos incrementales | QRs del pool de estudiantes |
 
 ---
 
 ## Plan de Continuación
 
-### Fase 6.1: Frontend Crypto Integration (Siguiente)
+### Fase 6.3: Pool de Proyección (Actual)
 
-**Objetivo:** Frontend puede descifrar QR, validar rounds, enviar respuesta cifrada
+**Objetivo:** Proyector cicla QRs del pool de estudiantes + falsos
 
 **Archivos a modificar:**
 
 ```text
-node-service/src/frontend/features/attendance/
-├── qr-scan.service.ts          # REESCRIBIR - flujo crypto completo
-├── attendance-api.client.ts    # MODIFICAR - manejar expectedRound
-├── camera-view.component.ts    # MODIFICAR - UI estados rounds
+node-service/src/backend/qr-projection/
+├── application/qr-projection.service.ts   # MODIFICAR - leer pool
+├── presentation/websocket-controller.ts   # MODIFICAR - ciclar pool
 
-node-service/src/frontend/shared/
-├── crypto/                     # NUEVO directorio
-│   ├── aes-gcm.ts             # Encrypt/decrypt AES-256-GCM
-│   └── mock-keys.ts           # MOCK_SESSION_KEY temporal
+node-service/src/backend/attendance/
+├── application/participation.service.ts   # VERIFICAR - registro en pool
+└── infrastructure/valkey-store.ts         # AGREGAR - pool storage
 ```
 
 **Estimación:** 4-6 horas
@@ -268,31 +300,39 @@ node-service/src/frontend/shared/
 
 ---
 
-### Fase 8: QRs Falsos en Proyector
+### Fase 8: QRs Falsos Adicionales
 
-**Objetivo:** Mezclar QRs reales con señuelos
+**Objetivo:** Más señuelos para dificultar compartir
 
 **Implementar:**
 
-1. Generación de N QRs por ciclo
-2. Solo 1 es del estudiante real
-3. Los demás son señuelos indescifrabls
-4. Rotación visual
+1. Generación de N QRs falsos por ciclo
+2. QRs con formato válido pero clave inválida
+3. Ratio configuranble (ej: 1 real + 5 falsos)
 
-**Estimación:** 4-6 horas
+**Nota:** Fase 6.3 ya introduce el concepto básico de pool con falsos
+
+**Estimación:** 2-4 horas
 
 ---
 
-### Fase 9: Enrolamiento FIDO2 Real
+### Fase 9: Enrolamiento FIDO2 + ECDH Real
 
-**Objetivo:** Reemplazar stubs con WebAuthn real
+**Objetivo:** Reemplazar stubs y MOCK_SESSION_KEY con criptografía real
+
+**Implementar:**
+
+1. FIDO2 enrollment (WebAuthn API)
+2. ECDH key exchange para derivar session_key
+3. TOTPu basado en session_key real
+4. Cada estudiante solo puede descifrar SU QR
 
 **Dependencias:**
 
 - @simplewebauthn/server
-- WebSocket /enrollment/ws
+- Web Crypto API para ECDH
 
-**Estimación:** 8-12 horas
+**Estimación:** 12-16 horas
 
 ---
 
@@ -313,12 +353,13 @@ node-service/src/frontend/shared/
 ## Referencias
 
 - `flujo-validacion-qr-20251128.md` - Flujo completo documentado
+- `14-decision-totp-session-key.md` - Decisión sobre TOTPu basado en session_key
 - `PLAN-4-b-Modulo-Attendance-Backend.md` - Plan original backend
 - `PLAN-4-d-Frontend-Aplicacion-Invitado.md` - Plan original frontend
 - `database/migrations/001-initial-schema.sql` - Schema DB
 
 ---
 
-**Última actualización:** 2025-11-28  
-**Rama activa:** `fase-6-persistencia-asistencia`  
-**Próximo paso:** Implementar Fase 6.1 (Frontend Crypto Integration)
+**Última actualización:** 2025-11-29  
+**Rama activa:** `fase-6-1-frontend-crypto`  
+**Próximo paso:** Implementar Fase 6.3 (Pool de Proyección)
