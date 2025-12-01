@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { AttendanceValidationService } from '../application/attendance-validation.service';
 import { ParticipationService } from '../application/participation.service';
+import { ActiveSessionRepository } from '../infrastructure/active-session.repository';
 import type { ValidatePayloadRequest } from '../domain/models';
 
 /**
@@ -43,6 +44,40 @@ export async function registerAttendanceRoutes(
 ): Promise<void> {
   const validation = validationService ?? new AttendanceValidationService();
   const participation = participationService ?? new ParticipationService();
+  const activeSessionRepo = new ActiveSessionRepository();
+
+  /**
+   * GET /asistencia/api/attendance/active-session
+   * 
+   * Consulta si hay una sesión de QR activa
+   * El estudiante usa esto para saber si puede registrar asistencia
+   */
+  fastify.get(
+    '/asistencia/api/attendance/active-session',
+    async (_request, reply) => {
+      const session = await activeSessionRepo.getActiveSession();
+
+      if (!session) {
+        return reply.send({
+          success: true,
+          data: {
+            hasActiveSession: false,
+            message: 'No hay clase activa en este momento',
+          },
+        });
+      }
+
+      return reply.send({
+        success: true,
+        data: {
+          hasActiveSession: true,
+          sessionId: session.sessionId,
+          hostUsername: session.hostUsername,
+          startedAt: session.startedAt,
+        },
+      });
+    }
+  );
 
   /**
    * POST /asistencia/api/attendance/register
@@ -125,11 +160,11 @@ export async function registerAttendanceRoutes(
         return reply.send({
           success: true,
           data: {
+            status: 'completed',
             sessionId: result.payload!.sid,
             hostUserId: result.payload!.uid,
             round: result.payload!.r,
             validatedAt: result.validatedAt,
-            isComplete: true,
             stats: result.stats,
           },
         });
@@ -138,12 +173,12 @@ export async function registerAttendanceRoutes(
       return reply.send({
         success: true,
         data: {
+          status: 'partial',
           sessionId: result.payload!.sid,
           hostUserId: result.payload!.uid,
           round: result.payload!.r,
           validatedAt: result.validatedAt,
-          isComplete: false,
-          nextRound: result.nextRound,
+          next_round: result.nextRound?.round,
         },
       });
     }
@@ -245,5 +280,5 @@ export async function registerAttendanceRoutes(
     };
   });
 
-  console.log('[Attendance] Rutas registradas: register, validate, status, refresh-qr, health');
+  console.log('[Attendance] Rutas registradas: active-session, register, validate, status, refresh-qr, health');
 }
