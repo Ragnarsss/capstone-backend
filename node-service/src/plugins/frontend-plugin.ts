@@ -14,6 +14,9 @@ import { noCacheHeaders } from '../middleware';
  *
  * Desarrollo: Proxy a Vite dev server
  * Produccion: Archivos estaticos compilados
+ * 
+ * IMPORTANTE: Las rutas /asistencia/api/* y /asistencia/ws se registran
+ * ANTES de este plugin en app.ts, por lo que tienen prioridad sobre el proxy.
  */
 
 interface FrontendPluginOptions {
@@ -57,11 +60,13 @@ export async function frontendPlugin(
     });
 
     // Proxy general a Vite para assets, HMR, etc.
+    // Las rutas de API (/asistencia/api/*) y WebSocket (/asistencia/ws)
+    // se registran ANTES de este plugin en app.ts y tienen prioridad.
     await fastify.register(fastifyHttpProxy, {
       upstream: viteUrl,
       prefix: '/',
       http2: false,
-      websocket: false,
+      websocket: false, // WebSocket manejado por WebSocketController
     });
   } else {
     // Produccion: Servir archivos estaticos

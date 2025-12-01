@@ -33,7 +33,8 @@ export const config = {
     // Tiempo de countdown inicial antes de mostrar QR
     countdownSeconds: 5,
     // Intervalo de regeneracion de QR (en milisegundos)
-    regenerationInterval: 300,
+    // 333ms = exactamente 3 QRs por segundo
+    regenerationInterval: 333,
   },
   jwt: {
     // Secret para validar JWT desde PHP (debe coincidir con JWT_SECRET de PHP)

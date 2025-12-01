@@ -205,4 +205,45 @@ export class CryptoService {
       return false;
     }
   }
+
+  /**
+   * Encripta datos con una clave ALEATORIA (para QRs falsos)
+   * 
+   * El resultado tiene formato válido pero NO puede ser desencriptado
+   * por nadie, ya que la clave se descarta inmediatamente.
+   * 
+   * Esto es útil para generar QRs "señuelo" que confundan
+   * a quienes intenten escanear QRs ajenos.
+   * 
+   * @param plaintext - Texto a encriptar (contenido irrelevante)
+   * @returns Payload encriptado indescifrable
+   */
+  encryptWithRandomKey(plaintext: string): string {
+    // Generar clave aleatoria de 32 bytes (se descarta después)
+    const randomKey = randomBytes(32);
+    
+    // Generar IV aleatorio de 12 bytes
+    const iv = randomBytes(CryptoService.IV_LENGTH);
+
+    // Crear cipher AES-256-GCM con clave aleatoria
+    const cipher = createCipheriv(
+      CryptoService.ALGORITHM,
+      randomKey,
+      iv,
+      { authTagLength: CryptoService.AUTH_TAG_LENGTH }
+    );
+
+    // Encriptar
+    const encrypted = Buffer.concat([
+      cipher.update(plaintext, 'utf8'),
+      cipher.final(),
+    ]);
+
+    // Obtener tag de autenticación
+    const authTag = cipher.getAuthTag();
+
+    // Formato compacto: iv.ciphertext.authTag
+    return `${iv.toString('base64')}.${encrypted.toString('base64')}.${authTag.toString('base64')}`;
+    // La randomKey se pierde aquí - nadie puede descifrar
+  }
 }
