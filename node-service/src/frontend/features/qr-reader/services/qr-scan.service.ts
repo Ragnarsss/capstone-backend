@@ -7,15 +7,18 @@ import { CameraManager } from './camera-manager';
 import type { CameraViewComponent } from '../ui/camera-view.component';
 import { AttendanceApiClient } from './attendance-api.client';
 import { AuthClient } from '../../../shared/auth/auth-client';
+import { decryptQR, encryptPayload } from '../../../shared/crypto/aes-gcm';
 
 export class QRScanService {
   private readonly component: CameraViewComponent;
   private readonly cameraManager: CameraManager;
   private readonly attendanceApi: AttendanceApiClient;
   private readonly authClient: AuthClient;
+  
   private authReady: boolean;
   private scanning: boolean;
   private validating: boolean;
+  private expectedRound: number;
 
   constructor(
     component: CameraViewComponent,
@@ -27,9 +30,11 @@ export class QRScanService {
     this.cameraManager = cameraManager;
     this.authClient = authClient;
     this.attendanceApi = attendanceApi ?? new AttendanceApiClient();
+    
     this.authReady = false;
     this.scanning = false;
     this.validating = false;
+    this.expectedRound = 1;
   }
 
   initialize(): void {
@@ -81,32 +86,81 @@ export class QRScanService {
   private async handleScanResult(result: ScannerResult): Promise<void> {
     // Prevent multiple validations for same scan
     if (this.validating) return;
-    this.validating = true;
 
     const scannedText = result.text;
-    console.log('[QRScanService] Codigo escaneado, validando...');
     
-    // Show validating state
-    this.component.showValidating();
+    try {
+      // 1. Intentar desencriptar
+      const payloadJson = await decryptQR(scannedText);
+      const payload = JSON.parse(payloadJson);
 
-    // Get student ID from auth
-    const studentId = this.authClient.getUserId();
-    if (studentId === null) {
-      this.component.showValidationError('No se pudo identificar tu usuario');
-      this.validating = false;
-      return;
-    }
+      // 2. Verificar formato básico
+      if (typeof payload.r !== 'number') {
+        return; // No es un QR válido de nuestro sistema
+      }
 
-    // Validate with backend
-    const validationResult = await this.attendanceApi.validatePayload(scannedText, studentId);
+      // 3. Verificar ronda esperada
+      if (payload.r !== this.expectedRound) {
+        console.log(`[QRScanService] Ronda incorrecta. Esperada: ${this.expectedRound}, Recibida: ${payload.r}`);
+        return; // Ignorar silenciosamente
+      }
 
-    if (validationResult.valid) {
-      this.component.showValidationSuccess(validationResult.message);
-      // Stop scanning after successful validation
-      await this.stop();
-    } else {
-      this.component.showValidationError(validationResult.message);
-      // Allow retry after failed validation
+      // --- INICIO VALIDACIÓN ---
+      this.validating = true;
+      this.component.showValidating();
+      console.log(`[QRScanService] Validando ronda ${payload.r}...`);
+
+      // 4. Obtener ID estudiante
+      const studentId = this.authClient.getUserId();
+      if (studentId === null) {
+        this.component.showValidationError('No se pudo identificar tu usuario');
+        this.validating = false;
+        return;
+      }
+
+      // 5. Construir respuesta encriptada
+      const responsePayload = JSON.stringify({
+        r: payload.r,
+        ts: Date.now(),
+        studentId: studentId // Incluimos ID por seguridad adicional
+      });
+      
+      const encryptedResponse = await encryptPayload(responsePayload);
+
+      // 6. Enviar al backend
+      const validationResult = await this.attendanceApi.validatePayload(encryptedResponse);
+
+      if (validationResult.valid) {
+        if (validationResult.status === 'completed') {
+          this.component.showValidationSuccess('¡Asistencia completada!');
+          await this.stop();
+        } else {
+          // Partial success
+          this.component.showPartialSuccess(`Ronda ${payload.r} completada. Esperando siguiente...`);
+          this.expectedRound = validationResult.nextRound || (this.expectedRound + 1);
+          
+          // Pausa breve antes de seguir escaneando
+          setTimeout(() => {
+            this.validating = false;
+            this.component.showScanning();
+          }, 2000);
+        }
+      } else {
+        this.component.showValidationError(validationResult.message);
+        // Permitir reintentar después de un error
+        setTimeout(() => {
+          this.validating = false;
+          this.component.showScanning();
+        }, 2000);
+      }
+
+    } catch (error) {
+      // Si falla desencriptación o parseo, asumimos que no es un QR para nosotros
+      // o que la clave es incorrecta. Ignoramos silenciosamente para no interrumpir el escaneo.
+      // Solo logueamos si es un error inesperado
+      if (error instanceof Error && error.message !== 'Fallo en desencriptación o autenticación') {
+        console.warn('[QRScanService] Error procesando QR:', error);
+      }
       this.validating = false;
     }
   }
@@ -117,5 +171,7 @@ export class QRScanService {
     this.component.showReady();
     this.scanning = false;
     this.validating = false;
+    // Reset expected round on stop? Maybe not, if they accidentally close camera.
+    // But for now let's keep it.
   }
 }

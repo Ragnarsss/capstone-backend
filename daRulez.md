@@ -51,5 +51,18 @@
 23. Mantener un flujo consistente para planificación y continuidad de tareas.
 24. Crear ramas nuevas para cada tarea usando `git checkout -b <nombre>`.
 
+## Flujo de trabajo incremental por fases
+
+25. Trabajar en ramas descriptivas (ej: `fase-N-descripcion-breve`).
+26. Realizar commits atomicos por fase o sub-fase completada.
+27. Formato de commit: `tipo(modulo): descripcion breve`. Tipos: `feat`, `fix`, `refactor`, `docs`, `test`.
+28. Usar `git add -p` o `git add <archivos>` selectivo, no `git add .`.
+29. Un commit por unidad logica de trabajo; no acumular cambios grandes sin commit.
+30. Cada fase debe tener su script de prueba (`test-faseN.sh`) en `scripts/`.
+31. Ejecutar tests antes del commit; scripts deben ser autocontenidos y reproducibles.
+32. Probar funcionalidad manualmente primero (curl, navegador, etc.) antes de automatizar en scripts.
+33. Usar prefijo claro para valores temporales (ej: `MOCK_`, `STUB_`, `TODO_`).
+34. Documentar en codigo que reemplazara cada mock; centralizar mocks cuando sea posible.
+
 ---
 Estas reglas deben ser seguidas estrictamente en todos los desarrollos futuros para asegurar la coherencia, calidad y mantenibilidad del proyecto.

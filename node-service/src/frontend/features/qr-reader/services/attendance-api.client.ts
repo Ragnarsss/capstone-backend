@@ -4,17 +4,15 @@
  */
 
 interface ValidatePayloadRequest {
-  encrypted: string;
-  studentId: number;
+  encrypted_response: string;
 }
 
 interface ValidatePayloadSuccess {
   success: true;
   data: {
-    sessionId: string;
-    hostUserId: number;
-    round: number;
-    validatedAt: string;
+    status: 'partial' | 'completed';
+    next_round?: number;
+    message?: string;
   };
 }
 
@@ -31,11 +29,8 @@ type ValidatePayloadResponse = ValidatePayloadSuccess | ValidatePayloadError;
 export interface ValidationResult {
   valid: boolean;
   message: string;
-  data?: {
-    sessionId: string;
-    round: number;
-    validatedAt: string;
-  };
+  status?: 'partial' | 'completed';
+  nextRound?: number;
 }
 
 export class AttendanceApiClient {
@@ -45,7 +40,7 @@ export class AttendanceApiClient {
     this.baseUrl = baseUrl;
   }
 
-  async validatePayload(encrypted: string, studentId: number): Promise<ValidationResult> {
+  async validatePayload(encryptedResponse: string): Promise<ValidationResult> {
     try {
       const response = await fetch(`${this.baseUrl}/validate`, {
         method: 'POST',
@@ -53,34 +48,61 @@ export class AttendanceApiClient {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          encrypted,
-          studentId,
+          encrypted_response: encryptedResponse,
         } satisfies ValidatePayloadRequest),
       });
 
+      if (response.status === 429) {
+        return {
+          valid: false,
+          message: 'Demasiados intentos. Por favor espera un momento.',
+        };
+      }
+
       const result: ValidatePayloadResponse = await response.json();
+
+      if (!response.ok) {
+        // Si el status no es 2xx, tratamos de extraer el mensaje de error del body
+        if (!result.success && result.error) {
+             const errorMessages: Record<string, string> = {
+                INVALID_PAYLOAD_FORMAT: 'Formato inválido',
+                DECRYPTION_FAILED: 'Error de seguridad',
+                INVALID_ROUND: 'Ronda incorrecta',
+                ROUND_TIMEOUT: 'Tiempo agotado para la ronda',
+                SESSION_EXPIRED: 'Sesión expirada',
+                ALREADY_COMPLETED: 'Asistencia ya registrada',
+                RATE_LIMIT_EXCEEDED: 'Demasiados intentos',
+              };
+            const userMessage = errorMessages[result.error.code] || result.error.message;
+            return {
+                valid: false,
+                message: userMessage
+            };
+        }
+        
+        return {
+            valid: false,
+            message: `Error del servidor (${response.status})`
+        };
+      }
 
       if (result.success) {
         return {
           valid: true,
-          message: `Asistencia registrada - Ronda ${result.data.round}`,
-          data: {
-            sessionId: result.data.sessionId,
-            round: result.data.round,
-            validatedAt: result.data.validatedAt,
-          },
+          message: result.data.message || 'Validación exitosa',
+          status: result.data.status,
+          nextRound: result.data.next_round,
         };
       }
 
-      // Map error codes to user-friendly messages
+      // Fallback for 200 OK but success: false (legacy or specific logic)
       const errorMessages: Record<string, string> = {
-        INVALID_PAYLOAD_FORMAT: 'Codigo QR invalido',
-        DECRYPTION_FAILED: 'Error al descifrar codigo',
-        PAYLOAD_NOT_FOUND: 'Codigo QR expirado',
-        PAYLOAD_ALREADY_CONSUMED: 'Codigo ya utilizado',
-        STUDENT_MISMATCH: 'Este codigo no te pertenece',
-        PAYLOAD_EXPIRED: 'Codigo QR expirado',
-        VALIDATION_ERROR: 'Error de validacion',
+        INVALID_PAYLOAD_FORMAT: 'Formato inválido',
+        DECRYPTION_FAILED: 'Error de seguridad',
+        INVALID_ROUND: 'Ronda incorrecta',
+        ROUND_TIMEOUT: 'Tiempo agotado para la ronda',
+        SESSION_EXPIRED: 'Sesión expirada',
+        ALREADY_COMPLETED: 'Asistencia ya registrada',
       };
 
       const userMessage = errorMessages[result.error.code] || result.error.message;
@@ -92,7 +114,7 @@ export class AttendanceApiClient {
       console.error('[AttendanceApiClient] Error validating payload:', error);
       return {
         valid: false,
-        message: 'Error de conexion. Intenta de nuevo.',
+        message: 'Error de conexión',
       };
     }
   }

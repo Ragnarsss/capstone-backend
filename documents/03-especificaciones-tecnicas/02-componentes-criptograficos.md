@@ -233,27 +233,34 @@ Sistema dual de TOTP para vincular sesiones a dispositivos y validar QR específ
 **Propósito:** Vincular sesión a dispositivo enrolado
 
 ```
-Secret: handshake_secret (derivado de FIDO2)
+Secret: session_key (derivada de ECDH)
 Período: 30 segundos
 Dígitos: 6
 Algoritmo: SHA-256
 
-TOTPu = TOTP(handshake_secret, floor(time/30), 6)
+TOTPu = TOTP(session_key, floor(time/30), 6)
 ```
+
+**Nota de diseño (2025-11-27):** Se usa `session_key` en lugar de `handshake_secret` porque:
+- `session_key` existe en ambos lados (cliente y servidor) tras ECDH
+- `handshake_secret` solo existe en servidor (derivado con SERVER_MASTER_SECRET)
+- El cliente NO tiene acceso a SERVER_MASTER_SECRET
+- Ver documento `14-decision-totp-session-key.md` para análisis completo
 
 **Características:**
 
-- Único por dispositivo enrolado
-- Validez: durante toda la sesión
+- Derivado de session_key (compartida via ECDH)
+- Validez: durante la sesión activa
 - Transmitido: en cada validación de ronda
-- Propósito: verificar que el dispositivo es el mismo que se enroló
+- Propósito: verificar que el cliente tiene la session_key correcta
+- Cambia cada sesión (Perfect Forward Secrecy)
 
 ### TOTPs (TOTP de Servidor/QR)
 
 **Propósito:** Anti-replay y validación de QR específico
 
 ```
-Secret: SHA-256(sessionId || userId || roundNumber || SERVER_SECRET)
+Secret: SHA-256(sessionId || visitorId || roundNumber || SERVER_SECRET)
 Período: 30 segundos
 Dígitos: 6
 Algoritmo: SHA-256
@@ -283,11 +290,12 @@ Razón: compensar drift de reloj y latencia de red
 
 | Aspecto | TOTPu | TOTPs |
 |---------|-------|-------|
-| Secret base | handshake_secret | sessionId + userId + round + SERVER_SECRET |
-| Duración | Toda la sesión | 30 segundos |
+| Secret base | session_key (ECDH) | sessionId + visitorId + round + SERVER_SECRET |
+| Duración | Por sesión | 30 segundos |
 | Transmisión | Cada validación | Dentro de payload QR |
-| Propósito | Vincular dispositivo | Anti-replay + validar QR |
+| Propósito | Vincular cliente a sesión | Anti-replay + validar QR |
 | Generado por | Cliente y servidor | Solo servidor |
+| Derivación | ECDH compartido | Solo servidor |
 
 ---
 

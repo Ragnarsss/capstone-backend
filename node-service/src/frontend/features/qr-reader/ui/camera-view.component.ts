@@ -86,6 +86,13 @@ export class CameraViewComponent {
     this.toggleButtons({ start: false, stop: true });
   }
 
+  showPartialSuccess(message: string): void {
+    this.updateStatus('Ronda completada');
+    this.renderResult(message, 'success');
+    this.setOverlay('Ronda OK - Preparando siguiente...');
+    // No cambiamos botones, mantenemos estado activo
+  }
+
   showValidationError(message: string): void {
     this.updateStatus('Error de validacion');
     this.renderResult(message, 'error');

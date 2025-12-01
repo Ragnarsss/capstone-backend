@@ -1,7 +1,7 @@
 # Estado de Implementación del Sistema
 
-**Versión:** 1.0  
-**Fecha:** 2025-11-03  
+**Versión:** 2.0  
+**Fecha:** 2025-11-28  
 **Propósito:** Documento vivo que refleja el estado actual de implementación de todos los módulos
 
 ---
@@ -12,11 +12,12 @@
 
 ```text
 Flujo Anfitrión:  ████████████████████████ 100% [OK] PRODUCCIÓN
-Flujo Invitado:   ████░░░░░░░░░░░░░░░░░░░░  15% [FAIL] EN DESARROLLO
+Flujo Invitado:   ██████████░░░░░░░░░░░░░░  40% [WIP] EN DESARROLLO
   ├─ Enrollment:  ██░░░░░░░░░░░░░░░░░░░░░░  10% (stubs backend)
-  └─ Asistencia:  ░░░░░░░░░░░░░░░░░░░░░░░░   0% (no existe)
+  ├─ Asistencia:  ██████████████░░░░░░░░░░  60% (backend con rounds OK)
+  └─ Frontend:    ██████░░░░░░░░░░░░░░░░░░  25% (scanner basico OK)
 
-Sistema Completo: ████████░░░░░░░░░░░░░░░░  57%
+Sistema Completo: ██████████████░░░░░░░░░░  62%
 ```
 
 ### Hitos Completados
@@ -25,16 +26,91 @@ Sistema Completo: ████████░░░░░░░░░░░░�
 - [OK] **WebSocket con autenticación segura** (Opción 5B)
 - [OK] **Proyección QR para profesores** (funcional en dev + prod)
 - [OK] **Monolito Modular con Vertical Slicing** (arquitectura implementada)
+- [OK] **QRPayloadV1 con AES-256-GCM** (cifrado funcional con mock key)
+- [OK] **Backend Attendance con Rounds e Intentos** (22 tests pasando)
+- [OK] **Estado de estudiante en Valkey** (persistencia con TTL)
 
 ### Próximos Hitos
 
-- [TODO] **Frontend Guest** (aplicación para alumnos)
-- [TODO] **Módulo Attendance** (validación de asistencia)
+- [WIP] **Frontend Invitado con crypto** (descifrado QR + flujo rounds)
+- [TODO] **Persistencia PostgreSQL** (attendance.validations, results)
 - [TODO] **Enrollment WebSocket** (proceso FIDO2 interactivo)
 
 ---
 
+## Fases de Implementación (Rama fase-6-persistencia-asistencia)
+
+### Historial de Fases Completadas
+
+| Fase | Descripción | Estado | Commits |
+|------|-------------|--------|---------|
+| 0 | Baseline - Análisis exploratorio | ✅ Completo | `a17bb0e` |
+| 1 | QRPayloadV1 estructura | ✅ Completo | `d988f2e` |
+| 2 | AES-256-GCM cifrado | ✅ Completo | `3cd39c4` |
+| 3 | Valkey storage | ✅ Completo | `e24e1f4` |
+| 4 | Endpoint validación | ✅ Completo | `5ce7ea7` |
+| 5 | Frontend scanner | ✅ Completo | `7f7c8a9` |
+| 6 | Rounds e Intentos backend | ✅ Completo | `fa66afb` |
+| 6.1 | Frontend crypto + rounds | 🔄 En curso | - |
+
+### Fase Actual: 6.1 - Frontend Crypto Integration
+
+**Objetivo:** Integrar frontend con flujo completo de cifrado/descifrado
+
+**Tareas pendientes:**
+
+1. Cliente descifra QR con session_key (mock)
+2. Cliente trackea expectedRound
+3. Cliente genera TOTPu (mock)
+4. Cliente cifra respuesta
+5. Manejar expectedRound en respuestas
+6. Estados: complete, noMoreAttempts
+
+---
+
 ## Estado por Módulo Backend
+
+### Módulo: attendance (Validación Asistencia)
+
+| Componente | Archivo | Estado | Notas |
+|------------|---------|--------|-------|
+| **Application Layer** | | | |
+| QR Generator | `application/qr-generator.ts` | [OK] Funcional | AES-256-GCM + QRPayloadV1 |
+| Validation Service | `application/attendance-validation.service.ts` | [OK] Funcional | Rounds + intentos + stats |
+| Participation Service | `application/participation.service.ts` | [OK] Funcional | Register + status + refresh |
+| **Domain Layer** | | | |
+| Models | `domain/models.ts` | [OK] Funcional | QRPayloadV1, StudentState, etc |
+| **Infrastructure Layer** | | | |
+| Session Repository | `infrastructure/student-session.repository.ts` | [OK] Funcional | Valkey con TTL |
+| Valkey Store | `infrastructure/valkey-store.ts` | [OK] Funcional | QR metadata storage |
+| Crypto Service | `infrastructure/crypto.ts` | [OK] Funcional | AES-256-GCM encrypt/decrypt |
+| **Presentation Layer** | | | |
+| Routes | `presentation/routes.ts` | [OK] Funcional | 4 endpoints REST |
+| Types | `presentation/types.ts` | [OK] Funcional | DTOs request/response |
+
+**Estado general:** [OK] **60% Funcional** (backend completo, falta persistencia PostgreSQL)
+
+**Endpoints implementados:**
+
+- [OK] POST `/attendance/register` → Registra estudiante + genera primer QR
+- [OK] GET `/attendance/status` → Estado actual del estudiante
+- [OK] POST `/attendance/validate` → Valida round + avanza estado
+- [OK] POST `/attendance/refresh-qr` → Genera nuevo QR para round actual
+
+**Sistema de Rounds e Intentos:**
+
+```text
+maxRounds = 3    (ciclos QR a completar exitosamente)
+maxAttempts = 3  (oportunidades si falla un round)
+
+Éxito en round → advance to next round
+Fallo en round → consume intento, restart desde round 1
+Sin intentos   → {noMoreAttempts: true}
+```
+
+**Tests:** 22/22 pasando (`scripts/test-fase6.sh`)
+
+---
 
 ### Módulo: auth (Autenticación JWT)
 
@@ -42,15 +118,10 @@ Sistema Completo: ████████░░░░░░░░░░░░�
 |------------|---------|--------|-------|
 | JWT Emisión | `php-service/src/lib/jwt.php` | [OK] Funcional | PHP emite JWT con HS256 |
 | JWT Validación | `node-service/src/shared/config/index.ts` | [OK] Funcional | JWTUtils.verify() |
-| Middleware HTTP | `node-service/src/shared/config/index.ts` | [OK] Funcional | Fastify hook onRequest |
+| Middleware HTTP | `node-service/src/middleware/*.ts` | [OK] Funcional | Fastify hooks |
 | WebSocket Auth | `websocket-controller.ts` | [OK] Funcional | Handshake con timeout 5s |
-| Tipos | `node-service/src/shared/types/index.ts` | [OK] Funcional | AuthenticatedUser, JWTPayload |
 
 **Estado general:** [OK] **100% Funcional**
-
-**Probado en:**
-- [OK] compose.dev.yaml (HTTP + WebSocket)
-- [OK] compose.prod.yaml (HTTP + WebSocket)
 
 ---
 
@@ -58,195 +129,79 @@ Sistema Completo: ████████░░░░░░░░░░░░�
 
 | Componente | Archivo | Estado | Notas |
 |------------|---------|--------|-------|
-| **Application Layer** | | | |
-| QR Generation UseCase | `application/usecases/generate-qr.usecase.ts` | [OK] Funcional | Genera QR con qrcode |
-| **Domain Layer** | | | |
-| QR Entity | `domain/entities/qr-code.entity.ts` | [OK] Funcional | sessionId, timestamp |
-| **Infrastructure Layer** | | | |
-| QR Service | `infrastructure/qr-service.ts` | [OK] Funcional | Integración qrcode lib |
-| **Presentation Layer** | | | |
+| QR Generation | `application/usecases/generate-qr.usecase.ts` | [OK] Funcional | Genera QR con qrcode |
 | WebSocket Controller | `presentation/websocket-controller.ts` | [OK] Funcional | Auth + proyección |
 | HTTP Controller | `presentation/qr-projection-controller.ts` | [OK] Funcional | Healthcheck |
-| Types/DTOs | `presentation/types.ts` | [OK] Funcional | AuthMessageDTO, QRUpdateDTO |
 
 **Estado general:** [OK] **100% Funcional**
-
-**Características implementadas:**
-- [OK] Autenticación JWT obligatoria
-- [OK] Countdown de 5 segundos
-- [OK] QR update cada 3 segundos
-- [OK] Códigos de cierre: 4401, 4403, 4408
-
-**Pendiente:**
-- [FAIL] Rotación aleatoria (actualmente solo 1 QR)
-- [FAIL] N QR simultáneos en pantalla
-- [FAIL] Metadata en Valkey
 
 ---
 
 ### Módulo: enrollment (Registro de Dispositivos)
 
-| Componente | Archivo | Estado | Notas |
-|------------|---------|--------|-------|
-| **Application Layer** | | | |
-| Start Enrollment | `application/usecases/start-enrollment.usecase.ts` | [WIP] Stub | Retorna challenge fake |
-| Finish Enrollment | `application/usecases/finish-enrollment.usecase.ts` | [WIP] Stub | Acepta cualquier credential |
-| Login ECDH | `application/usecases/login.usecase.ts` | [WIP] Stub | Retorna keys fake |
-| **Domain Layer** | | | |
-| Device Entity | `domain/entities/device.entity.ts` | [WIP] Definido | No persiste en DB |
-| **Infrastructure Layer** | | | |
-| FIDO2 Service | `infrastructure/fido2/fido2-service.ts` | [FAIL] No existe | Pendiente |
-| ECDH Service | `infrastructure/crypto/ecdh-service.ts` | [FAIL] No existe | Pendiente |
-| **Presentation Layer** | | | |
-| HTTP Controller | `presentation/enrollment-handler.ts` | [WIP] Stub | 3 endpoints con stubs |
-| WebSocket Controller | `presentation/websocket-controller.ts` | [FAIL] No existe | Crítico para flujo |
-
-**Estado general:** [WIP] **10% - Solo Stubs**
-
-**Endpoints:**
-- [WIP] GET `/enrollment/status` → retorna `{enrolled: false}`
-- [WIP] POST `/enrollment/start` → retorna challenge fake
-- [WIP] POST `/enrollment/finish` → acepta todo
-- [WIP] POST `/enrollment/login` → retorna keys fake
-
-**Pendiente (Crítico):**
-- [FAIL] WebSocket `/enrollment/ws` (NO EXISTE)
-- [FAIL] Lógica FIDO2/WebAuthn real
-- [FAIL] ECDH key exchange completo
-- [FAIL] Persistencia PostgreSQL `enrollment.devices`
-- [FAIL] Sistema de penalizaciones
-
----
-
-### Módulo: attendance (Validación Asistencia)
-
 | Componente | Estado | Notas |
 |------------|--------|-------|
-| **Todo el módulo** | [FAIL] No existe | Completamente pendiente |
+| Start Enrollment | [WIP] Stub | Retorna challenge fake |
+| Finish Enrollment | [WIP] Stub | Acepta cualquier credential |
+| Login ECDH | [WIP] Stub | Retorna keys fake |
+| WebSocket Controller | [FAIL] No existe | Crítico para flujo real |
+| FIDO2 Service | [FAIL] No existe | Pendiente |
+| ECDH Service | [FAIL] No existe | Pendiente |
 
-**Pendiente (Crítico):**
-- [FAIL] Estructura completa del módulo
-- [FAIL] Endpoint POST `/attendance/validate`
-- [FAIL] Lógica de N rondas
-- [FAIL] Cálculo de Response Time (RT)
-- [FAIL] Validación TOTPu/TOTPs
-- [FAIL] Desencriptación QR con session_key
-- [FAIL] Persistencia PostgreSQL `attendance.*`
-- [FAIL] Resultado PRESENTE/AUSENTE
-
----
-
-### Módulo: shared (Utilidades Compartidas)
-
-| Componente | Archivo | Estado | Notas |
-|------------|---------|--------|-------|
-| **Config** | | | |
-| JWT Utils | `config/index.ts` | [OK] Funcional | verify(), tipos |
-| Environment | `config/index.ts` | [OK] Funcional | JWT_SECRET, DB config |
-| **Infrastructure** | | | |
-| Valkey Client | `infrastructure/valkey/valkey-client.ts` | [OK] Funcional | Redis-compatible |
-| **Types** | | | |
-| Common Types | `types/index.ts` | [OK] Funcional | AuthenticatedUser, etc |
-
-**Estado general:** [OK] **100% Funcional**
-
-**Pendiente:**
-- [FAIL] Crypto Utils (ECDH, AES, HKDF)
-- [FAIL] TOTP Generator
-- [FAIL] Validation Utils
+**Estado general:** [WIP] **10% - Solo Stubs**
 
 ---
 
 ## Estado por Módulo Frontend
 
-### Frontend: app (Aplicación Anfitrión)
+### Frontend: features/attendance (Scanner QR)
 
 | Componente | Archivo | Estado | Notas |
 |------------|---------|--------|-------|
-| **Core** | | | |
-| HTML Principal | `frontend/app/index.html` | [OK] Funcional | UI proyección |
-| Main Logic | `frontend/app/main.js` | [OK] Funcional | Orquestación |
-| **Módulo Auth** | | | |
-| Auth Service | `modules/auth/auth.service.js` | [OK] Funcional | postMessage listener |
-| Token Storage | `modules/auth/token-storage.js` | [OK] Funcional | sessionStorage |
-| **Módulo QR Projection** | | | |
-| QR Component | `modules/qr-projection/qr-projection.component.js` | [OK] Funcional | UI QR display |
-| QR Service | `modules/qr-projection/qr-projection.service.js` | [OK] Funcional | Lógica proyección |
-| Styles | `modules/qr-projection/qr-projection.styles.css` | [OK] Funcional | Estilos |
-| **Módulo WebSocket** | | | |
-| WebSocket Client | `modules/websocket/websocket.client.js` | [OK] Funcional | Cliente genérico + auth |
+| Camera View | `camera-view.component.ts` | [OK] Funcional | UI cámara + overlay |
+| QR Scan Service | `qr-scan.service.ts` | [WIP] Parcial | Escanea pero NO descifra |
+| API Client | `attendance-api.client.ts` | [WIP] Parcial | Falta manejar expectedRound |
 
-**Estado general:** [OK] **100% Funcional**
+**Estado general:** [WIP] **25% - Escanea pero sin crypto**
 
-**Características:**
-- [OK] Recibe JWT vía postMessage
-- [OK] Conecta WebSocket con auth
-- [OK] Muestra countdown
-- [OK] Proyecta QR cada 3s
-- [OK] Manejo de errores
+**Pendiente Fase 6.1:**
+
+- [ ] Descifrar QR con session_key (mock)
+- [ ] Verificar r === expectedRound
+- [ ] Construir response con TOTPu
+- [ ] Cifrar response
+- [ ] Manejar {complete, noMoreAttempts, expectedRound}
+- [ ] UI para progreso de rounds
 
 ---
 
-### Frontend: guest (Aplicación Invitado)
+### Frontend: features/enrollment
 
 | Componente | Estado | Notas |
 |------------|--------|-------|
-| **Todo el frontend** | [FAIL] No existe | Completamente pendiente |
+| Enrollment UI | [FAIL] No existe | Pendiente |
+| WebAuthn Integration | [FAIL] No existe | Pendiente |
 
-**Pendiente (Crítico):**
-- [FAIL] `frontend/guest/index.html`
-- [FAIL] `frontend/guest/main.js`
-- [FAIL] Módulo enrollment (UI WebAuthn)
-- [FAIL] Módulo attendance (escáner QR)
-- [FAIL] Módulo scanner (acceso cámara)
-- [FAIL] Integración jsQR
+**Estado general:** [FAIL] **0%**
 
 ---
 
-## Estado Infraestructura
+## Infraestructura
 
 ### Base de Datos: PostgreSQL 18
 
 | Schema/Tabla | Estado | Notas |
 |--------------|--------|-------|
-| `enrollment.devices` | [FAIL] No existe | Tabla pendiente crear |
-| `attendance.sessions` | [FAIL] No existe | Tabla pendiente crear |
-| `attendance.validations` | [FAIL] No existe | Tabla pendiente crear |
+| Schema `enrollment` | [OK] Creado | DDL en 001-initial-schema.sql |
+| `enrollment.devices` | [OK] Tabla existe | Sin datos |
+| `enrollment.enrollment_history` | [OK] Tabla existe | Sin datos |
+| Schema `attendance` | [OK] Creado | DDL en 001-initial-schema.sql |
+| `attendance.sessions` | [OK] Tabla existe | Sin datos |
+| `attendance.registrations` | [OK] Tabla existe | Sin datos |
+| `attendance.validations` | [OK] Tabla existe | Sin datos |
+| `attendance.results` | [OK] Tabla existe | Sin datos |
 
-**Estado general:** [FAIL] **0% - No existen schemas**
-
-**SQL pendiente:**
-```sql
-CREATE SCHEMA IF NOT EXISTS enrollment;
-CREATE SCHEMA IF NOT EXISTS attendance;
-
-CREATE TABLE enrollment.devices (
-  id SERIAL PRIMARY KEY,
-  user_id INTEGER NOT NULL,
-  credential_id TEXT NOT NULL UNIQUE,
-  public_key TEXT NOT NULL,
-  aaguid TEXT,
-  created_at TIMESTAMP DEFAULT NOW()
-);
-
-CREATE TABLE attendance.sessions (
-  id SERIAL PRIMARY KEY,
-  user_id INTEGER NOT NULL,
-  session_id VARCHAR(100) NOT NULL UNIQUE,
-  started_at TIMESTAMP NOT NULL,
-  status VARCHAR(20) DEFAULT 'active',
-  result VARCHAR(20)
-);
-
-CREATE TABLE attendance.validations (
-  id SERIAL PRIMARY KEY,
-  session_id INTEGER REFERENCES attendance.sessions(id),
-  round_number INTEGER NOT NULL,
-  qr_scanned_at TIMESTAMP NOT NULL,
-  response_time_ms INTEGER NOT NULL,
-  result VARCHAR(20) NOT NULL
-);
-```
+**Estado general:** [OK] **100% Estructura** - Schemas y tablas creados, sin uso desde código
 
 ---
 
@@ -255,200 +210,115 @@ CREATE TABLE attendance.validations (
 | Uso | Estado | Notas |
 |-----|--------|-------|
 | Cliente base | [OK] Funcional | ValkeyClient implementado |
-| Sessions storage | [FAIL] No usado | Pendiente implementar |
-| QR metadata | [FAIL] No usado | Pendiente implementar |
-| Cola proyección | [FAIL] No usado | Pendiente implementar |
+| Student Session State | [OK] Funcional | `student:{sessionId}:{studentId}` |
+| QR Metadata | [OK] Funcional | `qr:{nonce}` con TTL |
+| Sessions storage | [FAIL] No usado | Pendiente |
 
-**Estado general:** [WIP] **25% - Cliente listo, sin uso**
-
----
-
-### Reverse Proxy: Apache 2.4
-
-| Configuración | Archivo | Estado | Notas |
-|---------------|---------|--------|-------|
-| Proxy Pass | `00-proxy.conf` | [OK] Funcional | `/minodo-api/*` → Node |
-| WebSocket Proxy | `00-proxy.conf` | [OK] Funcional | `/asistencia/ws` → Node |
-| Virtual Host | `asistencia.conf` | [OK] Funcional | Puerto 9500 |
-
-**Estado general:** [OK] **100% Funcional**
+**Estado general:** [OK] **70% - En uso activo para attendance**
 
 ---
 
-### Contenedores: Docker/Podman
+## Matriz Mock vs Producción
 
-| Servicio | Archivo | Estado | Notas |
-|----------|---------|--------|-------|
-| PHP Service | `php-service/Containerfile` | [OK] Funcional | Apache + PHP 7.4 |
-| Node Service | `node-service/Containerfile` | [OK] Funcional | Node 20 LTS |
-| PostgreSQL | `compose.yaml` | [OK] Funcional | Postgres 18 |
-| Valkey | `compose.yaml` | [OK] Funcional | Valkey 7 |
-
-**Compose files:**
-- [OK] `compose.yaml` (base)
-- [OK] `compose.dev.yaml` (dev con volúmenes)
-- [OK] `compose.prod.yaml` (prod optimizado)
-
-**Estado general:** [OK] **100% Funcional**
+| Componente | Mock (Actual) | Producción |
+|------------|---------------|------------|
+| session_key | `MOCK_SESSION_KEY` hardcodeada | Derivada de ECDH en enrolamiento |
+| TOTPu | No implementado | TOTP real de handshake_secret |
+| userId | Parámetro en request | Extraído de JWT de PHP |
+| Enrollment | Stubs | FIDO2/WebAuthn real |
 
 ---
 
-## Matriz de Compatibilidad
+## Plan de Continuación
 
-### Ambientes Probados
+### Fase 6.1: Frontend Crypto Integration (Siguiente)
 
-| Ambiente | Estado | Fecha | Notas |
-|----------|--------|-------|-------|
-| **Development** | [OK] Funcional | 2025-11-03 | compose.dev.yaml |
-| **Production** | [OK] Funcional | 2025-11-03 | compose.prod.yaml |
-| **Testing** | [FAIL] No existe | - | Pendiente CI/CD |
+**Objetivo:** Frontend puede descifrar QR, validar rounds, enviar respuesta cifrada
 
-### Navegadores Probados
-
-| Browser | Versión | WebSocket | WebAuthn | Notas |
-|---------|---------|-----------|----------|-------|
-| Firefox | Latest | [OK] OK | [WIP] No probado | Anfitrión funcional |
-| Chrome | Latest | [WIP] No probado | [WIP] No probado | Pendiente pruebas |
-| Safari | Latest | [WIP] No probado | [WIP] No probado | Pendiente pruebas |
-| Edge | Latest | [WIP] No probado | [WIP] No probado | Pendiente pruebas |
-
----
-
-## Cobertura de Código
-
-### Backend (Node.js)
+**Archivos a modificar:**
 
 ```text
-Módulo auth:           ████████████████████████  95%
-Módulo qr-projection:  ██████████████████████░░  90%
-Módulo enrollment:     ██░░░░░░░░░░░░░░░░░░░░░░  10%
-Módulo attendance:     ░░░░░░░░░░░░░░░░░░░░░░░░   0%
-Módulo shared:         ████████████████░░░░░░░░  70%
+node-service/src/frontend/features/attendance/
+├── qr-scan.service.ts          # REESCRIBIR - flujo crypto completo
+├── attendance-api.client.ts    # MODIFICAR - manejar expectedRound
+├── camera-view.component.ts    # MODIFICAR - UI estados rounds
 
-TOTAL BACKEND:         ████████████░░░░░░░░░░░░  53%
+node-service/src/frontend/shared/
+├── crypto/                     # NUEVO directorio
+│   ├── aes-gcm.ts             # Encrypt/decrypt AES-256-GCM
+│   └── mock-keys.ts           # MOCK_SESSION_KEY temporal
 ```
 
-### Frontend
-
-```text
-Frontend app:          ████████████████████████  95%
-Frontend guest:        ░░░░░░░░░░░░░░░░░░░░░░░░   0%
-
-TOTAL FRONTEND:        ████████████░░░░░░░░░░░░  47%
-```
-
-### General
-
-```text
-COBERTURA TOTAL:       ████████████░░░░░░░░░░░░  50%
-```
+**Estimación:** 4-6 horas
 
 ---
 
-## Métricas de Calidad
+### Fase 7: Persistencia PostgreSQL
 
-### Deuda Técnica
+**Objetivo:** Guardar validaciones y resultados en DB
 
-| Categoría | Cantidad | Prioridad |
-|-----------|----------|-----------|
-| Stubs a implementar | 6 | [TODO] Alta |
-| Módulos faltantes | 2 | [TODO] Alta |
-| Testing faltante | 5 áreas | 🟠 Media |
-| Documentación desactualizada | 3 docs | [OK] Baja |
+**Implementar:**
 
-### Issues Conocidos
+1. `AttendanceRepository` (PostgreSQL)
+2. `ResultRepository` (PostgreSQL)
+3. Integración con services existentes
+4. Migration para índices adicionales
 
-1. **Enrollment no funcional:** Solo stubs, WebSocket no existe
-2. **Attendance no existe:** Módulo completo pendiente
-3. **Frontend guest no existe:** Aplicación completa pendiente
-4. **PostgreSQL vacío:** Schemas no creados
-5. **Valkey sin uso:** Cliente listo pero no se usa
-
-### Vulnerabilidades de Seguridad
-
-| Severidad | Cantidad | Descripción |
-|-----------|----------|-------------|
-| [TODO] Crítica | 0 | N/A |
-| 🟠 Alta | 0 | N/A |
-| [WIP] Media | 1 | Enrollment stubs aceptan todo |
-| [OK] Baja | 2 | JWT_SECRET en env, logs verbosos |
+**Estimación:** 6-8 horas
 
 ---
 
-## Plan de Acción Inmediato
+### Fase 8: QRs Falsos en Proyector
 
-### Sprint 1: Frontend Guest (1-2 días)
+**Objetivo:** Mezclar QRs reales con señuelos
 
-**Objetivo:** Crear aplicación básica para alumnos
+**Implementar:**
 
-**Tareas:**
-- [ ] Crear `/frontend/guest/index.html`
-- [ ] Crear `/frontend/guest/main.js`
-- [ ] Implementar postMessage listener
-- [ ] Llamar `/enrollment/status`
-- [ ] Mostrar stubs de modos
+1. Generación de N QRs por ciclo
+2. Solo 1 es del estudiante real
+3. Los demás son señuelos indescifrabls
+4. Rotación visual
 
-**Entregable:** Aplicación guest con stubs funcionales
+**Estimación:** 4-6 horas
 
 ---
 
-### Sprint 2: Módulo Attendance (3-5 días)
+### Fase 9: Enrolamiento FIDO2 Real
 
-**Objetivo:** Asistencia funcional (mínimo 1 ronda)
+**Objetivo:** Reemplazar stubs con WebAuthn real
 
-**Tareas:**
-- [ ] Crear schemas PostgreSQL
-- [ ] Implementar módulo attendance completo
-- [ ] Endpoint POST `/attendance/validate`
-- [ ] Frontend: escáner QR
-- [ ] Testing end-to-end
+**Dependencias:**
 
-**Entregable:** Flujo completo profesor → alumno
+- @simplewebauthn/server
+- WebSocket /enrollment/ws
+
+**Estimación:** 8-12 horas
 
 ---
 
-### Sprint 3: Enrollment Real (5-7 días)
+### Fase 10: Integración PHP
 
-**Objetivo:** FIDO2/WebAuthn funcional
+**Objetivo:** Login real desde PHP, JWT con userId real
 
-**Tareas:**
-- [ ] WebSocket `/enrollment/ws`
-- [ ] Implementar FIDO2 real
-- [ ] Implementar ECDH completo
-- [ ] Sistema de penalizaciones
-- [ ] Testing completo
+**Implementar:**
 
-**Entregable:** Enrollment production-ready
+1. PHP llama a Node para verificar enrollment
+2. Node extrae userId de JWT
+3. Eliminar mocks de userId
 
----
-
-## Referencias Cruzadas
-
-### Documentación Relacionada
-
-- [01-arquitectura-general.md](01-arquitectura-general.md) - Arquitectura completa
-- [12-propuesta-separacion-roles.md](12-propuesta-separacion-roles.md) - Flujos por rol
-- [07-decisiones-arquitectonicas.md](07-decisiones-arquitectonicas.md) - Decisiones técnicas
-
-### Código Clave
-
-- `node-service/src/shared/config/index.ts` - JWT Utils
-- `node-service/src/modules/qr-projection/` - Módulo completo funcional
-- `node-service/src/frontend/app/` - Frontend Anfitrión completo
+**Estimación:** 4-6 horas
 
 ---
 
-**Ultima actualizacion:** 2025-11-03  
-**Proxima revision:** Despues de cada sprint  
+## Referencias
+
+- `flujo-validacion-qr-20251128.md` - Flujo completo documentado
+- `PLAN-4-b-Modulo-Attendance-Backend.md` - Plan original backend
+- `PLAN-4-d-Frontend-Aplicacion-Invitado.md` - Plan original frontend
+- `database/migrations/001-initial-schema.sql` - Schema DB
 
 ---
 
-## Notas Finales
-
-Este documento debe actualizarse:
-- [OK] Al completar cada sprint
-- [OK] Al agregar nuevos módulos
-- [OK] Al detectar issues de seguridad
-- [OK] Antes de cada release a producción
-
-**Estado actual:** Sistema parcialmente funcional. Flujo Anfitrión listo para producción. Flujo Invitado en desarrollo inicial.
+**Última actualización:** 2025-11-28  
+**Rama activa:** `fase-6-persistencia-asistencia`  
+**Próximo paso:** Implementar Fase 6.1 (Frontend Crypto Integration)
