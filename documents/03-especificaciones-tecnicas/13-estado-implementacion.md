@@ -1,7 +1,7 @@
 # Estado de Implementación del Sistema
 
-**Versión:** 3.0  
-**Fecha:** 2025-11-29  
+**Versión:** 4.0  
+**Fecha:** 2025-01  
 **Propósito:** Documento vivo que refleja el estado actual de implementación de todos los módulos
 
 ---
@@ -12,12 +12,12 @@
 
 ```text
 Flujo Anfitrión:  ████████████████████████ 100% [OK] PRODUCCIÓN
-Flujo Invitado:   ██████████████░░░░░░░░░░  55% [WIP] EN DESARROLLO
+Flujo Invitado:   ██████████████████░░░░░░  70% [WIP] EN DESARROLLO
   ├─ Enrollment:  ██░░░░░░░░░░░░░░░░░░░░░░  10% (stubs backend)
-  ├─ Asistencia:  ██████████████████░░░░░░  75% (backend + crypto frontend OK)
+  ├─ Asistencia:  ████████████████████░░░░  85% (backend refactorizado + frontend OK)
   └─ Frontend:    ██████████████░░░░░░░░░░  55% (scanner + crypto + UI states OK)
 
-Sistema Completo: ████████████████░░░░░░░░  68%
+Sistema Completo: ██████████████████░░░░░░  72%
 ```
 
 ### Hitos Completados
@@ -31,16 +31,19 @@ Sistema Completo: ████████████████░░░░�
 - [OK] **Estado de estudiante en Valkey** (persistencia con TTL)
 - [OK] **Frontend Crypto Infrastructure** (16 tests pasando - Fase 6.1)
 - [OK] **UI State Machine para Scanner** (23 tests pasando - Fase 6.2)
+- [OK] **Room-Aware Multi-Session System** (Fase 6.3)
+- [OK] **Validation Pipeline Pattern** (10 stages, 20 tests - Fase 6.4)
 
 ### Próximos Hitos
 
-- [WIP] **Pool de Proyección** (QRs de estudiantes registrados + falsos)
 - [TODO] **Persistencia PostgreSQL** (attendance.validations, results)
-- [TODO] **Enrollment WebSocket** (proceso FIDO2 interactivo)
+- [TODO] **QRs Falsos Adicionales** (señuelos mejorados)
+- [TODO] **Enrollment FIDO2 + ECDH** (proceso real)
+- [TODO] **Integración PHP Legacy** (autenticación delegada)
 
 ---
 
-## Fases de Implementación (Rama fase-6-1-frontend-crypto)
+## Fases de Implementación
 
 ### Historial de Fases Completadas
 
@@ -55,30 +58,62 @@ Sistema Completo: ████████████████░░░░�
 | 6 | Rounds e Intentos backend | ✅ Completo | `fa66afb` |
 | 6.1 | Frontend crypto infrastructure | ✅ Completo | 16 tests |
 | 6.2 | UI State Machine scanner | ✅ Completo | 23 tests |
-| 6.3 | Pool de proyección | 🔄 En curso | - |
+| 6.3 | Room-Aware Multi-Session | ✅ Completo | Múltiples commits |
+| 6.4 | SoC Refactor - Validation Pipeline | ✅ Completo | 12 commits, 20 tests |
 
-### Fase Actual: 6.3 - Pool de Proyección
+### Fase 6.4 Completada: Validation Pipeline Pattern
 
-**Objetivo:** El proyector debe ciclar QRs del pool de estudiantes registrados + QRs falsos
+**Objetivo alcanzado:** Refactorizar monolito de validación en pipeline con stages reutilizables
 
-**Problema identificado:**
+**Arquitectura implementada:**
 
-- Actualmente el proyector genera QRs con `r` incremental infinito (111, 123, 128...)
-- Debería: obtener QRs del pool de estudiantes que hicieron POST `/participation/register`
-- Cada estudiante tiene su QR con su round específico (1, 2, o 3)
+```text
+┌─────────────────────────────────────────────────────────────┐
+│                    CompleteScanUseCase                       │
+│  (Orquesta validación + side effects)                       │
+├─────────────────────────────────────────────────────────────┤
+│                    ValidateScanUseCase                       │
+│  (Validación pura, sin side effects)                        │
+├─────────────────────────────────────────────────────────────┤
+│                 ValidationPipelineRunner                     │
+│  (Ejecuta stages en secuencia, falla rápido)                │
+├─────────────────────────────────────────────────────────────┤
+│                        Stages                                │
+│  ┌────────┐ ┌─────────┐ ┌───────────┐ ┌──────────┐         │
+│  │Decrypt │→│Structure│→│ Ownership │→│Load QR   │→ ...    │
+│  └────────┘ └─────────┘ └───────────┘ └──────────┘         │
+└─────────────────────────────────────────────────────────────┘
+```
 
-**Tareas pendientes:**
+**10 Stages implementados:**
 
-1. Modificar proyector para leer pool desde Valkey
-2. Ciclar QRs de estudiantes registrados
-3. Agregar QRs falsos (indescifrabls)
-4. Rotación visual cada ~500ms
+| Stage | Tipo | Responsabilidad |
+|-------|------|-----------------|
+| `decryptPayloadStage` | Sync | Descifra QR con AES-GCM |
+| `validateStructureStage` | Sync | Valida formato QRPayloadV1 |
+| `validateOwnershipStage` | Sync | Verifica que uid coincide con estudiante |
+| `loadQrStateStage` | Async | Carga estado del QR desde Valkey |
+| `validateQrExistsStage` | Sync | Verifica que QR existe |
+| `validateQrNotConsumedStage` | Sync | Verifica QR no consumido |
+| `loadStudentStateStage` | Async | Carga estado estudiante desde Valkey |
+| `validateStudentNotDuplicateStage` | Sync | Verifica no duplicado en round |
+| `validateStudentNotPausedStage` | Sync | Verifica estudiante no pausado |
+| `validateStudentNotCompletedStage` | Sync | Verifica estudiante no completado |
+| `validateRoundMatchStage` | Sync | Verifica round del QR coincide con actual |
 
-**Nota sobre mock key:**
+**Componentes creados:**
 
-- Con MOCK_SESSION_KEY todos los QRs se descifran correctamente
-- En producción (ECDH): solo el dueño podrá descifrar SU QR
-- Para desarrollo actual, el cliente identifica su QR por `uid` match
+- `ValidationContext` - Objeto inmutable que fluye por el pipeline
+- `ValidationPipelineRunner` - Ejecutor genérico de stages
+- `ValidateScanUseCase` - Caso de uso de validación pura
+- `CompleteScanUseCase` - Caso de uso completo con efectos
+- `StatsCalculator` - Cálculo de estadísticas extraído a dominio
+- `ErrorMapper` - Mapeo de errores de dominio a respuestas HTTP
+- 3 Adapters para inversión de dependencias
+
+**Tests:** 20/20 pasando para stages
+
+**Código eliminado:** `AttendanceValidationService` (415 líneas legacy)
 
 ---
 
@@ -86,54 +121,74 @@ Sistema Completo: ████████████████░░░░�
 
 ### Módulo: attendance (Validación Asistencia)
 
-| Componente | Archivo | Estado | Notas |
-|------------|---------|--------|-------|
-| **Application Layer** | | | |
-| QR Generator | `application/qr-generator.ts` | [OK] Funcional | AES-256-GCM + QRPayloadV1 |
-| Validation Service | `application/attendance-validation.service.ts` | [OK] Funcional | Rounds + intentos + stats |
-| Participation Service | `application/participation.service.ts` | [OK] Funcional | Register + status + refresh |
-| **Domain Layer** | | | |
-| Models | `domain/models.ts` | [OK] Funcional | QRPayloadV1, StudentState, etc |
-| **Infrastructure Layer** | | | |
-| Session Repository | `infrastructure/student-session.repository.ts` | [OK] Funcional | Valkey con TTL |
-| Valkey Store | `infrastructure/valkey-store.ts` | [OK] Funcional | QR metadata storage |
-| Crypto Service | `infrastructure/crypto.ts` | [OK] Funcional | AES-256-GCM encrypt/decrypt |
-| **Presentation Layer** | | | |
-| Routes | `presentation/routes.ts` | [OK] Funcional | 4 endpoints REST |
-| Types | `presentation/types.ts` | [OK] Funcional | DTOs request/response |
+```text
+src/backend/attendance/
+├── application/
+│   ├── index.ts                     # Barrel exports
+│   ├── validate-scan.usecase.ts     # Validación pura [NUEVO]
+│   ├── complete-scan.usecase.ts     # Flujo completo [NUEVO]
+│   ├── qr-generator.ts              # Generación de QRs
+│   └── participation.service.ts     # Registro y estado
+├── domain/
+│   ├── models.ts                    # QRPayloadV1, StudentState, etc
+│   ├── stats-calculator.ts          # Cálculo de stats [NUEVO]
+│   └── validation-pipeline/         # [NUEVO]
+│       ├── context.ts               # ValidationContext
+│       ├── runner.ts                # PipelineRunner
+│       ├── stage.interface.ts       # Interfaces Stage/SyncStage
+│       └── stages/                  # 10 stages individuales
+├── infrastructure/
+│   ├── index.ts                     # Barrel exports
+│   ├── adapters/                    # [NUEVO]
+│   │   ├── qr-state.adapter.ts
+│   │   ├── student-state.adapter.ts
+│   │   └── complete-scan-deps.adapter.ts
+│   ├── student-session.repository.ts
+│   ├── valkey-store.ts
+│   └── crypto.ts
+├── presentation/
+│   ├── routes.ts                    # Rutas HTTP (usa CompleteScanUseCase)
+│   ├── error-mapper.ts              # Mapeo errores→HTTP [NUEVO]
+│   └── types.ts                     # DTOs
+└── __tests__/
+    └── stages.test.ts               # 20 tests [NUEVO]
+```
 
-**Estado general:** [OK] **60% Funcional** (backend completo, falta persistencia PostgreSQL)
+| Componente | Estado | Notas |
+|------------|--------|-------|
+| CompleteScanUseCase | [OK] Funcional | Orquesta validación + efectos |
+| ValidateScanUseCase | [OK] Funcional | Validación pura |
+| ValidationPipeline | [OK] Funcional | 10 stages, runner genérico |
+| StatsCalculator | [OK] Funcional | Extraído a dominio |
+| ErrorMapper | [OK] Funcional | HTTP status codes |
+| Adapters | [OK] Funcional | 3 adapters para DI |
+| QR Generator | [OK] Funcional | AES-256-GCM + QRPayloadV1 |
+| Participation Service | [OK] Funcional | Register + status + refresh |
+| Student Session Repo | [OK] Funcional | Valkey con TTL |
+| Valkey Store | [OK] Funcional | QR metadata storage |
+| Crypto Service | [OK] Funcional | AES-256-GCM encrypt/decrypt |
+
+**Estado general:** [OK] **85% Funcional** (backend refactorizado, falta PostgreSQL)
 
 **Endpoints implementados:**
 
 - [OK] POST `/attendance/register` → Registra estudiante + genera primer QR
 - [OK] GET `/attendance/status` → Estado actual del estudiante
-- [OK] POST `/attendance/validate` → Valida round + avanza estado
+- [OK] POST `/attendance/validate` → Valida round + avanza estado (usa CompleteScanUseCase)
 - [OK] POST `/attendance/refresh-qr` → Genera nuevo QR para round actual
 
-**Sistema de Rounds e Intentos:**
-
-```text
-maxRounds = 3    (ciclos QR a completar exitosamente)
-maxAttempts = 3  (oportunidades si falla un round)
-
-Éxito en round → advance to next round
-Fallo en round → consume intento, restart desde round 1
-Sin intentos   → {noMoreAttempts: true}
-```
-
-**Tests:** 22/22 pasando (`scripts/test-fase6.sh`)
+**Tests:** 20+ tests pasando
 
 ---
 
 ### Módulo: auth (Autenticación JWT)
 
-| Componente | Archivo | Estado | Notas |
-|------------|---------|--------|-------|
-| JWT Emisión | `php-service/src/lib/jwt.php` | [OK] Funcional | PHP emite JWT con HS256 |
-| JWT Validación | `node-service/src/shared/config/index.ts` | [OK] Funcional | JWTUtils.verify() |
-| Middleware HTTP | `node-service/src/middleware/*.ts` | [OK] Funcional | Fastify hooks |
-| WebSocket Auth | `websocket-controller.ts` | [OK] Funcional | Handshake con timeout 5s |
+| Componente | Estado | Notas |
+|------------|--------|-------|
+| JWT Emisión (PHP) | [OK] Funcional | PHP emite JWT con HS256 |
+| JWT Validación (Node) | [OK] Funcional | JWTUtils.verify() |
+| Middleware HTTP | [OK] Funcional | Fastify hooks |
+| WebSocket Auth | [OK] Funcional | Handshake con timeout 5s |
 
 **Estado general:** [OK] **100% Funcional**
 
@@ -141,11 +196,11 @@ Sin intentos   → {noMoreAttempts: true}
 
 ### Módulo: qr-projection (Proyección QR)
 
-| Componente | Archivo | Estado | Notas |
-|------------|---------|--------|-------|
-| QR Generation | `application/usecases/generate-qr.usecase.ts` | [OK] Funcional | Genera QR con qrcode |
-| WebSocket Controller | `presentation/websocket-controller.ts` | [OK] Funcional | Auth + proyección |
-| HTTP Controller | `presentation/qr-projection-controller.ts` | [OK] Funcional | Healthcheck |
+| Componente | Estado | Notas |
+|------------|--------|-------|
+| QR Generation | [OK] Funcional | Genera QR con qrcode |
+| WebSocket Controller | [OK] Funcional | Auth + proyección |
+| HTTP Controller | [OK] Funcional | Healthcheck |
 
 **Estado general:** [OK] **100% Funcional**
 
@@ -159,8 +214,8 @@ Sin intentos   → {noMoreAttempts: true}
 | Finish Enrollment | [WIP] Stub | Acepta cualquier credential |
 | Login ECDH | [WIP] Stub | Retorna keys fake |
 | WebSocket Controller | [FAIL] No existe | Crítico para flujo real |
-| FIDO2 Service | [FAIL] No existe | Pendiente |
-| ECDH Service | [FAIL] No existe | Pendiente |
+| FIDO2 Service | [FAIL] No existe | Pendiente Fase 9 |
+| ECDH Service | [FAIL] No existe | Pendiente Fase 9 |
 
 **Estado general:** [WIP] **10% - Solo Stubs**
 
@@ -170,40 +225,15 @@ Sin intentos   → {noMoreAttempts: true}
 
 ### Frontend: features/attendance (Scanner QR)
 
-| Componente | Archivo | Estado | Notas |
-|------------|---------|--------|-------|
-| Camera View | `camera-view.component.ts` | [OK] Funcional | UI cámara + overlay + states |
-| QR Scan Service | `qr-scan.service.ts` | [OK] Funcional | Descifra + debug logs |
-| API Client | `attendance-api.client.ts` | [OK] Funcional | Maneja expectedRound |
-
-### Frontend: shared/crypto
-
-| Componente | Archivo | Estado | Notas |
-|------------|---------|--------|-------|
-| AES-GCM | `aes-gcm.ts` | [OK] Funcional | Web Crypto API |
-| Mock Keys | `mock-keys.ts` | [OK] Funcional | MOCK_SESSION_KEY |
+| Componente | Estado | Notas |
+|------------|--------|-------|
+| Camera View | [OK] Funcional | UI cámara + overlay + states |
+| QR Scan Service | [OK] Funcional | Descifra + debug logs |
+| API Client | [OK] Funcional | Maneja expectedRound |
+| AES-GCM Crypto | [OK] Funcional | Web Crypto API |
+| Mock Keys | [OK] Funcional | MOCK_SESSION_KEY |
 
 **Estado general:** [OK] **55% - Crypto + UI states completos**
-
-**Completado en Fase 6.1:**
-
-- [x] Descifrar QR con session_key (mock)
-- [x] Módulo `aes-gcm.ts` con Web Crypto API
-- [x] Debug logs para diagnóstico
-
-**Completado en Fase 6.2:**
-
-- [x] UI State Machine (IDLE, SCANNING, PROCESSING, etc.)
-- [x] Cooldown con contador visual
-- [x] Spinner durante procesamiento
-- [x] Manejo de estados complete/error
-
-**Pendiente (depende de Fase 6.3 - Pool):**
-
-- [ ] Verificar r === expectedRound (necesita QRs con round correcto)
-- [ ] Construir response con TOTPu
-- [ ] Cifrar response
-- [ ] UI progreso de rounds (1/3, 2/3, 3/3)
 
 ---
 
@@ -211,8 +241,8 @@ Sin intentos   → {noMoreAttempts: true}
 
 | Componente | Estado | Notas |
 |------------|--------|-------|
-| Enrollment UI | [FAIL] No existe | Pendiente |
-| WebAuthn Integration | [FAIL] No existe | Pendiente |
+| Enrollment UI | [FAIL] No existe | Pendiente Fase 9 |
+| WebAuthn Integration | [FAIL] No existe | Pendiente Fase 9 |
 
 **Estado general:** [FAIL] **0%**
 
@@ -224,16 +254,15 @@ Sin intentos   → {noMoreAttempts: true}
 
 | Schema/Tabla | Estado | Notas |
 |--------------|--------|-------|
-| Schema `enrollment` | [OK] Creado | DDL en 001-initial-schema.sql |
-| `enrollment.devices` | [OK] Tabla existe | Sin datos |
-| `enrollment.enrollment_history` | [OK] Tabla existe | Sin datos |
-| Schema `attendance` | [OK] Creado | DDL en 001-initial-schema.sql |
-| `attendance.sessions` | [OK] Tabla existe | Sin datos |
-| `attendance.registrations` | [OK] Tabla existe | Sin datos |
-| `attendance.validations` | [OK] Tabla existe | Sin datos |
-| `attendance.results` | [OK] Tabla existe | Sin datos |
+| Schema `enrollment` | [OK] Creado | DDL en migrations |
+| `enrollment.devices` | [OK] Tabla existe | Sin uso desde código |
+| Schema `attendance` | [OK] Creado | DDL en migrations |
+| `attendance.sessions` | [OK] Tabla existe | Sin uso desde código |
+| `attendance.registrations` | [OK] Tabla existe | Sin uso desde código |
+| `attendance.validations` | [OK] Tabla existe | Sin uso desde código |
+| `attendance.results` | [OK] Tabla existe | Sin uso desde código |
 
-**Estado general:** [OK] **100% Estructura** - Schemas y tablas creados, sin uso desde código
+**Estado general:** [OK] **100% Estructura** - Pendiente Fase 7 para uso real
 
 ---
 
@@ -244,10 +273,9 @@ Sin intentos   → {noMoreAttempts: true}
 | Cliente base | [OK] Funcional | ValkeyClient implementado |
 | Student Session State | [OK] Funcional | `student:{sessionId}:{studentId}` |
 | QR Metadata | [OK] Funcional | `qr:{nonce}` con TTL |
-| Pool Proyección | [WIP] Pendiente | Lista de QRs por sesión |
-| Sessions storage | [FAIL] No usado | Pendiente |
+| Room Round Tracking | [OK] Funcional | Fase 6.3 |
 
-**Estado general:** [OK] **70% - En uso activo para attendance**
+**Estado general:** [OK] **80% - En uso activo**
 
 ---
 
@@ -259,107 +287,53 @@ Sin intentos   → {noMoreAttempts: true}
 | TOTPu | No implementado | TOTP real de **session_key** |
 | userId | Parámetro en request | Extraído de JWT de PHP |
 | Enrollment | Stubs | FIDO2/WebAuthn real |
-| Proyector QRs | QRs genéricos incrementales | QRs del pool de estudiantes |
 
 ---
 
-## Plan de Continuación
-
-### Fase 6.3: Pool de Proyección (Actual)
-
-**Objetivo:** Proyector cicla QRs del pool de estudiantes + falsos
-
-**Archivos a modificar:**
-
-```text
-node-service/src/backend/qr-projection/
-├── application/qr-projection.service.ts   # MODIFICAR - leer pool
-├── presentation/websocket-controller.ts   # MODIFICAR - ciclar pool
-
-node-service/src/backend/attendance/
-├── application/participation.service.ts   # VERIFICAR - registro en pool
-└── infrastructure/valkey-store.ts         # AGREGAR - pool storage
-```
-
-**Estimación:** 4-6 horas
-
----
+## Fases Pendientes
 
 ### Fase 7: Persistencia PostgreSQL
+**Estimado: 6-8 horas**
 
-**Objetivo:** Guardar validaciones y resultados en DB
-
-**Implementar:**
-
-1. `AttendanceRepository` (PostgreSQL)
-2. `ResultRepository` (PostgreSQL)
-3. Integración con services existentes
-4. Migration para índices adicionales
-
-**Estimación:** 6-8 horas
-
----
+- [ ] Repositorios con patrón Repository
+- [ ] Persistencia de sesiones y validaciones
+- [ ] Recuperación ante reinicio del servicio
+- [ ] Índices para queries frecuentes
 
 ### Fase 8: QRs Falsos Adicionales
+**Estimado: 2-4 horas**
 
-**Objetivo:** Más señuelos para dificultar compartir
+- [ ] Generación de QR señuelo adicionales
+- [ ] Estrategias de distribución de falsos
+- [ ] Métricas de intentos fraudulentos
 
-**Implementar:**
+### Fase 9: FIDO2 + ECDH para Enrolamiento
+**Estimado: 12-16 horas**
 
-1. Generación de N QRs falsos por ciclo
-2. QRs con formato válido pero clave inválida
-3. Ratio configuranble (ej: 1 real + 5 falsos)
+- [ ] Flujo de enrolamiento con WebAuthn
+- [ ] Intercambio de claves ECDH
+- [ ] Almacenamiento seguro de credenciales
+- [ ] Reemplazo de MOCK_SESSION_KEY
 
-**Nota:** Fase 6.3 ya introduce el concepto básico de pool con falsos
+### Fase 10: Integración PHP Legacy
+**Estimado: 4-6 horas**
 
-**Estimación:** 2-4 horas
-
----
-
-### Fase 9: Enrolamiento FIDO2 + ECDH Real
-
-**Objetivo:** Reemplazar stubs y MOCK_SESSION_KEY con criptografía real
-
-**Implementar:**
-
-1. FIDO2 enrollment (WebAuthn API)
-2. ECDH key exchange para derivar session_key
-3. TOTPu basado en session_key real
-4. Cada estudiante solo puede descifrar SU QR
-
-**Dependencias:**
-
-- @simplewebauthn/server
-- Web Crypto API para ECDH
-
-**Estimación:** 12-16 horas
-
----
-
-### Fase 10: Integración PHP
-
-**Objetivo:** Login real desde PHP, JWT con userId real
-
-**Implementar:**
-
-1. PHP llama a Node para verificar enrollment
-2. Node extrae userId de JWT
-3. Eliminar mocks de userId
-
-**Estimación:** 4-6 horas
+- [ ] Endpoints de sincronización con PHP
+- [ ] Autenticación delegada
+- [ ] Mapeo de usuarios existentes
 
 ---
 
 ## Referencias
 
+- `TODO.md` - Lista de tareas actualizada
+- `daRulez.md` - Reglas del proyecto
 - `flujo-validacion-qr-20251128.md` - Flujo completo documentado
-- `14-decision-totp-session-key.md` - Decisión sobre TOTPu basado en session_key
-- `PLAN-4-b-Modulo-Attendance-Backend.md` - Plan original backend
-- `PLAN-4-d-Frontend-Aplicacion-Invitado.md` - Plan original frontend
+- `14-decision-totp-session-key.md` - Decisión sobre TOTPu
 - `database/migrations/001-initial-schema.sql` - Schema DB
 
 ---
 
-**Última actualización:** 2025-11-29  
-**Rama activa:** `fase-6-1-frontend-crypto`  
-**Próximo paso:** Implementar Fase 6.3 (Pool de Proyección)
+**Última actualización:** 2025-01  
+**Rama activa:** `fase-6-4-refactor-soc-validation`  
+**Próximo paso:** Merge a main, planificación Fase 7
