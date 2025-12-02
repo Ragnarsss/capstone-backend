@@ -1,7 +1,12 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { AttendanceValidationService } from '../application/attendance-validation.service';
 import { ParticipationService } from '../application/participation.service';
+import { ValidateScanUseCase } from '../application/validate-scan.usecase';
 import { ActiveSessionRepository } from '../infrastructure/active-session.repository';
+import { ProjectionPoolRepository } from '../infrastructure/projection-pool.repository';
+import { StudentSessionRepository } from '../infrastructure/student-session.repository';
+import { QRStateAdapter, StudentStateAdapter } from '../infrastructure/adapters';
+import { CryptoService } from '../../../shared/infrastructure/crypto';
 import type { ValidatePayloadRequest } from '../domain/models';
 
 /**
@@ -45,6 +50,16 @@ export async function registerAttendanceRoutes(
   const validation = validationService ?? new AttendanceValidationService();
   const participation = participationService ?? new ParticipationService();
   const activeSessionRepo = new ActiveSessionRepository();
+
+  // Nuevo: crear UseCase con pipeline para validación
+  // Por ahora solo se usa para debugging/tracing
+  const poolRepo = new ProjectionPoolRepository();
+  const studentRepo = new StudentSessionRepository();
+  const validateScanUseCase = new ValidateScanUseCase({
+    cryptoService: new CryptoService(),
+    qrStateLoader: new QRStateAdapter(poolRepo),
+    studentStateLoader: new StudentStateAdapter(studentRepo),
+  });
 
   /**
    * GET /asistencia/api/attendance/active-session
@@ -280,5 +295,43 @@ export async function registerAttendanceRoutes(
     };
   });
 
-  console.log('[Attendance] Rutas registradas: active-session, register, validate, status, refresh-qr, health');
+  /**
+   * POST /asistencia/api/attendance/validate-debug
+   * 
+   * Endpoint de debugging que usa el nuevo pipeline
+   * Retorna trace detallado sin side effects
+   */
+  fastify.post<{ Body: ValidateRequestBody }>(
+    '/asistencia/api/attendance/validate-debug',
+    {
+      schema: {
+        body: {
+          type: 'object',
+          required: ['encrypted', 'studentId'],
+          properties: {
+            encrypted: { type: 'string', minLength: 10 },
+            studentId: { type: 'number', minimum: 1 },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const { encrypted, studentId } = request.body;
+
+      const result = await validateScanUseCase.execute(encrypted, studentId);
+
+      return reply.send({
+        success: result.valid,
+        pipeline: {
+          valid: result.valid,
+          error: result.error,
+          trace: result.trace,
+          failedAt: result.context?.failedAt,
+          durationMs: result.context ? Date.now() - result.context.startedAt : 0,
+        },
+      });
+    }
+  );
+
+  console.log('[Attendance] Rutas registradas: active-session, register, validate, validate-debug, status, refresh-qr, health');
 }
