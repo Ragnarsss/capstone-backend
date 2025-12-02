@@ -7,3 +7,4 @@
 
 export { QRStateAdapter } from './qr-state.adapter';
 export { StudentStateAdapter } from './student-state.adapter';
+export { createCompleteScanDependencies } from './complete-scan-deps.factory';

@@ -2,11 +2,13 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { AttendanceValidationService } from '../application/attendance-validation.service';
 import { ParticipationService } from '../application/participation.service';
 import { ValidateScanUseCase } from '../application/validate-scan.usecase';
+import { CompleteScanUseCase } from '../application/complete-scan.usecase';
 import { ActiveSessionRepository } from '../infrastructure/active-session.repository';
 import { ProjectionPoolRepository } from '../infrastructure/projection-pool.repository';
 import { StudentSessionRepository } from '../infrastructure/student-session.repository';
-import { QRStateAdapter, StudentStateAdapter } from '../infrastructure/adapters';
+import { QRStateAdapter, StudentStateAdapter, createCompleteScanDependencies } from '../infrastructure/adapters';
 import { CryptoService } from '../../../shared/infrastructure/crypto';
+import { mapValidationError } from './error-mapper';
 import type { ValidatePayloadRequest } from '../domain/models';
 
 /**
@@ -47,19 +49,25 @@ export async function registerAttendanceRoutes(
   validationService?: AttendanceValidationService,
   participationService?: ParticipationService
 ): Promise<void> {
+  // Legacy service (aún usado por algunas rutas)
   const validation = validationService ?? new AttendanceValidationService();
   const participation = participationService ?? new ParticipationService();
   const activeSessionRepo = new ActiveSessionRepository();
 
-  // Nuevo: crear UseCase con pipeline para validación
-  // Por ahora solo se usa para debugging/tracing
+  // Nuevo: UseCases con pipeline
   const poolRepo = new ProjectionPoolRepository();
   const studentRepo = new StudentSessionRepository();
+  
+  // UseCase para solo validación (debugging)
   const validateScanUseCase = new ValidateScanUseCase({
     cryptoService: new CryptoService(),
     qrStateLoader: new QRStateAdapter(poolRepo),
     studentStateLoader: new StudentStateAdapter(studentRepo),
   });
+
+  // UseCase completo (validación + side effects)
+  const completeScanDeps = createCompleteScanDependencies();
+  const completeScanUseCase = new CompleteScanUseCase(completeScanDeps);
 
   /**
    * GET /asistencia/api/attendance/active-session
@@ -140,6 +148,7 @@ export async function registerAttendanceRoutes(
    * POST /asistencia/api/attendance/validate
    * 
    * Valida un payload QR escaneado por un estudiante
+   * Usa el nuevo pipeline de validación con CompleteScanUseCase
    */
   fastify.post<{ Body: ValidateRequestBody }>(
     '/asistencia/api/attendance/validate',
@@ -158,14 +167,18 @@ export async function registerAttendanceRoutes(
     async (request: FastifyRequest<{ Body: ValidateRequestBody }>, reply: FastifyReply) => {
       const { encrypted, studentId } = request.body;
 
-      const result = await validation.validateScannedPayload(encrypted, studentId);
+      const result = await completeScanUseCase.execute(encrypted, studentId);
 
       if (!result.valid) {
-        return reply.status(400).send({
+        const errorResponse = result.error 
+          ? mapValidationError(result.error)
+          : { httpStatus: 400, code: 'UNKNOWN_ERROR', message: 'Error de validación' };
+        
+        return reply.status(errorResponse.httpStatus).send({
           success: false,
           error: {
-            code: result.errorCode,
-            message: result.reason,
+            code: errorResponse.code,
+            message: errorResponse.message,
           },
         });
       }
@@ -176,9 +189,7 @@ export async function registerAttendanceRoutes(
           success: true,
           data: {
             status: 'completed',
-            sessionId: result.payload!.sid,
-            hostUserId: result.payload!.uid,
-            round: result.payload!.r,
+            sessionId: result.sessionId,
             validatedAt: result.validatedAt,
             stats: result.stats,
           },
@@ -189,9 +200,7 @@ export async function registerAttendanceRoutes(
         success: true,
         data: {
           status: 'partial',
-          sessionId: result.payload!.sid,
-          hostUserId: result.payload!.uid,
-          round: result.payload!.r,
+          sessionId: result.sessionId,
           validatedAt: result.validatedAt,
           next_round: result.nextRound?.round,
         },
