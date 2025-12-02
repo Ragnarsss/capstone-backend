@@ -15,3 +15,9 @@ export {
   type ValidateScanResult,
   type ValidateScanDependencies,
 } from './validate-scan.usecase';
+
+export {
+  CompleteScanUseCase,
+  type CompleteScanDependencies,
+  type CompleteScanResult,
+} from './complete-scan.usecase';
