@@ -1,5 +1,4 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { AttendanceValidationService } from '../application/attendance-validation.service';
 import { ParticipationService } from '../application/participation.service';
 import { ValidateScanUseCase } from '../application/validate-scan.usecase';
 import { CompleteScanUseCase } from '../application/complete-scan.usecase';
@@ -9,7 +8,6 @@ import { StudentSessionRepository } from '../infrastructure/student-session.repo
 import { QRStateAdapter, StudentStateAdapter, createCompleteScanDependencies } from '../infrastructure/adapters';
 import { CryptoService } from '../../../shared/infrastructure/crypto';
 import { mapValidationError } from './error-mapper';
-import type { ValidatePayloadRequest } from '../domain/models';
 
 /**
  * Request body schema para validación
@@ -46,15 +44,12 @@ interface StatusQueryParams {
  */
 export async function registerAttendanceRoutes(
   fastify: FastifyInstance,
-  validationService?: AttendanceValidationService,
   participationService?: ParticipationService
 ): Promise<void> {
-  // Legacy service (aún usado por algunas rutas)
-  const validation = validationService ?? new AttendanceValidationService();
   const participation = participationService ?? new ParticipationService();
   const activeSessionRepo = new ActiveSessionRepository();
 
-  // Nuevo: UseCases con pipeline
+  // UseCases con pipeline
   const poolRepo = new ProjectionPoolRepository();
   const studentRepo = new StudentSessionRepository();
   

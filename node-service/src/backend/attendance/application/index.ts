@@ -4,11 +4,10 @@
  * Exporta servicios y use cases del módulo.
  */
 
-// Legacy service (transitorio, sera reemplazado)
-export { AttendanceValidationService } from './attendance-validation.service';
+// Services
 export { ParticipationService } from './participation.service';
 
-// New use cases (pipeline pattern)
+// Use cases (pipeline pattern)
 export { 
   ValidateScanUseCase, 
   createValidateScanUseCase,
