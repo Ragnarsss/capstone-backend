@@ -96,6 +96,16 @@ const ERROR_MAP: Record<string, ErrorResponse> = {
     message: 'No estás registrado en esta sesión',
     httpStatus: 403,
   },
+  ALREADY_COMPLETED: {
+    code: 'STUDENT_COMPLETED',
+    message: 'Ya completaste la asistencia',
+    httpStatus: 409,
+  },
+  NO_ATTEMPTS_LEFT: {
+    code: 'NO_ATTEMPTS_LEFT',
+    message: 'Sin intentos restantes',
+    httpStatus: 403,
+  },
   STUDENT_COMPLETED: {
     code: 'STUDENT_COMPLETED',
     message: 'Ya completaste la asistencia',
@@ -118,6 +128,11 @@ const ERROR_MAP: Record<string, ErrorResponse> = {
   },
 
   // Errores de round/nonce
+  WRONG_QR: {
+    code: 'QR_MISMATCH',
+    message: 'Este no es tu código QR actual',
+    httpStatus: 400,
+  },
   QR_NONCE_MISMATCH: {
     code: 'QR_MISMATCH',
     message: 'Este no es tu código QR actual',
