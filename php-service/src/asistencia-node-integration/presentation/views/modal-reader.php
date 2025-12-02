@@ -254,7 +254,8 @@ $rol = $_SESSION['rol'] ?? 'usuario';
                 
                 modal.style.display = 'block';
                 
-                iframe.src = '/asistencia/features/qr-reader/';
+                // Ruta unificada: /asistencia/reader/
+                iframe.src = '/asistencia/reader/';
                 
                 iframe.onload = function() {
                     console.log('[Reader] Iframe cargado, enviando token JWT...');
@@ -290,6 +291,41 @@ $rol = $_SESSION['rol'] ?? 'usuario';
         window.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
                 cerrarCaptura();
+            }
+        });
+
+        // Escuchar mensajes del iframe (Node.js)
+        window.addEventListener('message', function(event) {
+            console.log('[Reader] Mensaje recibido de origen:', event.origin);
+            console.log('[Reader] Datos:', event.data);
+            
+            // Verificar que sea el mensaje de completado de asistencia
+            if (event.data && event.data.type === 'attendance-completed') {
+                console.log('[Reader] Asistencia completada:', event.data);
+                
+                // Cerrar el modal
+                cerrarCaptura();
+                
+                // Mostrar mensaje de éxito con nombre del alumno
+                const statusEl = document.getElementById('status');
+                statusEl.className = 'status success';
+                
+                const nombreAlumno = event.data.studentName || 'Alumno';
+                statusEl.textContent = '¡Asistencia registrada para ' + nombreAlumno + '!';
+                statusEl.style.display = 'block';
+                
+                // Redirigir a encuesta (o a donde el desarrollador decida)
+                // Los datos disponibles son:
+                //   event.data.studentId   - ID del estudiante
+                //   event.data.studentName - Nombre del estudiante
+                //   event.data.sessionId   - ID de la sesión
+                //   event.data.completedAt - Timestamp de finalización
+                
+                setTimeout(function() {
+                    // Ejemplo: redirigir a encuesta con parámetros
+                    window.location.href = '/encuesta/?student=' + event.data.studentId + 
+                                          '&session=' + event.data.sessionId;
+                }, 2000);
             }
         });
     </script>

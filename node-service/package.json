@@ -23,13 +23,16 @@
     "qrcode": "^1.5.3",
     "jsonwebtoken": "^9.0.2",
     "@zxing/browser": "^0.1.5",
-    "@zxing/library": "^0.21.0"
+    "@zxing/library": "^0.21.0",
+    "@simplewebauthn/server": "^11.0.0",
+    "pg": "^8.13.1"
   },
   "devDependencies": {
     "@types/node": "^20.14.10",
     "@types/qrcode": "^1.5.5",
     "@types/ws": "^8.5.10",
     "@types/jsonwebtoken": "^9.0.5",
+    "@types/pg": "^8.11.10",
     "concurrently": "^9.1.0",
     "tsx": "^4.16.2",
     "typescript": "5.5.4",

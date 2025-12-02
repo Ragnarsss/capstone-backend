@@ -39,7 +39,12 @@ export default defineConfig({
     port: 5173,
 
     // HMR: Hot Module Replacement via WebSocket
+    // En desarrollo con proxy HTTPS, deshabilitamos HMR para evitar errores SSL
+    // El usuario puede recargar manualmente o usar HTTP directo
     hmr: {
+      // Usar el mismo protocolo que la página (ws o wss)
+      protocol: 'ws',
+      host: 'localhost',
       clientPort: 9504,
     },
   },

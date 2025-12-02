@@ -74,7 +74,6 @@ export class CameraManager {
 
   async stop(): Promise<void> {
     this.controls?.stop();
-    this.reader.reset();
     this.controls = null;
   }
 }

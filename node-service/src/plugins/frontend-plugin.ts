@@ -5,10 +5,18 @@ import { noCacheHeaders } from '../middleware';
 
 /**
  * Frontend Plugin
- * Responsabilidad: Servir frontend según entorno (desarrollo o producción)
+ * Responsabilidad: Servir frontend segun entorno (desarrollo o produccion)
  *
- * Desarrollo: Proxy a Vite dev server para HMR y transpilación TypeScript
- * Producción: Servir archivos estáticos compilados por Vite
+ * Rutas unificadas:
+ *   /asistencia/host/   -> Proyector QR (profesor)
+ *   /asistencia/reader/ -> Lector QR (alumno)
+ *   /asistencia/ws      -> WebSocket
+ *
+ * Desarrollo: Proxy a Vite dev server
+ * Produccion: Archivos estaticos compilados
+ * 
+ * IMPORTANTE: Las rutas /asistencia/api/* y /asistencia/ws se registran
+ * ANTES de este plugin en app.ts, por lo que tienen prioridad sobre el proxy.
  */
 
 interface FrontendPluginOptions {
@@ -30,40 +38,75 @@ export async function frontendPlugin(
   } = options;
 
   if (isDevelopment) {
-    // Modo desarrollo: Proxy a Vite preservando el path completo
-    // Apache: /asistencia/* -> Fastify :3000/*
-    // Fastify: /* -> Vite :5173/* (conserva el path completo)
-    // Vite tiene base: '/asistencia/' y transforma las rutas en el HTML
-    fastify.log.info('[Frontend] Development mode: proxying to Vite dev server');
+    // Desarrollo: Rutas especificas + Proxy a Vite para HMR
+    fastify.log.info('[Frontend] Development mode: proxying to Vite');
     fastify.log.info(`[Frontend] Vite URL: ${viteUrl}`);
 
-    // Registrar proxy en la raíz para capturar todo
+    // Rutas especificas redirigen a los HTMLs de cada feature
+    fastify.get('/asistencia/host', async (_request, reply) => {
+      return reply.redirect('/asistencia/features/qr-host/index.html');
+    });
+
+    fastify.get('/asistencia/host/', async (_request, reply) => {
+      return reply.redirect('/asistencia/features/qr-host/index.html');
+    });
+
+    fastify.get('/asistencia/reader', async (_request, reply) => {
+      return reply.redirect('/asistencia/features/qr-reader/index.html');
+    });
+
+    fastify.get('/asistencia/reader/', async (_request, reply) => {
+      return reply.redirect('/asistencia/features/qr-reader/index.html');
+    });
+
+    // Proxy general a Vite para assets, HMR, etc.
+    // Las rutas de API (/asistencia/api/*) y WebSocket (/asistencia/ws)
+    // se registran ANTES de este plugin en app.ts y tienen prioridad.
     await fastify.register(fastifyHttpProxy, {
       upstream: viteUrl,
       prefix: '/',
       http2: false,
-      websocket: false,
+      websocket: false, // WebSocket manejado por WebSocketController
     });
   } else {
-    // Modo producción: Servir archivos estáticos compilados
-    fastify.log.info('[Frontend] Production mode: serving static files');
-    fastify.log.info(`[Frontend] Static path: ${staticPath}`);
+    // Produccion: Servir archivos estaticos
+    fastify.log.info('[Frontend] Production mode: static files');
+    fastify.log.info(`[Frontend] Path: ${staticPath}`);
 
-    // Servir assets con prefijo /asistencia/ para que coincida con base de Vite
     await fastify.register(fastifyStatic, {
       root: staticPath,
       prefix: '/asistencia/',
       decorateReply: false,
     });
 
-    // También servir en raíz para compatibilidad
     await fastify.register(fastifyStatic, {
       root: staticPath,
       prefix: '/',
     });
 
-    // Rutas compatibles con proxy Apache que preserva el prefijo /asistencia/
-    // Sirven los mismos archivos estáticos en ambas rutas para evitar 404
+    // Host: Proyector QR (profesor)
+    fastify.get('/asistencia/host', async (_request, reply) => {
+      noCacheHeaders(reply);
+      return reply.sendFile('features/qr-host/index.html');
+    });
+
+    fastify.get('/asistencia/host/', async (_request, reply) => {
+      noCacheHeaders(reply);
+      return reply.sendFile('features/qr-host/index.html');
+    });
+
+    // Reader: Lector QR (alumno)
+    fastify.get('/asistencia/reader', async (_request, reply) => {
+      noCacheHeaders(reply);
+      return reply.sendFile('features/qr-reader/index.html');
+    });
+
+    fastify.get('/asistencia/reader/', async (_request, reply) => {
+      noCacheHeaders(reply);
+      return reply.sendFile('features/qr-reader/index.html');
+    });
+
+    // Compatibilidad: ruta raiz redirige a host
     fastify.get('/', async (_request, reply) => {
       noCacheHeaders(reply);
       return reply.sendFile('features/qr-host/index.html');
@@ -71,30 +114,14 @@ export async function frontendPlugin(
 
     fastify.get('/asistencia', async (_request, reply) => {
       noCacheHeaders(reply);
-      return reply.sendFile('features/qr-host/index.html');
+      return reply.redirect('/asistencia/host/');
     });
 
     fastify.get('/asistencia/', async (_request, reply) => {
       noCacheHeaders(reply);
-      return reply.sendFile('features/qr-host/index.html');
-    });
-
-    // Ruta lector QR: QR Reader (compatibilidad con y sin prefijo)
-    fastify.get('/lector', async (_request, reply) => {
-      noCacheHeaders(reply);
-      return reply.sendFile('features/qr-reader/index.html');
-    });
-
-    fastify.get('/asistencia/lector', async (_request, reply) => {
-      noCacheHeaders(reply);
-      return reply.sendFile('features/qr-reader/index.html');
-    });
-
-    fastify.get('/asistencia/lector/', async (_request, reply) => {
-      noCacheHeaders(reply);
-      return reply.sendFile('features/qr-reader/index.html');
+      return reply.redirect('/asistencia/host/');
     });
   }
 
-  fastify.log.info('[Frontend] Plugin registered successfully');
+  fastify.log.info('[Frontend] Plugin registered');
 }

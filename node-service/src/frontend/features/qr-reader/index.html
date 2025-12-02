@@ -11,18 +11,30 @@
     <h1>Lector QR</h1>
     <p id="scanner-status" class="scanner__status">Esperando autenticacion...</p>
 
-    <div class="scanner__video-wrapper">
-      <video id="camera-feed" autoplay muted playsinline></video>
-      <div id="camera-overlay" class="scanner__overlay">Camara inactiva</div>
+    <!-- Pantalla inicial: botón de registro -->
+    <div id="register-section" class="scanner__register">
+      <p class="scanner__info">Presiona el botón para registrar tu asistencia</p>
+      <button id="register-btn" class="btn primary btn--large" disabled>
+        Registrar Asistencia
+      </button>
+      <p id="register-message" class="scanner__message"></p>
     </div>
 
-    <div class="scanner__controls">
-      <button id="start-scan" class="btn primary">Iniciar camara</button>
-      <button id="stop-scan" class="btn secondary" disabled>Detener</button>
-    </div>
+    <!-- Pantalla de escaneo (oculta hasta registrar) -->
+    <div id="scan-section" class="scanner__scan-section" style="display: none;">
+      <div class="scanner__video-wrapper">
+        <video id="camera-feed" autoplay muted playsinline></video>
+        <div id="camera-overlay" class="scanner__overlay">Camara inactiva</div>
+      </div>
 
-    <div id="scan-result" class="scanner__result" aria-live="polite">
-      Ningun codigo detectado todavia
+      <div class="scanner__controls">
+        <button id="start-scan" class="btn primary">Iniciar camara</button>
+        <button id="stop-scan" class="btn secondary" disabled>Detener</button>
+      </div>
+
+      <div id="scan-result" class="scanner__result" aria-live="polite">
+        Ningun codigo detectado todavia
+      </div>
     </div>
   </div>
 
