@@ -3,6 +3,7 @@ import type { QRPayloadV1 } from '../../domain/models';
 import { AesGcmService } from '../../../../shared/infrastructure/crypto';
 import { ProjectionPoolRepository, type PoolEntry } from '../../../../shared/infrastructure/valkey';
 import { QRPayloadRepository } from '../../infrastructure/qr-payload.repository';
+import { SessionKeyRepository } from '../../../enrollment/infrastructure/session-key.repository';
 import { logger } from '../../../../shared/infrastructure/logger';
 
 /**
@@ -34,10 +35,11 @@ export interface FeedResult {
  * Responsabilidad UNICA: Alimentar QRs de estudiantes al pool de proyeccion
  * 
  * Flujo:
- * 1. Construir payload (PayloadBuilder)
- * 2. Encriptar (AesGcmService)
- * 3. Almacenar para validacion (QRPayloadRepository)
- * 4. Insertar en pool de proyeccion (ProjectionPoolRepository)
+ * 1. Obtener session_key del estudiante (SessionKeyRepository)
+ * 2. Construir payload (PayloadBuilder)
+ * 3. Encriptar con clave especifica del estudiante (AesGcmService)
+ * 4. Almacenar para validacion (QRPayloadRepository)
+ * 5. Insertar en pool de proyeccion (ProjectionPoolRepository)
  * 
  * Este servicio NO maneja:
  * - Estado del estudiante (responsabilidad de StudentSessionRepository)
@@ -45,20 +47,23 @@ export interface FeedResult {
  * - Emision por WebSocket (responsabilidad de QREmitter)
  */
 export class PoolFeeder {
-  private readonly aesGcmService: AesGcmService;
+  private readonly fallbackAesGcmService: AesGcmService;
   private readonly poolRepo: ProjectionPoolRepository;
   private readonly payloadRepo: QRPayloadRepository;
+  private readonly sessionKeyRepo: SessionKeyRepository;
   private readonly defaultTTL: number;
 
   constructor(
     aesGcmService?: AesGcmService,
     poolRepo?: ProjectionPoolRepository,
     payloadRepo?: QRPayloadRepository,
-    defaultTTL: number = 60
+    defaultTTL: number = 60,
+    sessionKeyRepo?: SessionKeyRepository
   ) {
-    this.aesGcmService = aesGcmService ?? new AesGcmService();
+    this.fallbackAesGcmService = aesGcmService ?? new AesGcmService();
     this.poolRepo = poolRepo ?? new ProjectionPoolRepository();
     this.payloadRepo = payloadRepo ?? new QRPayloadRepository(defaultTTL);
+    this.sessionKeyRepo = sessionKeyRepo ?? new SessionKeyRepository();
     this.defaultTTL = defaultTTL;
   }
 
@@ -70,23 +75,38 @@ export class PoolFeeder {
    */
   async feedStudentQR(input: FeedStudentInput): Promise<FeedResult> {
     try {
-      // 1. Construir payload (dominio puro)
+      // 1. Obtener session_key del estudiante desde Valkey
+      const sessionKeyData = await this.sessionKeyRepo.findByUserId(input.studentId);
+      
+      // Seleccionar servicio de encriptación
+      let aesService: AesGcmService;
+      if (sessionKeyData) {
+        // Usar session_key real del estudiante
+        aesService = new AesGcmService(sessionKeyData.sessionKey);
+        logger.debug(`[PoolFeeder] Usando session_key real para estudiante ${input.studentId}`);
+      } else {
+        // Fallback a mock key (solo desarrollo)
+        aesService = this.fallbackAesGcmService;
+        logger.warn(`[PoolFeeder] Sin session_key para estudiante ${input.studentId}, usando fallback`);
+      }
+
+      // 2. Construir payload (dominio puro)
       const payload = PayloadBuilder.buildStudentPayload({
         sessionId: input.sessionId,
         hostUserId: input.hostUserId,
         roundNumber: input.roundNumber,
       });
 
-      // 2. Encriptar con AES-256-GCM
+      // 3. Encriptar con AES-256-GCM usando la clave apropiada
       const plaintext = PayloadBuilder.toJsonString(payload);
-      const encryptResult = this.aesGcmService.encryptToPayload(plaintext);
+      const encryptResult = aesService.encryptToPayload(plaintext);
       const encrypted = encryptResult.encrypted;
 
-      // 3. Almacenar para validacion posterior
+      // 4. Almacenar para validacion posterior
       const ttl = input.payloadTTL ?? this.defaultTTL;
       await this.payloadRepo.store(payload, encrypted, ttl);
 
-      // 4. Insertar/actualizar en pool de proyeccion
+      // 5. Insertar/actualizar en pool de proyeccion
       const poolEntryId = await this.poolRepo.upsertStudentQR(
         input.sessionId,
         input.studentId,
