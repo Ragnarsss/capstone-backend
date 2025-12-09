@@ -1,4 +1,18 @@
 <?php
+/**
+ * Entrada principal - Redirige al Dev Simulator
+ * 
+ * En desarrollo: localhost:9500/ o localhost:9505/ -> /dev-simulator/
+ * En producción: Este archivo no se usa (Hawaii es el entry point)
+ */
+
+// Redirect a dev-simulator (mantiene HTTPS si viene por 9505)
+header('Location: /dev-simulator/');
+exit;
+
+// ============================================================================
+// CÓDIGO LEGACY - Ya no se ejecuta (mantenido como referencia)
+// ============================================================================
 session_start();
 
 // Pagina principal con boton para abrir el modal de asistencia
