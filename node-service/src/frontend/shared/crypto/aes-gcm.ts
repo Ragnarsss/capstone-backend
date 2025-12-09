@@ -1,20 +1,21 @@
 /**
  * AES-256-GCM Crypto Module (Web Crypto API)
  * 
- * Implementa encriptación/desencriptación compatible con el backend.
+ * Implementa encriptacion/desencriptacion compatible con el backend.
  * Formato de payload: iv.ciphertext.authTag (separado por puntos, todo en base64)
  * 
  * Estrategia de claves:
  * 1. Busca session_key derivada de ECDH (SessionKeyStore)
- * 2. Fallback a MOCK_SESSION_KEY en desarrollo
+ * 2. Fallback a MOCK_SESSION_KEY SOLO en desarrollo (import.meta.env.DEV)
+ * 3. En produccion: error si no hay session_key real
  */
 import { getMockSessionKey } from './mock-keys';
 
-// Tamaños según especificación
+// Tamanos segun especificacion
 const IV_LENGTH = 12; // 96 bits recomendado para GCM
 const AUTH_TAG_LENGTH = 16; // 128 bits
 
-// Cache de la clave para evitar importarla múltiples veces
+// Cache de la clave para evitar importarla multiples veces
 let cachedKey: CryptoKey | null = null;
 let cachedKeySource: 'ecdh' | 'mock' | null = null;
 
@@ -22,9 +23,11 @@ let cachedKeySource: 'ecdh' | 'mock' | null = null;
 let sessionKeyStorePromise: Promise<typeof import('../../features/enrollment/services/session-key.store')> | null = null;
 
 /**
- * Obtiene la clave de sesión con prioridad:
- * 1. session_key derivada de ECDH (producción)
- * 2. MOCK_SESSION_KEY (desarrollo)
+ * Obtiene la clave de sesion con prioridad:
+ * 1. session_key derivada de ECDH (produccion)
+ * 2. MOCK_SESSION_KEY (SOLO en desarrollo)
+ * 
+ * @throws Error si no hay session_key y no es modo desarrollo
  */
 async function getSessionKey(): Promise<CryptoKey> {
   // Intentar obtener session_key real de ECDH
@@ -47,16 +50,24 @@ async function getSessionKey(): Promise<CryptoKey> {
       }
     }
   } catch {
-    // SessionKeyStore no disponible, usar mock
+    // SessionKeyStore no disponible
   }
 
-  // Fallback a mock key
-  if (!cachedKey || cachedKeySource !== 'mock') {
-    cachedKey = await getMockSessionKey();
-    cachedKeySource = 'mock';
-    console.warn('[Crypto] Usando MOCK_SESSION_KEY - solo para desarrollo');
+  // Fallback a mock key SOLO en desarrollo
+  if (import.meta.env.DEV) {
+    if (!cachedKey || cachedKeySource !== 'mock') {
+      cachedKey = await getMockSessionKey();
+      cachedKeySource = 'mock';
+      console.warn('[Crypto] Usando MOCK_SESSION_KEY - solo para desarrollo');
+    }
+    return cachedKey;
   }
-  return cachedKey;
+
+  // En produccion: error si no hay session_key
+  throw new Error(
+    '[Crypto] No hay session_key disponible. ' +
+    'El usuario debe completar enrollment y login ECDH antes de usar el scanner.'
+  );
 }
 
 /**

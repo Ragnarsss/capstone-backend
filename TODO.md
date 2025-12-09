@@ -45,46 +45,56 @@ Dev Simulator completo (`php-service/src/dev-simulator/`), login mock, dashboard
 ## Fase 14: Integracion Session Key Real
 
 **Objetivo:** Conectar enrollment con attendance, eliminar MOCK_SESSION_KEY
-**Estimado:** 4 horas
+**Estimado:** 5 horas
 
 ---
 
-### Fase 14.1: Legacy Bridge en Frontend Node
+### Fase 14.1: Legacy Bridge en Frontend Node ✅
 **Tiempo:** 1.5 horas
 
-- [ ] Crear `frontend/shared/services/legacy-bridge.service.ts`
-- [ ] Implementar listener `AUTH_TOKEN` → almacenar JWT via AuthClient
-- [ ] Implementar listener `SESSION_CONTEXT` → guardar en store
-- [ ] Crear `frontend/shared/stores/legacy-context.store.ts`
-- [ ] Integrar bridge en `qr-host/index.html`
-- [ ] Integrar bridge en `qr-reader/index.html`
-- [ ] Script: `test-fase14-1.sh`
+- [x] Crear `frontend/shared/services/legacy-bridge.service.ts`
+- [x] Implementar listener `AUTH_TOKEN` → almacenar JWT via AuthClient
+- [x] Implementar listener `SESSION_CONTEXT` → guardar en store
+- [x] Crear `frontend/shared/stores/legacy-context.store.ts`
+- [x] Integrar bridge en `qr-host/main.ts`
+- [x] Integrar bridge en `qr-reader/main.ts`
+- [x] Script: `test-fase14-1.sh`
 
-### Fase 14.2: Verificacion Enrollment en qr-reader
+### Fase 14.2: Verificacion Enrollment en qr-reader ✅
 **Tiempo:** 1 hora
 
-- [ ] En `qr-reader/main.ts`, verificar enrollment antes de escaneo
-- [ ] Si no enrolado → mostrar UI de enrollment inline
-- [ ] Si enrolado pero sin session_key → trigger login ECDH
-- [ ] Obtener session_key de SessionKeyStore
-- [ ] Script: `test-fase14-2.sh`
+- [x] En `qr-reader/main.ts`, verificar enrollment antes de escaneo
+- [x] Si no enrolado → mostrar UI de enrollment inline
+- [x] Si enrolado pero sin session_key → trigger login ECDH
+- [x] Obtener session_key de SessionKeyStore
+- [x] Script: `test-fase14-2.sh`
 
 ### Fase 14.3: Eliminar MOCK_SESSION_KEY del Frontend
 **Tiempo:** 45 min
+**Estado:** EN PROGRESO
 
-- [ ] Modificar `qr-reader/main.ts` para NO usar MOCK_KEY por defecto
-- [ ] Mantener fallback SOLO si `ENROLLMENT_STUB_MODE=true`
-- [ ] Error claro si no hay session_key y no es stub mode
+- [x] Modificar `aes-gcm.ts` para usar mock SOLO en desarrollo (import.meta.env.DEV)
+- [x] Error claro si no hay session_key en produccion
 - [ ] Script: `test-fase14-3.sh`
+- [ ] Commit y merge
 
-### Fase 14.4: Session Key Real en Backend
+### Fase 14.4: Session Key Real en Backend (Generacion QR)
+**Tiempo:** 1.5 horas
+
+- [ ] Login ECDH debe almacenar session_key en Valkey: `session:{userId}:key`
+- [ ] PoolFeeder: obtener session_key del alumno desde Valkey al generar QR
+- [ ] Cifrar QR con session_key real del alumno (no MOCK)
+- [ ] Mantener fallback mock SOLO si `ENROLLMENT_STUB_MODE=true`
+- [ ] Script: `test-fase14-4.sh`
+
+### Fase 14.5: Session Key Real en Backend (Validacion)
 **Tiempo:** 1 hora
 
 - [ ] Modificar `decrypt.stage.ts` para obtener session_key de Valkey
-- [ ] Lookup: `session:{userId}:key`
+- [ ] Lookup: `session:{studentId}:key`
 - [ ] Mantener fallback mock SOLO si `ENROLLMENT_STUB_MODE=true`
-- [ ] Test flujo completo con session_key real
-- [ ] Script: `test-fase14-4.sh`
+- [ ] Test flujo completo enrollment → login → scan → validacion
+- [ ] Script: `test-fase14-5.sh`
 
 ---
 
