@@ -16,6 +16,8 @@ import { CameraManager } from './services/camera-manager';
 import { QRScanService } from './services/qr-scan.service';
 import { AttendanceApiClient } from './services/attendance-api.client';
 import { decryptQR, encryptPayload, MOCK_SESSION_KEY } from '../../shared/crypto';
+import { LegacyBridge } from '../../shared/services/legacy-bridge.service';
+import { LegacyContextStore } from '../../shared/stores/legacy-context.store';
 
 // Exponer helpers de debug en desarrollo
 declare global {
@@ -32,6 +34,8 @@ class QRReaderApplication {
   private authClient: AuthClient;
   private scanService: QRScanService;
   private attendanceApi: AttendanceApiClient;
+  private legacyBridge: LegacyBridge;
+  private contextStore: LegacyContextStore;
   
   // UI Elements
   private registerBtn: HTMLButtonElement | null = null;
@@ -42,6 +46,8 @@ class QRReaderApplication {
 
   constructor() {
     this.authClient = new AuthClient();
+    this.contextStore = new LegacyContextStore();
+    this.legacyBridge = new LegacyBridge(this.authClient, this.contextStore);
     this.attendanceApi = new AttendanceApiClient();
     const component = new CameraViewComponent();
     const cameraManager = new CameraManager('camera-feed');
@@ -55,6 +61,9 @@ class QRReaderApplication {
     this.registerSection = document.getElementById('register-section');
     this.scanSection = document.getElementById('scan-section');
     this.statusElement = document.getElementById('scanner-status');
+    
+    // Inicializar bridge para comunicacion con PHP legacy
+    this.legacyBridge.initialize();
     
     // Configurar scan service
     this.scanService.initialize();
@@ -87,6 +96,15 @@ class QRReaderApplication {
 
   private handleAuthReady(): void {
     console.log('[QRReader] Autenticación lista');
+    
+    // Log contexto si esta disponible (viene de PHP legacy)
+    if (this.contextStore.hasContext()) {
+      const ctx = this.contextStore.getAsAlumno();
+      if (ctx) {
+        console.log('[QRReader] Contexto alumno - codigoQR:', ctx.codigoQR);
+      }
+    }
+    
     this.updateStatus('Listo para registrar asistencia');
     
     // Habilitar botón de registro
