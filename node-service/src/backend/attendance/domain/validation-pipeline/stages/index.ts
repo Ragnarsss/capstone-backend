@@ -4,6 +4,7 @@
 
 // I/O Stages (requieren dependencias)
 export { createDecryptStage } from './decrypt.stage';
+export type { DecryptStageDeps } from './decrypt.stage';
 export { createLoadQRStateStage } from './load-qr-state.stage';
 export type { QRStateLoader } from './load-qr-state.stage';
 export { createLoadStudentStateStage } from './load-student-state.stage';
