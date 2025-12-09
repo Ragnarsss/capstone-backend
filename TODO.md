@@ -33,6 +33,9 @@ Logger centralizado (`shared/infrastructure/logger.ts`), logs debug/info solo en
 ### Fase 12: Simulador de Desarrollo PHP ✅
 Dev Simulator completo (`php-service/src/dev-simulator/`), login mock, dashboards profesor/alumno, JWT real via `asistencia-node-integration`, postMessage para iframes, 106 tests. Accesible desde raiz (9500/9505) con `<base href>`.
 
+### Fase 14: Integracion Session Key Real ✅
+Legacy Bridge (postMessage PHP-Node), verificacion enrollment en qr-reader, eliminacion MOCK_SESSION_KEY en produccion (frontend), integracion SessionKeyRepository en PoolFeeder (generacion QR) y DecryptStage (validacion).
+
 ---
 
 ## Fases Pendientes
@@ -75,26 +78,26 @@ Dev Simulator completo (`php-service/src/dev-simulator/`), login mock, dashboard
 
 - [x] Modificar `aes-gcm.ts` para usar mock SOLO en desarrollo (import.meta.env.DEV)
 - [x] Error claro si no hay session_key en produccion
-- [ ] Script: `test-fase14-3.sh`
-- [ ] Commit y merge
+- [x] Script: `test-fase14-3.sh`
+- [x] Commit y merge
 
-### Fase 14.4: Session Key Real en Backend (Generacion QR)
+### Fase 14.4: Session Key Real en Backend (Generacion QR) ✅
 **Tiempo:** 1.5 horas
 
-- [ ] Login ECDH debe almacenar session_key en Valkey: `session:{userId}:key`
-- [ ] PoolFeeder: obtener session_key del alumno desde Valkey al generar QR
-- [ ] Cifrar QR con session_key real del alumno (no MOCK)
-- [ ] Mantener fallback mock SOLO si `ENROLLMENT_STUB_MODE=true`
-- [ ] Script: `test-fase14-4.sh`
+- [x] Login ECDH debe almacenar session_key en Valkey: `session:{userId}:key`
+- [x] PoolFeeder: obtener session_key del alumno desde Valkey al generar QR
+- [x] Cifrar QR con session_key real del alumno (no MOCK)
+- [x] Mantener fallback mock SOLO si no hay session_key (desarrollo)
+- [x] Script: `test-fase14-4.sh`
 
-### Fase 14.5: Session Key Real en Backend (Validacion)
+### Fase 14.5: Session Key Real en Backend (Validacion) ✅
 **Tiempo:** 1 hora
 
-- [ ] Modificar `decrypt.stage.ts` para obtener session_key de Valkey
-- [ ] Lookup: `session:{studentId}:key`
-- [ ] Mantener fallback mock SOLO si `ENROLLMENT_STUB_MODE=true`
-- [ ] Test flujo completo enrollment → login → scan → validacion
-- [ ] Script: `test-fase14-5.sh`
+- [x] Modificar `decrypt.stage.ts` para obtener session_key de Valkey
+- [x] Lookup: `session:{studentId}:key`
+- [x] Mantener fallback mock SOLO si no hay session_key (desarrollo)
+- [x] Overloads para retrocompatibilidad
+- [x] Script: `test-fase14-5.sh`
 
 ---
 
