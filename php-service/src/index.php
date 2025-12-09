@@ -1,327 +1,223 @@
 <?php
-session_start();
+/**
+ * Entrada principal - Sirve Dev Simulator desde raiz
+ * 
+ * Permite acceder al dev-simulator directamente desde:
+ * - http://localhost:9500/
+ * - https://localhost:9505/
+ * 
+ * Sin mostrar /dev-simulator/ en la URL del navegador.
+ * 
+ * El <base href> hace que los links relativos (login.php, etc.)
+ * apunten a /dev-simulator/ correctamente.
+ * 
+ * En produccion: Este archivo no se usa (Hawaii es el entry point)
+ */
 
-// Pagina principal con boton para abrir el modal de asistencia
+// Incluir funciones del dev-simulator
+require_once __DIR__ . '/dev-simulator/functions.php';
+
+// Iniciar sesion si no esta activa
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+$isLoggedIn = dev_is_logged_in();
+$currentUser = $isLoggedIn ? dev_get_usuario_actual() : null;
+$userRole = $isLoggedIn ? dev_get_user_role() : null;
+$logoutSuccess = isset($_GET['logout']) && $_GET['logout'] === '1';
 ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Gestion</title>
+    <base href="/dev-simulator/">
+    <title>Dev Simulator - Sistema Asistencia</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
             min-height: 100vh;
             display: flex;
             flex-direction: column;
-        }
-
-        header {
-            background: #667eea;
-            color: white;
-            padding: 30px;
-            text-align: center;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        }
-
-        header h1 {
-            font-size: 32px;
-            margin-bottom: 10px;
-        }
-
-        main {
-            flex: 1;
-            display: flex;
-            justify-content: center;
             align-items: center;
-            padding: 40px;
+            padding: 40px 20px;
+            color: #fff;
         }
-
-        .card {
-            background: white;
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
             border-radius: 16px;
             padding: 40px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
-            text-align: center;
-            max-width: 500px;
+            max-width: 600px;
             width: 100%;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
         }
-
-        .card h2 {
-            color: #333;
-            margin-bottom: 20px;
-            font-size: 24px;
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 28px;
         }
-
-        .card p {
-            color: #666;
+        .subtitle {
+            text-align: center;
+            color: #aaa;
             margin-bottom: 30px;
-            line-height: 1.6;
+            font-size: 14px;
         }
-
-        .button-group {
+        .warning {
+            background: rgba(255, 193, 7, 0.2);
+            border: 1px solid #ffc107;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 30px;
+            font-size: 13px;
+        }
+        .warning strong {
+            color: #ffc107;
+        }
+        .status-box {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .status-box h3 {
+            margin-bottom: 10px;
+            font-size: 16px;
+            color: #aaa;
+        }
+        .status-box .value {
+            font-size: 18px;
+            color: #4ade80;
+        }
+        .status-box .value.not-logged {
+            color: #f87171;
+        }
+        .links {
             display: flex;
             flex-direction: column;
-            gap: 16px;
+            gap: 15px;
         }
-
-        .btn-main {
+        .link-btn {
             display: block;
-            width: 100%;
-            background: rgb(255, 128, 0);
-            color: white;
-            border: none;
-            padding: 16px 40px;
-            font-size: 18px;
-            font-weight: bold;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-            box-shadow: 0 4px 15px rgba(255, 128, 0, 0.4);
-        }
-
-        .btn-main:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(255, 128, 0, 0.6);
-        }
-
-        .btn-main:active {
-            transform: translateY(0);
-        }
-
-        .btn-secondary {
-            background: #1f2937;
-            box-shadow: 0 4px 15px rgba(31, 41, 55, 0.4);
-        }
-
-        /* Modal overlay */
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.7);
-            z-index: 1000;
-            justify-content: center;
-            align-items: center;
-            backdrop-filter: blur(5px);
-        }
-
-        .modal-overlay.active {
-            display: flex;
-        }
-
-        .modal-container {
-            background: white;
-            border-radius: 16px;
-            width: 600px;
-            height: 800px;
-            position: relative;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            overflow: hidden;
-        }
-
-        .modal-header {
             background: #667eea;
             color: white;
-            padding: 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            text-decoration: none;
+            padding: 15px 25px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 16px;
+            transition: background 0.2s, transform 0.2s;
         }
-
-        .modal-header h3 {
-            margin: 0;
-            font-size: 20px;
+        .link-btn:hover {
+            background: #5a67d8;
+            transform: translateY(-2px);
         }
-
-        .btn-close {
+        .link-btn.secondary {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .link-btn.secondary:hover {
             background: rgba(255, 255, 255, 0.2);
-            border: none;
-            color: white;
-            font-size: 24px;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            cursor: pointer;
-            transition: background 0.2s;
         }
-
-        .btn-close:hover {
-            background: rgba(255, 255, 255, 0.3);
+        .link-btn.danger {
+            background: #dc2626;
         }
-
-        .modal-content {
-            width: 100%;
-            height: calc(100% - 60px);
-            border: none;
+        .link-btn.danger:hover {
+            background: #b91c1c;
+        }
+        .divider {
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            margin: 20px 0;
+        }
+        .role-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+        .role-badge.profesor {
+            background: #3b82f6;
+        }
+        .role-badge.alumno {
+            background: #10b981;
+        }
+        .success {
+            background: rgba(16, 185, 129, 0.2);
+            border: 1px solid #10b981;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: #6ee7b7;
         }
     </style>
 </head>
 <body>
-    <header>
-        <h1>Proyecto Asistencia</h1>
-        <p>Sistema de Registro con QR Dinámico + JWT</p>
-    </header>
-
-    <main>
-        <div class="card">
-            <h2>Sistema de Registro de Asistencia</h2>
-            <p>
-                Al hacer click, obtienes un JWT desde PHP y el modal se abre con autenticación segura.
-            </p>
-            <div class="button-group">
-                <button class="btn-main" onclick="openAsistenciaModal()">
-                    PROYECTAR QR
-                </button>
-                <button class="btn-main btn-secondary" onclick="openLectorModal()">
-                    LECTOR QR
-                </button>
-            </div>
+    <div class="container">
+        <h1>Dev Simulator</h1>
+        <p class="subtitle">Simulador del Sistema Hawaii para Desarrollo</p>
+        
+        <div class="warning">
+            <strong>Solo Desarrollo:</strong> Este simulador emula el sistema legacy Hawaii.
+            No va a produccion. Los datos son mock.
         </div>
-    </main>
-
-    <!-- Modal con iframe al servicio Node.js -->
-    <div class="modal-overlay" id="modalOverlay">
-        <div class="modal-container">
-            <div class="modal-header">
-                <h3>Registro de Asistencia</h3>
-                <button class="btn-close" onclick="closeAsistenciaModal()">&times;</button>
+        
+        <?php if ($logoutSuccess): ?>
+            <div class="success">
+                Sesion cerrada correctamente.
             </div>
-            <iframe
-                id="asistenciaFrame"
-                class="modal-content"
-                src=""
-                title="Sistema de Asistencia"
-            ></iframe>
+        <?php endif; ?>
+
+        <div class="status-box">
+            <h3>Estado de Sesion</h3>
+            <?php if ($isLoggedIn): ?>
+                <p class="value">
+                    <?php echo htmlspecialchars($currentUser); ?>
+                    <span class="role-badge <?php echo $userRole; ?>">
+                        <?php echo $userRole; ?>
+                    </span>
+                </p>
+            <?php else: ?>
+                <p class="value not-logged">No autenticado</p>
+            <?php endif; ?>
+        </div>
+
+        <div class="links">
+            <?php if (!$isLoggedIn): ?>
+                <a href="login.php" class="link-btn">Iniciar Sesion</a>
+            <?php else: ?>
+                <?php if ($userRole === 'profesor'): ?>
+                    <a href="profesor-dashboard.php" class="link-btn">Dashboard Profesor</a>
+                <?php else: ?>
+                    <a href="alumno-dashboard.php" class="link-btn">Dashboard Alumno</a>
+                <?php endif; ?>
+                
+                <div class="divider"></div>
+                
+                <a href="logout.php" class="link-btn danger">Cerrar Sesion</a>
+            <?php endif; ?>
+            
+            <div class="divider"></div>
+            
+            <a href="/asistencia-node-integration/api/validate-session" class="link-btn secondary" target="_blank">
+                Verificar API Token
+            </a>
+            <a href="/asistencia/features/qr-host/" class="link-btn secondary" target="_blank">
+                QR Host (directo)
+            </a>
+            <a href="/asistencia/features/qr-reader/" class="link-btn secondary" target="_blank">
+                QR Reader (directo)
+            </a>
         </div>
     </div>
-
-    <!-- Modal lector QR -->
-    <div class="modal-overlay" id="modalReaderOverlay">
-        <div class="modal-container">
-            <div class="modal-header">
-                <h3>Lector de QR</h3>
-                <button class="btn-close" onclick="closeLectorModal()">&times;</button>
-            </div>
-            <iframe
-                id="lectorFrame"
-                class="modal-content"
-                src=""
-                title="Lector QR"
-                allow="camera"
-            ></iframe>
-        </div>
-    </div>
-
-    <script>
-        // Integracion JWT + postMessage
-        // Endpoint unico: /asistencia-node-integration/api/token
-        async function fetchAuthToken() {
-            const response = await fetch('/asistencia-node-integration/api/token', {
-                credentials: 'include'
-            });
-
-            if (!response.ok) {
-                throw new Error('No se pudo obtener el token');
-            }
-
-            return response.json();
-        }
-
-        async function openSecureModal(modalId, iframeId, targetPath) {
-            const modal = document.getElementById(modalId);
-            const iframe = document.getElementById(iframeId);
-
-            if (!modal || !iframe) {
-                console.error('[Modal] Elementos no encontrados:', modalId, iframeId);
-                return;
-            }
-
-            try {
-                const data = await fetchAuthToken();
-
-                if (!data.success) {
-                    alert('Error de autenticacion. Por favor recarga la pagina.');
-                    console.error('[Modal] Error obteniendo JWT:', data.message);
-                    return;
-                }
-
-                iframe.src = targetPath;
-                iframe.onload = function () {
-                    iframe.contentWindow.postMessage({
-                        type: 'AUTH_TOKEN',
-                        token: data.token
-                    }, window.location.origin);
-                };
-
-                modal.classList.add('active');
-            } catch (error) {
-                console.error('[Modal] Error:', error);
-                alert('Error de conexion. Intenta de nuevo.');
-            }
-        }
-
-        function closeModal(modalId, iframeId) {
-            const modal = document.getElementById(modalId);
-            const iframe = document.getElementById(iframeId);
-
-            if (!modal || !iframe) return;
-
-            modal.classList.remove('active');
-            iframe.src = '';
-        }
-
-        // Host: Proyector QR (profesor)
-        function openAsistenciaModal() {
-            openSecureModal('modalOverlay', 'asistenciaFrame', '/asistencia/host/');
-        }
-
-        function closeAsistenciaModal() {
-            closeModal('modalOverlay', 'asistenciaFrame');
-        }
-
-        // Reader: Lector QR (alumno)
-        function openLectorModal() {
-            openSecureModal('modalReaderOverlay', 'lectorFrame', '/asistencia/reader/');
-        }
-
-        function closeLectorModal() {
-            closeModal('modalReaderOverlay', 'lectorFrame');
-        }
-
-        // Cerrar modal al hacer click fuera
-        ['modalOverlay', 'modalReaderOverlay'].forEach((modalId) => {
-            const modal = document.getElementById(modalId);
-            if (!modal) return;
-            modal.addEventListener('click', function(e) {
-                if (e.target === this) {
-                    if (modalId === 'modalOverlay') {
-                        closeAsistenciaModal();
-                    } else {
-                        closeLectorModal();
-                    }
-                }
-            });
-        });
-
-        // Cerrar con Escape
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') {
-                closeAsistenciaModal();
-                closeLectorModal();
-            }
-        });
-    </script>
 </body>
 </html>
