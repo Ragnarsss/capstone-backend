@@ -1,112 +1,161 @@
-import type { WebAuthnOptions, EnrollmentChallenge } from '../domain/models';
-import { EnrollmentChallengeRepository } from '../infrastructure/enrollment-challenge.repository';
-import { SessionKeyRepository } from '../infrastructure/session-key.repository';
+import type { PublicKeyCredentialCreationOptionsJSON } from '@simplewebauthn/types';
+import {
+  StartEnrollmentUseCase,
+  FinishEnrollmentUseCase,
+  GetEnrollmentStatusUseCase,
+  LoginEcdhUseCase,
+} from './use-cases';
+import {
+  Fido2Service,
+  DeviceRepository,
+  EnrollmentChallengeRepository,
+  SessionKeyRepository,
+  HkdfService,
+  EcdhService,
+  PenaltyService,
+} from '../infrastructure';
+import { ValkeyClient } from '../../../shared/infrastructure/valkey/valkey-client';
 
 /**
  * Application Service para Enrollment
  * Responsabilidad: Orquestar casos de uso de enrollment FIDO2
+ * 
+ * Este servicio actua como facade para los Use Cases,
+ * manteniendo compatibilidad con el controller existente.
  */
 export class EnrollmentService {
-  private challengeRepository: EnrollmentChallengeRepository;
-  private sessionKeyRepository: SessionKeyRepository;
+  private readonly startEnrollmentUseCase: StartEnrollmentUseCase;
+  private readonly finishEnrollmentUseCase: FinishEnrollmentUseCase;
+  private readonly getEnrollmentStatusUseCase: GetEnrollmentStatusUseCase;
+  private readonly loginEcdhUseCase: LoginEcdhUseCase;
 
   constructor(
-    challengeRepository: EnrollmentChallengeRepository,
-    sessionKeyRepository: SessionKeyRepository
+    fido2Service?: Fido2Service,
+    deviceRepository?: DeviceRepository,
+    challengeRepository?: EnrollmentChallengeRepository,
+    sessionKeyRepository?: SessionKeyRepository,
+    hkdfService?: HkdfService,
+    ecdhService?: EcdhService,
+    penaltyService?: PenaltyService
   ) {
-    this.challengeRepository = challengeRepository;
-    this.sessionKeyRepository = sessionKeyRepository;
+    // Instanciar dependencias si no se proveen
+    const fido2 = fido2Service ?? new Fido2Service();
+    const deviceRepo = deviceRepository ?? new DeviceRepository();
+    const challengeRepo = challengeRepository ?? new EnrollmentChallengeRepository();
+    const sessionKeyRepo = sessionKeyRepository ?? new SessionKeyRepository();
+    const hkdf = hkdfService ?? new HkdfService();
+    const ecdh = ecdhService ?? new EcdhService();
+    const penalty = penaltyService ?? new PenaltyService(ValkeyClient.getInstance());
+
+    // Crear Use Cases con dependencias
+    this.startEnrollmentUseCase = new StartEnrollmentUseCase(
+      fido2,
+      deviceRepo,
+      challengeRepo,
+      penalty
+    );
+
+    this.finishEnrollmentUseCase = new FinishEnrollmentUseCase(
+      fido2,
+      deviceRepo,
+      challengeRepo,
+      hkdf,
+      penalty
+    );
+
+    this.getEnrollmentStatusUseCase = new GetEnrollmentStatusUseCase(deviceRepo);
+
+    this.loginEcdhUseCase = new LoginEcdhUseCase(
+      deviceRepo,
+      sessionKeyRepo,
+      ecdh,
+      hkdf
+    );
   }
 
-  async createEnrollmentChallenge(userId: number, username: string, displayName?: string): Promise<{
+  /**
+   * Inicia el proceso de enrollment FIDO2
+   * Genera challenge y opciones WebAuthn para el cliente
+   */
+  async createEnrollmentChallenge(
+    userId: number,
+    username: string,
+    displayName?: string
+  ): Promise<{
     challenge: string;
-    options: WebAuthnOptions;
+    options: PublicKeyCredentialCreationOptionsJSON;
   }> {
-    const challenge = Buffer.from(crypto.randomUUID()).toString('base64url');
-    const now = Date.now();
-
-    const enrollmentChallenge: EnrollmentChallenge = {
-      challenge,
+    const result = await this.startEnrollmentUseCase.execute({
       userId,
-      createdAt: now,
-      expiresAt: now + 5 * 60 * 1000, // 5 minutos
+      username,
+      displayName: displayName || username,
+    });
+
+    // Extraer challenge de las opciones
+    return {
+      challenge: result.options.challenge,
+      options: result.options,
     };
-
-    await this.challengeRepository.save(enrollmentChallenge);
-
-    const options: WebAuthnOptions = {
-      rp: {
-        name: 'Sistema de Asistencia UCN',
-        id: 'asistencia.ucn.cl',
-      },
-      user: {
-        id: Buffer.from(userId.toString()).toString('base64url'),
-        name: username,
-        displayName: displayName || username,
-      },
-      pubKeyCredParams: [
-        { type: 'public-key', alg: -7 },  // ES256
-        { type: 'public-key', alg: -257 }, // RS256
-      ],
-      authenticatorSelection: {
-        authenticatorAttachment: 'platform',
-        userVerification: 'required',
-        residentKey: 'required',
-      },
-      attestation: 'direct',
-      timeout: 60000,
-    };
-
-    return { challenge, options };
   }
 
-  async verifyAndCompleteEnrollment(userId: number, credential: any): Promise<{
+  /**
+   * Completa el enrollment verificando la respuesta WebAuthn
+   */
+  async verifyAndCompleteEnrollment(
+    userId: number,
+    credential: any,
+    deviceFingerprint?: string
+  ): Promise<{
     deviceId: number;
     aaguid: string;
   }> {
-    // TODO: Implementar lógica real de WebAuthn
-    // - Validar attestation
-    // - Verificar challenge
-    // - Extraer public key
-    // - Derivar handshake_secret con HKDF
-    // - Almacenar en PostgreSQL (schema enrollment.devices)
-
-    await this.challengeRepository.delete(userId);
+    const result = await this.finishEnrollmentUseCase.execute({
+      userId,
+      credential,
+      deviceFingerprint: deviceFingerprint || 'unknown',
+    });
 
     return {
-      deviceId: Math.floor(Math.random() * 10000),
-      aaguid: 'stub-aaguid-placeholder',
+      deviceId: result.deviceId,
+      aaguid: result.aaguid,
     };
   }
 
+  /**
+   * Verifica el estado de enrollment del usuario
+   */
   async checkEnrollmentStatus(userId: number): Promise<{
     enrolled: boolean;
     deviceCount: number;
   }> {
-    // TODO: Consultar PostgreSQL para verificar si el usuario tiene dispositivo enrolado
-    // SELECT * FROM enrollment.devices WHERE user_id = ?
+    const result = await this.getEnrollmentStatusUseCase.execute({ userId });
 
     return {
-      enrolled: false,
-      deviceCount: 0,
+      enrolled: result.isEnrolled,
+      deviceCount: result.deviceCount,
     };
   }
 
-  async performECDHLogin(userId: number, clientPublicKey: string, assertion: any): Promise<{
+  /**
+   * Realiza login ECDH para derivar session_key
+   */
+  async performECDHLogin(
+    userId: number,
+    clientPublicKey: string,
+    credentialId: string
+  ): Promise<{
     serverPublicKey: string;
     TOTPu: string;
   }> {
-    // TODO: Implementar lógica real de ECDH
-    // - Validar assertion WebAuthn
-    // - Generar par ECDH servidor
-    // - Derivar shared_secret
-    // - Derivar session_key con HKDF
-    // - Generar TOTPu basado en handshake_secret
-    // - Retornar serverPublicKey y TOTPu
+    const result = await this.loginEcdhUseCase.execute({
+      userId,
+      clientPublicKey,
+      credentialId,
+    });
 
-    const serverPublicKey = Buffer.from(crypto.randomUUID()).toString('base64url');
-    const TOTPu = Math.floor(100000 + Math.random() * 900000).toString();
-
-    return { serverPublicKey, TOTPu };
+    return {
+      serverPublicKey: result.serverPublicKey,
+      TOTPu: result.totpu,
+    };
   }
 }

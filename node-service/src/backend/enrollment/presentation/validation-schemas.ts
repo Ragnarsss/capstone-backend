@@ -119,6 +119,21 @@ export const loginECDHSchema = {
   safeParse: (data: any) => {
     const errors: Array<{ path: string[]; message: string; code: string }> = [];
 
+    // credentialId es requerido
+    if (!data.credentialId) {
+      errors.push({
+        path: ['credentialId'],
+        message: 'credentialId is required',
+        code: 'invalid_type',
+      });
+    } else if (typeof data.credentialId !== 'string') {
+      errors.push({
+        path: ['credentialId'],
+        message: 'credentialId must be a string',
+        code: 'invalid_type',
+      });
+    }
+
     // publicKey es requerido
     if (!data.publicKey) {
       errors.push({
@@ -132,33 +147,6 @@ export const loginECDHSchema = {
         message: 'publicKey must be a string',
         code: 'invalid_type',
       });
-    }
-
-    // assertion es requerido
-    if (!data.assertion) {
-      errors.push({
-        path: ['assertion'],
-        message: 'assertion is required',
-        code: 'invalid_type',
-      });
-    } else if (typeof data.assertion !== 'object') {
-      errors.push({
-        path: ['assertion'],
-        message: 'assertion must be an object',
-        code: 'invalid_type',
-      });
-    } else {
-      // Validar campos requeridos de assertion
-      const requiredFields = ['id', 'rawId', 'type', 'response'];
-      for (const field of requiredFields) {
-        if (!(field in data.assertion)) {
-          errors.push({
-            path: ['assertion', field],
-            message: `${field} is required in assertion`,
-            code: 'invalid_type',
-          });
-        }
-      }
     }
 
     if (errors.length > 0) {
