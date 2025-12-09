@@ -114,9 +114,13 @@ export class EnrollmentController {
     reply: FastifyReply
   ): Promise<void> {
     const user = request.user!;
-    const { credential } = request.body;
+    const { credential, deviceFingerprint } = request.body;
 
-    const result = await this.service.verifyAndCompleteEnrollment(user.userId.toNumber(), credential);
+    const result = await this.service.verifyAndCompleteEnrollment(
+      user.userId.toNumber(),
+      credential,
+      deviceFingerprint
+    );
 
     const response: FinishEnrollmentResponseDTO = {
       success: true,
@@ -133,9 +137,13 @@ export class EnrollmentController {
     reply: FastifyReply
   ): Promise<void> {
     const user = request.user!;
-    const { publicKey, assertion } = request.body;
+    const { credentialId, publicKey } = request.body;
 
-    const result = await this.service.performECDHLogin(user.userId.toNumber(), publicKey, assertion);
+    const result = await this.service.performECDHLogin(
+      user.userId.toNumber(),
+      publicKey,
+      credentialId
+    );
 
     const response: LoginECDHResponseDTO = {
       success: true,

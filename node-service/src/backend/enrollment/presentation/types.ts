@@ -16,6 +16,7 @@ export interface StartEnrollmentResponseDTO {
 
 export interface FinishEnrollmentRequestDTO {
   credential: any;
+  deviceFingerprint?: string;
 }
 
 export interface FinishEnrollmentResponseDTO {
@@ -27,8 +28,8 @@ export interface FinishEnrollmentResponseDTO {
 }
 
 export interface LoginECDHRequestDTO {
-  publicKey: string;
-  assertion: any;
+  credentialId: string;  // ID del dispositivo enrolado (base64url)
+  publicKey: string;     // Clave publica ECDH del cliente (base64)
 }
 
 export interface LoginECDHResponseDTO {
