@@ -7,10 +7,10 @@
 
 import type { QRStateLoader } from '../../domain/validation-pipeline/stages/load-qr-state.stage';
 import type { QRState } from '../../domain/validation-pipeline/context';
-import { ProjectionPoolRepository } from '../projection-pool.repository';
+import { ProjectionPoolRepository } from '../../../../shared/infrastructure/valkey';
 
 /** TTL del QR en segundos (configurable) */
-const QR_TTL_SECONDS = 30;
+const QR_TTL_SECONDS = 60;
 
 export class QRStateAdapter implements QRStateLoader {
   constructor(

@@ -1,26 +1,26 @@
-import { QRGenerator } from '../domain/qr-generator';
-import type { QRPayload, QRPayloadEnvelope, QRPayloadV1 } from '../domain/models';
-import { QRMetadataRepository } from '../infrastructure/qr-metadata.repository';
-import { ProjectionQueueRepository } from '../infrastructure/projection-queue.repository';
+import type { QRPayloadEnvelope } from '../domain/models';
 import { QRPayloadRepository } from '../infrastructure/qr-payload.repository';
-import { ProjectionPoolRepository, type PoolEntry } from '../../attendance/infrastructure/projection-pool.repository';
 import { SessionId } from '../domain/session-id';
-import { CryptoService } from '../../../shared/infrastructure/crypto';
+import { PoolBalancer } from './services/pool-balancer.service';
+import { QREmitter } from './services/qr-emitter.service';
+import { logger } from '../../../shared/infrastructure/logger';
 
 /**
- * Configuración requerida por QRProjectionService
+ * Configuracion requerida por QRProjectionService
  */
 export interface QRProjectionConfig {
+  /** Segundos de countdown antes de iniciar proyeccion */
   countdownSeconds: number;
+  /** Intervalo de regeneracion/emision en ms */
   regenerationInterval: number;
-  /** TTL de payloads en Valkey (segundos). Default: 30 */
+  /** TTL de payloads en Valkey (segundos). Default: 60 */
   payloadTTL?: number;
-  /** Cantidad de QRs falsos a agregar al pool */
-  fakeQRCount?: number;
+  /** Tamano minimo del pool (incluyendo fakes). Default: 10 */
+  minPoolSize?: number;
 }
 
 /**
- * Contexto de proyección - información del usuario autenticado
+ * Contexto de proyeccion - informacion del usuario autenticado
  */
 export interface ProjectionContext {
   userId: number;
@@ -28,7 +28,7 @@ export interface ProjectionContext {
 }
 
 /**
- * Callbacks para eventos de proyección (V1)
+ * Callbacks para eventos de proyeccion
  */
 export interface ProjectionCallbacks {
   onCountdown(seconds: number): Promise<void>;
@@ -37,90 +37,105 @@ export interface ProjectionCallbacks {
 }
 
 /**
- * @deprecated Usar ProjectionCallbacks con QRPayloadEnvelope
- */
-export interface ProjectionCallbacksLegacy {
-  onCountdown(seconds: number): Promise<void>;
-  onQRUpdate(payload: QRPayload): Promise<void>;
-  shouldStop(): boolean;
-}
-
-/**
- * Application Service para QR Projection
- * Responsabilidad: Orquestar casos de uso de proyección de QR
+ * QRProjectionService - Application Service (Orquestador)
  * 
- * Nota: Este servicio genera solo el payload/mensaje del QR.
- * El renderizado visual se realiza en el frontend.
+ * Responsabilidad: Orquestar el ciclo de vida de una proyeccion QR
+ * 
+ * Delega a servicios especializados:
+ * - PoolBalancer: Mantiene el pool con QRs falsos
+ * - QREmitter: Emite QRs del pool a intervalos regulares
+ * 
+ * Este servicio maneja:
+ * - Fase de countdown
+ * - Inicio/parada de proyeccion
+ * - Coordinacion entre servicios
+ * 
+ * Este servicio NO maneja:
+ * - Generacion de QRs de estudiantes (PoolFeeder via ParticipationService)
+ * - Logica de balanceo de fakes (PoolBalancer)
+ * - Logica de emision (QREmitter)
  */
 export class QRProjectionService {
-  private qrGenerator: QRGenerator;
-  private metadataRepository: QRMetadataRepository;
-  private queueRepository: ProjectionQueueRepository;
-  private payloadRepository: QRPayloadRepository;
-  private poolRepository: ProjectionPoolRepository;
   private readonly config: QRProjectionConfig;
-  private activeIntervals: Map<string, NodeJS.Timeout> = new Map();
+  private readonly payloadRepository: QRPayloadRepository;
+  private readonly poolBalancer: PoolBalancer;
+  private readonly qrEmitter: QREmitter;
 
   constructor(
     config: QRProjectionConfig,
-    metadataRepository: QRMetadataRepository,
-    queueRepository: ProjectionQueueRepository,
-    cryptoService?: CryptoService,
-    payloadRepository?: QRPayloadRepository,
-    poolRepository?: ProjectionPoolRepository
+    poolBalancer?: PoolBalancer,
+    qrEmitter?: QREmitter,
+    payloadRepository?: QRPayloadRepository
   ) {
     this.config = config;
-    // Inyectar CryptoService al QRGenerator
-    this.qrGenerator = new QRGenerator(cryptoService ?? new CryptoService());
-    this.metadataRepository = metadataRepository;
-    this.queueRepository = queueRepository;
-    // Crear PayloadRepository con TTL configurado
-    this.payloadRepository = payloadRepository ?? new QRPayloadRepository(config.payloadTTL ?? 30);
-    this.poolRepository = poolRepository ?? new ProjectionPoolRepository();
+    this.payloadRepository = payloadRepository ?? new QRPayloadRepository(config.payloadTTL ?? 60);
+    
+    // Inicializar servicios con configuracion
+    this.poolBalancer = poolBalancer ?? new PoolBalancer(undefined, undefined, {
+      minPoolSize: config.minPoolSize ?? 10,
+    });
+    
+    this.qrEmitter = qrEmitter ?? new QREmitter(undefined, {
+      intervalMs: config.regenerationInterval,
+    });
   }
 
+  /**
+   * Genera un nuevo SessionId
+   */
   generateSessionId(): SessionId {
     return SessionId.generate();
   }
 
   /**
-   * Inicia una proyección completa: countdown + rotación de QR (V1)
-   * @param sessionId - ID de sesión generado
-   * @param context - Contexto con información del usuario
+   * Inicia una proyeccion completa: countdown + emision de QRs
+   * 
+   * @param sessionId - ID de sesion generado
    * @param callbacks - Callbacks para eventos
+   * @param context - Contexto con informacion del usuario (opcional)
    */
   async startProjection(
-    sessionId: SessionId, 
+    sessionId: SessionId,
     callbacks: ProjectionCallbacks,
     context?: ProjectionContext
   ): Promise<void> {
+    const sessionIdStr = sessionId.toString();
+
     // Fase 1: Countdown
     await this.runCountdownPhase(sessionId, callbacks);
 
-    // Verificar si debemos continuar después del countdown
+    // Verificar si debemos continuar despues del countdown
     if (callbacks.shouldStop()) {
       return;
     }
 
-    // Fase 2: Rotación de QR
-    await this.startQRRotation(sessionId, callbacks, context);
+    // Fase 2: Balancear pool inicial con fakes
+    await this.poolBalancer.balance(sessionIdStr);
+
+    // Fase 3: Iniciar emision de QRs
+    logger.debug(`[QRProjectionService] Iniciando proyeccion para sesion ${sessionIdStr.substring(0, 8)}...`);
+    
+    this.qrEmitter.start(
+      sessionIdStr,
+      callbacks.onQRUpdate,
+      callbacks.shouldStop
+    );
   }
 
   /**
-   * Detiene la rotación de QR para una sesión
+   * Detiene la proyeccion para una sesion
    */
   stopProjection(sessionId: SessionId): void {
-    const key = sessionId.toString();
-    const interval = this.activeIntervals.get(key);
-    if (interval) {
-      clearInterval(interval);
-      this.activeIntervals.delete(key);
-      // Limpiar contador de rondas
-      this.qrGenerator.resetRoundCounter(sessionId);
-      console.log(`[QRProjectionService] Rotación detenida para ${key}`);
+    const sessionIdStr = sessionId.toString();
+    
+    if (this.qrEmitter.stop(sessionIdStr)) {
+      logger.debug(`[QRProjectionService] Proyeccion detenida para ${sessionIdStr.substring(0, 8)}...`);
     }
   }
 
+  /**
+   * Ejecuta la fase de countdown
+   */
   private async runCountdownPhase(
     sessionId: SessionId,
     callbacks: ProjectionCallbacks
@@ -129,14 +144,14 @@ export class QRProjectionService {
 
     for (let i = duration; i > 0; i--) {
       if (callbacks.shouldStop()) {
-        console.log(`[QRProjectionService] Countdown cancelado para ${sessionId.toString()}`);
+        logger.debug(`[QRProjectionService] Countdown cancelado para ${sessionId.toString()}`);
         return;
       }
 
       try {
         await callbacks.onCountdown(i);
       } catch (error) {
-        console.error(`[QRProjectionService] Error en countdown para ${sessionId.toString()}:`, error);
+        logger.error(`[QRProjectionService] Error en countdown para ${sessionId.toString()}:`, error);
         return;
       }
 
@@ -144,131 +159,29 @@ export class QRProjectionService {
     }
   }
 
-  private async startQRRotation(
-    sessionId: SessionId,
-    callbacks: ProjectionCallbacks,
-    context?: ProjectionContext
-  ): Promise<void> {
-    const sessionIdStr = sessionId.toString();
-    
-    // Agregar QRs falsos iniciales al pool si está configurado
-    const fakeCount = this.config.fakeQRCount ?? 3;
-    if (fakeCount > 0) {
-      await this.poolRepository.addFakeQRs(sessionIdStr, fakeCount, () => 
-        this.generateFakeQR(sessionId)
-      );
-    }
-
-    console.log(`[QRProjectionService] Iniciando rotación de pool para sesión ${sessionIdStr.substring(0, 8)}...`);
-
-    const interval = setInterval(async () => {
-      if (callbacks.shouldStop()) {
-        this.stopProjection(sessionId);
-        return;
-      }
-
-      try {
-        // Obtener siguiente entrada del pool (round-robin)
-        const entry = await this.poolRepository.getNextEntry(sessionIdStr);
-        
-        if (!entry) {
-          // Pool vacío - generar QR de espera
-          const waitingEnvelope = this.createWaitingQREnvelope(sessionId);
-          callbacks.onQRUpdate(waitingEnvelope);
-          return;
-        }
-
-        // Crear envelope desde la entrada del pool
-        const envelope = this.createEnvelopeFromPoolEntry(sessionId, entry);
-        
-        // Enviar al frontend
-        callbacks.onQRUpdate(envelope);
-      } catch (error) {
-        console.error(`[QRProjectionService] Error en rotación para ${sessionIdStr}:`, error);
-        this.stopProjection(sessionId);
-      }
-    }, this.config.regenerationInterval);
-
-    this.activeIntervals.set(sessionIdStr, interval);
-  }
-
   /**
-   * Genera un QR falso encriptado con clave ALEATORIA
-   * 
-   * Los QRs falsos:
-   * - Tienen formato válido (longitud, estructura base64)
-   * - NO pueden ser desencriptados por NADIE
-   * - La clave se descarta inmediatamente
-   * 
-   * Esto confunde a quienes intenten escanear QRs ajenos.
-   */
-  private generateFakeQR(sessionId: SessionId): string {
-    const fakePayload: QRPayloadV1 = {
-      v: 1,
-      sid: sessionId.toString(),
-      uid: 0, // ID 0 indica QR falso (irrelevante, no se puede descifrar)
-      r: Math.ceil(Math.random() * 3), // Round aleatorio 1-3
-      ts: Date.now(),
-      n: this.qrGenerator.generateNonce(),
-    };
-    // Encriptar con clave aleatoria - nadie puede descifrar
-    return this.qrGenerator.encryptPayloadWithRandomKey(fakePayload);
-  }
-
-  /**
-   * Crea un envelope desde una entrada del pool
-   */
-  private createEnvelopeFromPoolEntry(sessionId: SessionId, entry: PoolEntry): QRPayloadEnvelope {
-    // Nota: El payload real está encriptado, aquí creamos un "mock" para el envelope
-    // El frontend solo usa payloadString para renderizar el QR
-    const mockPayload: QRPayloadV1 = {
-      v: 1,
-      sid: sessionId.toString(),
-      uid: entry.studentId,
-      r: entry.round,
-      ts: entry.createdAt,
-      n: entry.id, // Usamos el ID como nonce para el mock
-    };
-
-    return {
-      payload: mockPayload,
-      payloadString: entry.encrypted,
-      sessionId,
-    };
-  }
-
-  /**
-   * Crea un envelope de espera cuando no hay estudiantes registrados
-   */
-  private createWaitingQREnvelope(sessionId: SessionId): QRPayloadEnvelope {
-    // Generar QR de "espera" que indica que no hay estudiantes
-    const waitingPayload: QRPayloadV1 = {
-      v: 1,
-      sid: sessionId.toString(),
-      uid: -1, // ID -1 indica "esperando estudiantes"
-      r: 0,
-      ts: Date.now(),
-      n: 'waiting',
-    };
-    
-    return {
-      payload: waitingPayload,
-      payloadString: this.qrGenerator.encryptPayload(waitingPayload),
-      sessionId,
-    };
-  }
-
-  /**
-   * Obtiene estadísticas del pool de una sesión
+   * Obtiene estadisticas del pool de una sesion
    */
   async getPoolStats(sessionId: SessionId): Promise<{ total: number; students: number; fakes: number }> {
-    return this.poolRepository.getPoolStats(sessionId.toString());
+    return this.poolBalancer.getPoolStats(sessionId.toString());
+  }
+
+  /**
+   * Balancea el pool de una sesion (agrega/quita fakes segun necesidad)
+   */
+  async balancePool(sessionId: SessionId): Promise<{ added: number; removed: number; total: number }> {
+    const result = await this.poolBalancer.balance(sessionId.toString());
+    return {
+      added: result.added,
+      removed: result.removed,
+      total: result.total,
+    };
   }
 
   /**
    * Valida un payload escaneado
    * @param payload - Payload V1 desencriptado
-   * @returns Resultado de validación
+   * @returns Resultado de validacion
    */
   async validatePayload(payload: import('../domain/models').QRPayloadV1): Promise<{ valid: boolean; reason?: string }> {
     return this.payloadRepository.validate(payload);
@@ -289,6 +202,13 @@ export class QRProjectionService {
    */
   getPayloadRepository(): QRPayloadRepository {
     return this.payloadRepository;
+  }
+
+  /**
+   * Verifica si hay una emision activa para una sesion
+   */
+  isProjectionActive(sessionId: SessionId): boolean {
+    return this.qrEmitter.isEmitting(sessionId.toString());
   }
 
   private sleep(ms: number): Promise<void> {

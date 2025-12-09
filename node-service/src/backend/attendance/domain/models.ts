@@ -1,4 +1,4 @@
-import type { QRPayloadV1 } from '../../qr-projection/domain/models';
+import type { QRPayloadV1 } from '../../../shared/types';
 
 /**
  * Request para registrar participación en sesión

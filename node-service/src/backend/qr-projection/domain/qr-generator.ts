@@ -1,25 +1,28 @@
 import { randomBytes } from 'crypto';
-import type { QRPayload, QRPayloadV1, QRPayloadEnvelope } from './models';
+import type { QRPayloadV1, QRPayloadEnvelope } from './models';
 import { SessionId } from './session-id';
-import { CryptoService } from '../../../shared/infrastructure/crypto';
+import { AesGcmService } from '../../../shared/infrastructure/crypto';
+import type { IQRGenerator, GenerateStudentQROptions, GenerateQRResult } from '../../../shared/ports';
 
 /**
  * Domain service: Generación de payloads QR
  * Responsabilidad: Generar el mensaje/payload que será codificado en QR
  * 
+ * Implementa IQRGenerator para desacoplamiento con otros módulos.
+ * 
  * Nota: El renderizado visual del QR se realiza en el frontend para reducir
  * carga del servidor y mejorar escalabilidad
  */
-export class QRGenerator {
+export class QRGenerator implements IQRGenerator {
   private roundCounters: Map<string, number> = new Map();
-  private readonly cryptoService: CryptoService;
+  private readonly aesGcmService: AesGcmService;
 
   /**
    * Constructor
-   * @param cryptoService - Servicio de criptografía (opcional, usa mock si no se provee)
+   * @param aesGcmService - Servicio de encriptación AES-GCM (opcional, usa mock si no se provee)
    */
-  constructor(cryptoService?: CryptoService) {
-    this.cryptoService = cryptoService ?? new CryptoService();
+  constructor(aesGcmService?: AesGcmService) {
+    this.aesGcmService = aesGcmService ?? new AesGcmService();
   }
 
   /**
@@ -85,7 +88,7 @@ export class QRGenerator {
    */
   encryptPayload(payload: QRPayloadV1): string {
     const plaintext = this.toQRString(payload);
-    const encrypted = this.cryptoService.encryptToPayload(plaintext);
+    const encrypted = this.aesGcmService.encryptToPayload(plaintext);
     return encrypted.encrypted;
   }
 
@@ -100,7 +103,7 @@ export class QRGenerator {
    */
   encryptPayloadWithRandomKey(payload: QRPayloadV1): string {
     const plaintext = this.toQRString(payload);
-    return this.cryptoService.encryptWithRandomKey(plaintext);
+    return this.aesGcmService.encryptWithRandomKey(plaintext);
   }
 
   /**
@@ -123,15 +126,12 @@ export class QRGenerator {
    * Genera payload para un estudiante específico en un round específico
    * Usado por el módulo de attendance para generar QRs individuales
    * 
+   * Implementa IQRGenerator.generateForStudent
+   * 
    * @param options - Opciones de generación
    * @returns Payload y string encriptado
    */
-  generateForStudent(options: {
-    sessionId: string;
-    userId: number;
-    round: number;
-    hostUserId: number;
-  }): { payload: QRPayloadV1; encrypted: string } {
+  generateForStudent(options: GenerateStudentQROptions): GenerateQRResult {
     const payload: QRPayloadV1 = {
       v: 1,
       sid: options.sessionId,
@@ -144,44 +144,5 @@ export class QRGenerator {
     const encrypted = this.encryptPayload(payload);
 
     return { payload, encrypted };
-  }
-
-  /**
-   * Genera payload sin encriptar (para debug/testing)
-   * @param sessionId - ID de la sesión
-   * @param userId - ID del usuario anfitrión
-   * @returns Envelope con payload en texto plano
-   */
-  generateV1Unencrypted(sessionId: SessionId, userId: number): QRPayloadEnvelope {
-    const payload = this.buildPayloadV1(sessionId, userId);
-    return {
-      payload,
-      payloadString: this.toQRString(payload),
-      sessionId,
-    };
-  }
-
-  /**
-   * @deprecated Usar generateV1 en su lugar
-   * Mantenido por compatibilidad - será removido en Fase 3
-   */
-  private generateUniqueMessage(sessionId: SessionId): string {
-    const timestamp = Date.now();
-    const random = Math.random().toString(36).substring(7);
-    return `ASISTENCIA:${sessionId.toString()}:${timestamp}:${random}`;
-  }
-
-  /**
-   * @deprecated Usar generateV1 en su lugar
-   * Mantenido por compatibilidad - será removido en Fase 3
-   */
-  generate(sessionId: SessionId): QRPayload {
-    const message = this.generateUniqueMessage(sessionId);
-
-    return {
-      message,
-      timestamp: Date.now(),
-      sessionId,
-    };
   }
 }

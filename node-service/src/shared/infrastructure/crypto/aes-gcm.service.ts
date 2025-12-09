@@ -1,4 +1,5 @@
 import { createCipheriv, createDecipheriv, randomBytes } from 'crypto';
+import { logger } from '../logger';
 
 /**
  * Resultado de encriptación AES-256-GCM
@@ -24,7 +25,9 @@ export interface EncryptedPayload {
 }
 
 /**
- * Servicio de criptografía para encriptación/desencriptación AES-256-GCM
+ * Servicio de encriptación simétrica AES-256-GCM
+ * 
+ * Uso principal: Encriptar/desencriptar payloads de QR para transmisión segura.
  * 
  * Características:
  * - AES-256-GCM: Encriptación autenticada (confidencialidad + integridad)
@@ -33,8 +36,10 @@ export interface EncryptedPayload {
  * 
  * NOTA: En Fase 2 usamos MOCK_SESSION_KEY.
  * En Fase 9+ se usará session_key derivada de ECDH.
+ * 
+ * @see enrollment/infrastructure/crypto/ para servicios de derivación de claves (HKDF, ECDH)
  */
-export class CryptoService {
+export class AesGcmService {
   private static readonly ALGORITHM = 'aes-256-gcm';
   private static readonly IV_LENGTH = 12; // 96 bits recomendado para GCM
   private static readonly AUTH_TAG_LENGTH = 16; // 128 bits
@@ -65,8 +70,8 @@ export class CryptoService {
       this.sessionKey = sessionKey;
     } else {
       // Usar mock key para desarrollo
-      this.sessionKey = CryptoService.MOCK_SESSION_KEY;
-      console.warn('[CryptoService] Usando MOCK_SESSION_KEY - solo para desarrollo');
+      this.sessionKey = AesGcmService.MOCK_SESSION_KEY;
+      logger.warn('[AesGcmService] Usando MOCK_SESSION_KEY - solo para desarrollo');
     }
   }
 
@@ -77,14 +82,14 @@ export class CryptoService {
    */
   encrypt(plaintext: string): EncryptionResult {
     // Generar IV aleatorio de 12 bytes
-    const iv = randomBytes(CryptoService.IV_LENGTH);
+    const iv = randomBytes(AesGcmService.IV_LENGTH);
 
     // Crear cipher AES-256-GCM
     const cipher = createCipheriv(
-      CryptoService.ALGORITHM,
+      AesGcmService.ALGORITHM,
       this.sessionKey,
       iv,
-      { authTagLength: CryptoService.AUTH_TAG_LENGTH }
+      { authTagLength: AesGcmService.AUTH_TAG_LENGTH }
     );
 
     // Encriptar
@@ -118,10 +123,10 @@ export class CryptoService {
 
     // Crear decipher AES-256-GCM
     const decipher = createDecipheriv(
-      CryptoService.ALGORITHM,
+      AesGcmService.ALGORITHM,
       this.sessionKey,
       ivBuffer,
-      { authTagLength: CryptoService.AUTH_TAG_LENGTH }
+      { authTagLength: AesGcmService.AUTH_TAG_LENGTH }
     );
 
     // Establecer tag de autenticación
@@ -193,10 +198,10 @@ export class CryptoService {
       Buffer.from(ciphertext, 'base64');
 
       // Verificar longitudes esperadas
-      if (ivBuffer.length !== CryptoService.IV_LENGTH) {
+      if (ivBuffer.length !== AesGcmService.IV_LENGTH) {
         return false;
       }
-      if (authTagBuffer.length !== CryptoService.AUTH_TAG_LENGTH) {
+      if (authTagBuffer.length !== AesGcmService.AUTH_TAG_LENGTH) {
         return false;
       }
 
@@ -223,14 +228,14 @@ export class CryptoService {
     const randomKey = randomBytes(32);
     
     // Generar IV aleatorio de 12 bytes
-    const iv = randomBytes(CryptoService.IV_LENGTH);
+    const iv = randomBytes(AesGcmService.IV_LENGTH);
 
     // Crear cipher AES-256-GCM con clave aleatoria
     const cipher = createCipheriv(
-      CryptoService.ALGORITHM,
+      AesGcmService.ALGORITHM,
       randomKey,
       iv,
-      { authTagLength: CryptoService.AUTH_TAG_LENGTH }
+      { authTagLength: AesGcmService.AUTH_TAG_LENGTH }
     );
 
     // Encriptar
@@ -247,3 +252,8 @@ export class CryptoService {
     // La randomKey se pierde aquí - nadie puede descifrar
   }
 }
+
+/**
+ * @deprecated Usar AesGcmService en su lugar. Alias temporal para compatibilidad.
+ */
+export const CryptoService = AesGcmService;

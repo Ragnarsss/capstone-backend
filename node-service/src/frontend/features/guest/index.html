@@ -28,6 +28,14 @@
         </div>
       </section>
 
+      <!-- Estado: Verificando Enrollment -->
+      <section id="state-checking-enrollment" class="state-view">
+        <div class="loading-container">
+          <div class="spinner"></div>
+          <p>Verificando dispositivo...</p>
+        </div>
+      </section>
+
       <!-- Estado: No Enrolado -->
       <section id="state-no-enrolled" class="state-view">
         <div class="enrollment-prompt">
@@ -54,15 +62,57 @@
         </div>
       </section>
 
-      <!-- Estado: Enrolado (listo para escanear) -->
-      <section id="state-enrolled" class="state-view">
+      <!-- Estado: Enrollment Exitoso -->
+      <section id="state-enrollment-success" class="state-view">
+        <div class="success-container">
+          <div class="icon-container success large">
+            <svg class="icon-check" viewBox="0 0 24 24" width="80" height="80">
+              <path fill="currentColor" d="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M11,16.5L6.5,12L7.91,10.59L11,13.67L16.59,8.09L18,9.5L11,16.5Z"/>
+            </svg>
+          </div>
+          <h2 id="enrollment-success-message">¡Dispositivo registrado!</h2>
+          <p id="penalty-info" class="penalty-info hidden">
+            Por seguridad, debes esperar antes de poder marcar asistencia.
+          </p>
+          <button id="btn-close-return" class="btn primary large">
+            Cerrar y Volver
+          </button>
+        </div>
+      </section>
+
+      <!-- Estado: Esperando Penalizacion -->
+      <section id="state-penalty-wait" class="state-view">
+        <div class="penalty-container">
+          <div class="icon-container warning">
+            <svg class="icon-clock" viewBox="0 0 24 24" width="60" height="60">
+              <path fill="currentColor" d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M16.2,16.2L11,13V7H12.5V12.2L17,14.9L16.2,16.2Z"/>
+            </svg>
+          </div>
+          <h2>Debes esperar</h2>
+          <p>Por seguridad, debes esperar <strong id="penalty-minutes">0</strong> minutos antes de poder registrar otro dispositivo.</p>
+          <button id="btn-close-return-penalty" class="btn secondary" onclick="window.parent.postMessage({type:'REQUEST_CLOSE'}, '*')">
+            Cerrar y Volver
+          </button>
+        </div>
+      </section>
+
+      <!-- Estado: Iniciando Sesion ECDH -->
+      <section id="state-logging-in" class="state-view">
+        <div class="loading-container">
+          <div class="spinner"></div>
+          <p>Iniciando sesión segura...</p>
+        </div>
+      </section>
+
+      <!-- Estado: Listo para escanear (antes ENROLLED) -->
+      <section id="state-ready-to-scan" class="state-view">
         <div class="enrolled-container">
           <div class="icon-container success">
             <svg class="icon-check" viewBox="0 0 24 24" width="60" height="60">
               <path fill="currentColor" d="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M11,16.5L6.5,12L7.91,10.59L11,13.67L16.59,8.09L18,9.5L11,16.5Z"/>
             </svg>
           </div>
-          <h2>Dispositivo registrado</h2>
+          <h2>Dispositivo listo</h2>
           <p>Puedes escanear el código QR cuando el profesor lo muestre</p>
           <button id="btn-start-scanner" class="btn primary large">
             Iniciar Escáner
@@ -88,6 +138,14 @@
           <button id="btn-stop-scanner" class="btn secondary">
             Cancelar
           </button>
+        </div>
+      </section>
+
+      <!-- Estado: Validando QR -->
+      <section id="state-validating" class="state-view">
+        <div class="validating-container">
+          <div class="spinner"></div>
+          <p>Verificando código QR...</p>
         </div>
       </section>
 

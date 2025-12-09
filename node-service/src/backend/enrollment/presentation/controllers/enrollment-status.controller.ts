@@ -1,5 +1,6 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import { GetEnrollmentStatusUseCase } from '../../application/use-cases';
+import { logger } from '../../../../shared/infrastructure/logger';
 
 /**
  * Controller para GET /api/enrollment/status
@@ -15,7 +16,7 @@ export class EnrollmentStatusController {
   constructor(private readonly useCase: GetEnrollmentStatusUseCase) {
     this.stubMode = process.env.ENROLLMENT_STUB_MODE === 'true';
     if (this.stubMode) {
-      console.log('[EnrollmentStatusController] ⚠️  STUB MODE ACTIVO - Enrollment siempre retorna enrolled');
+      logger.info('[EnrollmentStatusController] STUB MODE ACTIVO - Enrollment siempre retorna enrolled');
     }
   }
 
@@ -30,14 +31,14 @@ export class EnrollmentStatusController {
 
       // STUB MODE: Retornar siempre enrolled para desarrollo
       if (this.stubMode) {
-        console.log(`[EnrollmentStatusController] STUB: Usuario ${user.userId} → enrolled=true`);
+        logger.debug(`[EnrollmentStatusController] STUB: Usuario ${user.userId} → enrolled=true`);
         reply.code(200).send({
           success: true,
           enrollment: {
             isEnrolled: true,
             deviceCount: 1,
-            maxDevices: 5,
-            canEnrollMore: true,
+            maxDevices: 1, // Política 1:1
+            canEnrollMore: true, // Siempre puede (revoca anterior)
             devices: [{
               deviceId: 0,
               aaguid: 'stub-device',
@@ -73,7 +74,7 @@ export class EnrollmentStatusController {
         },
       });
     } catch (error) {
-      console.error('[EnrollmentStatusController] Error:', error);
+      logger.error('[EnrollmentStatusController] Error:', error);
       reply.code(500).send({
         error: 'INTERNAL_SERVER_ERROR',
         message: 'Error al obtener estado de enrollment',

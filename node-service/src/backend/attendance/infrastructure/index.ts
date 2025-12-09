@@ -4,15 +4,45 @@
  * Exporta repositorios y adapters del módulo.
  */
 
-// Repositories
-export { ActiveSessionRepository } from './active-session.repository';
-export { ProjectionPoolRepository, type PoolEntry } from './projection-pool.repository';
+// Repositories compartidos (Valkey) - re-exportar desde shared
+export { 
+  ActiveSessionRepository, 
+  ProjectionPoolRepository, 
+  type PoolEntry 
+} from '../../../shared/infrastructure/valkey';
+
+// Repositories locales (Valkey)
 export { 
   StudentSessionRepository, 
-  type StudentSessionState, 
+  type StudentSessionData,
   type RoundResult, 
   type SessionConfig 
 } from './student-session.repository';
+export {
+  FraudMetricsRepository,
+  type FraudType,
+  type FraudAttempt,
+  type FraudStats,
+} from './fraud-metrics.repository';
+
+// Repositories (PostgreSQL)
+export {
+  SessionRepository,
+  type SessionEntity,
+  type CreateSessionDTO,
+  type UpdateSessionDTO,
+  RegistrationRepository,
+  type RegistrationEntity,
+  type CreateRegistrationDTO,
+  type UpdateRegistrationStatusDTO,
+  ValidationRepository,
+  type ValidationEntity,
+  type CreateValidationDTO,
+  type CompleteValidationDTO,
+  ResultRepository,
+  type ResultEntity,
+  type CreateResultDTO,
+} from './repositories';
 
 // Adapters (para inversión de dependencias)
 export {

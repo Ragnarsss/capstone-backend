@@ -2,6 +2,7 @@ import type { FastifyRequest, FastifyReply } from 'fastify';
 import type { RegistrationResponseJSON } from '@simplewebauthn/types';
 import { FinishEnrollmentUseCase } from '../../application/use-cases';
 import type { FinishEnrollmentInput } from '../../application/use-cases';
+import { logger } from '../../../../shared/infrastructure/logger';
 
 /**
  * DTO para request de finish enrollment
@@ -101,7 +102,7 @@ export class FinishEnrollmentController {
       }
 
       // Error genérico
-      console.error('[FinishEnrollmentController] Error:', error);
+      logger.error('[FinishEnrollmentController] Error:', error);
       reply.code(500).send({
         error: 'INTERNAL_SERVER_ERROR',
         message: 'Error al completar enrollment',

@@ -1,4 +1,5 @@
-import { ValkeyClient } from '../../../shared/infrastructure/valkey/valkey-client';
+import { ValkeyClient } from './valkey-client';
+import { logger } from '../logger';
 
 /**
  * Entrada del pool de proyección
@@ -24,6 +25,12 @@ export interface PoolEntry {
  * 
  * Responsabilidad: Gestionar la lista de QRs que el proyector debe ciclar
  * 
+ * NOTA: Este repositorio es COMPARTIDO entre módulos:
+ * - qr-projection: Emite QRs del pool via QREmitter
+ * - attendance: Registra QRs de estudiantes via ParticipationService
+ * 
+ * Por eso vive en shared/infrastructure/valkey/
+ * 
  * Claves en Valkey:
  * - pool:session:{sessionId} → LIST de PoolEntry (JSON)
  * - pool:index:{sessionId} → Índice actual del ciclo
@@ -45,7 +52,7 @@ export class ProjectionPoolRepository {
     await this.client.rpush(key, JSON.stringify(entry));
     await this.client.expire(key, this.poolTTL);
     
-    console.log(`[ProjectionPool] Added ${entry.isFake ? 'FAKE' : 'student=' + entry.studentId} to pool session=${sessionId.substring(0, 8)}...`);
+    logger.debug(`[ProjectionPool] Added ${entry.isFake ? 'FAKE' : 'student=' + entry.studentId} to pool session=${sessionId.substring(0, 8)}...`);
   }
 
   /**
@@ -100,7 +107,7 @@ export class ProjectionPoolRepository {
     // Reescribir el pool
     await this.rewritePool(sessionId, entries);
     
-    console.log(`[ProjectionPool] Upserted student=${studentId} round=${round} in session=${sessionId.substring(0, 8)}...`);
+    logger.debug(`[ProjectionPool] Upserted student=${studentId} round=${round} in session=${sessionId.substring(0, 8)}...`);
     return entryId;
   }
 
@@ -115,7 +122,7 @@ export class ProjectionPoolRepository {
       try {
         return JSON.parse(item) as PoolEntry;
       } catch {
-        console.error('[ProjectionPool] Error parsing entry:', item);
+        logger.error('[ProjectionPool] Error parsing entry:', item);
         return null;
       }
     }).filter((e): e is PoolEntry => e !== null);
@@ -176,7 +183,31 @@ export class ProjectionPoolRepository {
       await this.addToPool(sessionId, entry);
     }
     
-    console.log(`[ProjectionPool] Added ${count} fake QRs to session=${sessionId.substring(0, 8)}...`);
+    logger.debug(`[ProjectionPool] Added ${count} fake QRs to session=${sessionId.substring(0, 8)}...`);
+  }
+
+  /**
+   * Remueve QRs falsos del pool
+   * @param count Cantidad de QRs falsos a remover
+   * @returns Cantidad efectivamente removida
+   */
+  async removeFakeQRs(sessionId: string, count: number): Promise<number> {
+    const entries = await this.getAllEntries(sessionId);
+    const fakes = entries.filter(e => e.isFake);
+    
+    const toRemove = Math.min(count, fakes.length);
+    if (toRemove === 0) {
+      return 0;
+    }
+
+    // Remover los primeros N falsos
+    const idsToRemove = new Set(fakes.slice(0, toRemove).map(e => e.id));
+    const remaining = entries.filter(e => !idsToRemove.has(e.id));
+
+    await this.rewritePool(sessionId, remaining);
+    
+    logger.debug(`[ProjectionPool] Removed ${toRemove} fake QRs from session=${sessionId.substring(0, 8)}...`);
+    return toRemove;
   }
 
   /**

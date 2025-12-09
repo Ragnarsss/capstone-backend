@@ -8,6 +8,8 @@
 export interface ResponseTimeStats {
   avg: number;
   stdDev: number;
+  min: number;
+  max: number;
   certainty: number;
 }
 
@@ -19,10 +21,12 @@ export interface ResponseTimeStats {
  */
 export function calculateStats(responseTimes: number[]): ResponseTimeStats {
   if (responseTimes.length === 0) {
-    return { avg: 0, stdDev: 0, certainty: 0 };
+    return { avg: 0, stdDev: 0, min: 0, max: 0, certainty: 0 };
   }
 
   const avg = responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length;
+  const min = Math.min(...responseTimes);
+  const max = Math.max(...responseTimes);
 
   const squaredDiffs = responseTimes.map(rt => Math.pow(rt - avg, 2));
   const variance = squaredDiffs.reduce((a, b) => a + b, 0) / responseTimes.length;
@@ -33,6 +37,8 @@ export function calculateStats(responseTimes: number[]): ResponseTimeStats {
   return {
     avg: Math.round(avg),
     stdDev: Math.round(stdDev),
+    min: Math.round(min),
+    max: Math.round(max),
     certainty,
   };
 }

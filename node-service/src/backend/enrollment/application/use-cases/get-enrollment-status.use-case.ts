@@ -33,14 +33,19 @@ export interface GetEnrollmentStatusOutput {
 /**
  * Use Case: Obtener estado de enrollment de un usuario
  * 
+ * Política 1:1:
+ * - maxDevices = 1 (un dispositivo por usuario)
+ * - canEnrollMore = true siempre (el nuevo revocará el anterior)
+ * 
  * Retorna:
  * - Si el usuario tiene dispositivos enrolados
- * - Cantidad de dispositivos
- * - Si puede enrolar más
+ * - Cantidad de dispositivos (0 o 1 con política 1:1)
+ * - Si puede enrolar más (siempre true, se auto-revoca)
  * - Lista de dispositivos con metadata básica
  */
 export class GetEnrollmentStatusUseCase {
-  private readonly MAX_DEVICES = 5;
+  /** Política 1:1: máximo 1 dispositivo por usuario */
+  private readonly MAX_DEVICES = 1;
 
   constructor(private readonly deviceRepository: DeviceRepository) {}
 
@@ -63,7 +68,8 @@ export class GetEnrollmentStatusUseCase {
       isEnrolled: devices.length > 0,
       deviceCount: devices.length,
       maxDevices: this.MAX_DEVICES,
-      canEnrollMore: devices.length < this.MAX_DEVICES,
+      // Con política 1:1, siempre puede enrolar (el nuevo revoca el anterior)
+      canEnrollMore: true,
       devices: deviceInfos,
     };
   }

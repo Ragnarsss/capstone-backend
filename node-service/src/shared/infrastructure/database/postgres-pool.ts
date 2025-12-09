@@ -1,5 +1,6 @@
 import { Pool, PoolConfig, PoolClient, QueryResult, QueryResultRow } from 'pg';
 import { config } from '../../config';
+import { logger } from '../logger';
 
 /**
  * Pool de conexiones PostgreSQL
@@ -35,15 +36,15 @@ export class PostgresPool {
 
   private setupEventHandlers(): void {
     this.pool.on('connect', () => {
-      console.log('[PostgreSQL] Nueva conexión establecida');
+      logger.debug('[PostgreSQL] Nueva conexión establecida');
     });
 
     this.pool.on('error', (error: Error) => {
-      console.error('[PostgreSQL] Error en conexión idle:', error);
+      logger.error('[PostgreSQL] Error en conexión idle:', error);
     });
 
     this.pool.on('remove', () => {
-      console.log('[PostgreSQL] Conexión removida del pool');
+      logger.debug('[PostgreSQL] Conexión removida del pool');
     });
   }
 
@@ -96,7 +97,7 @@ export class PostgresPool {
    */
   async close(): Promise<void> {
     await this.pool.end();
-    console.log('[PostgreSQL] Pool cerrado');
+    logger.info('[PostgreSQL] Pool cerrado');
   }
 
   /**

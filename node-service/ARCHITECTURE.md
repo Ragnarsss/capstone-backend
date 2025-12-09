@@ -9,19 +9,25 @@ Esta aplicacion sigue principios estrictos de separacion de responsabilidades pa
 ```
 node-service/
 ├── src/
-│   ├── modules/              # Modulos de dominio backend (DDD)
+│   ├── backend/              # Modulos de dominio backend (DDD)
 │   │   ├── qr-projection/    # Logica de proyeccion de QR via WebSocket
-│   │   └── enrollment/       # Logica de enrollment
+│   │   ├── attendance/       # Logica de asistencia y validacion
+│   │   ├── enrollment/       # Logica de enrollment FIDO2
+│   │   └── auth/             # JWT utils compartidos
 │   ├── plugins/              # Plugins de Fastify (concerns transversales)
 │   │   └── frontend-plugin.ts
 │   ├── frontend/             # Aplicacion frontend (cliente)
-│   │   ├── app/              # Bootstrap del frontend
-│   │   ├── modules/          # Modulos frontend (auth, websocket, qr)
-│   │   └── shared/           # Utilidades compartidas frontend
+│   │   ├── features/         # Modulos frontend (enrollment, qr-host, etc)
+│   │   ├── shared/           # Utilidades compartidas frontend
+│   │   └── types/            # Tipos TypeScript
 │   ├── shared/               # Infraestructura compartida backend
 │   │   ├── config/           # Configuracion centralizada
-│   │   ├── infrastructure/   # Clientes (Valkey, etc)
+│   │   ├── infrastructure/   # Clientes y repos compartidos
+│   │   │   ├── valkey/       # ValkeyClient, ProjectionPoolRepository, ActiveSessionRepository
+│   │   │   ├── database/     # PostgreSQL pool
+│   │   │   └── crypto/       # AesGcmService
 │   │   └── types/            # Tipos compartidos
+│   ├── middleware/           # Middlewares Fastify
 │   ├── app.ts                # Composicion de aplicacion (SOLO backend)
 │   └── index.ts              # Entry point
 ├── vite.config.ts            # Configuracion Vite (SOLO frontend)
@@ -30,17 +36,52 @@ node-service/
 
 ## Capas y Responsabilidades
 
-### 1. Modulos Backend (`src/modules/`)
+### 1. Modulos Backend (`src/backend/`)
 
 Organizados siguiendo Domain-Driven Design (DDD):
 
 ```
-modules/
-└── qr-projection/
-    ├── domain/          # Entidades, value objects, reglas de negocio
-    ├── application/     # Casos de uso, servicios de aplicacion
-    ├── infrastructure/  # Implementaciones concretas (DB, cache)
-    └── presentation/    # Controllers (HTTP, WebSocket)
+backend/
+├── qr-projection/
+│   ├── domain/              # Entidades, value objects, reglas de negocio
+│   │   ├── models.ts        # QRPayload, QRPayloadEnvelope, etc
+│   │   ├── session-id.ts    # Value Object para IDs de sesion
+│   │   ├── qr-generator.ts  # Generador de payloads (legacy)
+│   │   └── services/
+│   │       └── payload-builder.service.ts  # Servicio puro de dominio
+│   ├── application/         # Casos de uso, servicios de aplicacion
+│   │   ├── qr-projection.service.ts        # Orquestador principal
+│   │   └── services/
+│   │       ├── pool-feeder.service.ts      # Alimenta pool con QRs de estudiantes
+│   │       ├── pool-balancer.service.ts    # Balancea pool con QRs falsos
+│   │       └── qr-emitter.service.ts       # Emite QRs a intervalos
+│   ├── infrastructure/      # Implementaciones concretas (DB, cache)
+│   └── presentation/        # Controllers (HTTP, WebSocket)
+│       └── websocket-controller.ts
+├── attendance/
+│   ├── domain/              # Modelos de asistencia
+│   ├── application/         # ParticipationService, ValidateScanUseCase
+│   ├── infrastructure/      # Adapters, repositorios locales
+│   └── presentation/        # Rutas HTTP
+└── enrollment/
+    ├── domain/              # FIDO2, ECDH
+    ├── application/         # Casos de uso enrollment
+    ├── infrastructure/      # Crypto services, DB repos
+    └── presentation/        # Rutas enrollment
+```
+
+**Patron de Servicios (Fase 10):**
+
+```
+QRProjectionService (Orquestador)
+    │
+    ├── PoolBalancer        ─── Mantiene pool con tamaño mínimo (QRs falsos)
+    │       │
+    │       └── PayloadBuilder  ─── Genera payloads (dominio puro)
+    │
+    └── QREmitter           ─── Emite QRs del pool via callback
+            │
+            └── ProjectionPoolRepository ─── Storage en Valkey
 ```
 
 **Responsabilidad:** Logica de negocio UNICAMENTE backend.
@@ -292,19 +333,56 @@ npm start        # Ejecuta dist/index.js
 Para extender esta arquitectura:
 
 1. **Agregar nuevo modulo backend:**
-   - Crear en `src/modules/nuevo-modulo/`
+   - Crear en `src/backend/nuevo-modulo/`
    - Seguir estructura DDD (domain, application, infrastructure, presentation)
    - Registrar controller en `src/app.ts`
 
 2. **Agregar nuevo modulo frontend:**
-   - Crear en `src/frontend/modules/nuevo-modulo/`
-   - Importar en `src/frontend/app/main.ts`
-   - Seguir patron de componentes
+   - Crear en `src/frontend/features/nuevo-modulo/`
+   - Seguir patron de componentes con services
 
 3. **Agregar nuevo plugin:**
    - Crear en `src/plugins/nuevo-plugin.ts`
    - Registrar en `src/app.ts`
    - Documentar responsabilidad
+
+4. **Agregar servicio compartido:**
+   - Crear en `src/shared/infrastructure/`
+   - Exportar desde barrel (index.ts)
+   - Documentar por que es compartido
+
+## Glosario de Servicios
+
+### QR Projection Module
+
+| Servicio | Capa | Responsabilidad |
+|----------|------|-----------------|
+| `PayloadBuilder` | Domain | Construir QRPayloadV1 (puro, sin side effects) |
+| `PoolFeeder` | Application | Alimentar pool con QRs de estudiantes |
+| `PoolBalancer` | Application | Mantener pool con tamaño mínimo usando fakes |
+| `QREmitter` | Application | Emitir QRs a intervalos regulares |
+| `QRProjectionService` | Application | Orquestar ciclo de vida de proyección |
+| `WebSocketController` | Presentation | Manejar conexiones WebSocket |
+
+### Attendance Module
+
+| Servicio | Capa | Responsabilidad |
+|----------|------|-----------------|
+| `ParticipationService` | Application | Registrar estudiantes, generar QRs |
+| `ValidateScanUseCase` | Application | Validar QRs escaneados |
+| `CompleteScanUseCase` | Application | Completar escaneo y persistir |
+
+> **Nota**: `FakeQRGenerator` fue eliminado en Fase 11-9. Usar `PoolBalancer` de qr-projection.
+
+### Shared Infrastructure
+
+| Componente | Ubicación | Responsabilidad |
+|------------|-----------|-----------------|
+| `ValkeyClient` | shared/infrastructure/valkey | Cliente Redis singleton |
+| `ProjectionPoolRepository` | shared/infrastructure/valkey | Pool de QRs para proyección |
+| `ActiveSessionRepository` | shared/infrastructure/valkey | Sesión activa global |
+| `AesGcmService` | shared/infrastructure/crypto | Encriptación AES-256-GCM |
+| `PostgresPool` | shared/infrastructure/database | Pool de conexiones PostgreSQL |
 
 ## Referencias
 

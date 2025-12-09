@@ -1,6 +1,7 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import { LoginEcdhUseCase } from '../../application/use-cases';
 import type { LoginEcdhInput } from '../../application/use-cases';
+import { logger } from '../../../../shared/infrastructure/logger';
 
 /**
  * DTO para request de login ECDH
@@ -8,7 +9,6 @@ import type { LoginEcdhInput } from '../../application/use-cases';
 interface LoginEcdhRequestDTO {
   credentialId: string;
   clientPublicKey: string; // Base64
-  assertion?: unknown; // WebAuthn assertion opcional
 }
 
 /**
@@ -31,7 +31,7 @@ export class LoginEcdhController {
       }
 
       // Validar body
-      const { credentialId, clientPublicKey, assertion } = request.body;
+      const { credentialId, clientPublicKey } = request.body;
       if (!credentialId || !clientPublicKey) {
         reply.code(400).send({
           error: 'INVALID_REQUEST',
@@ -45,7 +45,6 @@ export class LoginEcdhController {
         userId: user.userId.toNumber(),
         credentialId,
         clientPublicKey,
-        assertion: assertion as LoginEcdhInput['assertion'],
       };
 
       // Ejecutar use case
@@ -87,18 +86,10 @@ export class LoginEcdhController {
           });
           return;
         }
-
-        if (error.message.startsWith('ASSERTION_FAILED')) {
-          reply.code(401).send({
-            error: 'ASSERTION_FAILED',
-            message: 'La verificación de WebAuthn falló',
-          });
-          return;
-        }
       }
 
       // Error genérico
-      console.error('[LoginEcdhController] Error:', error);
+      logger.error('[LoginEcdhController] Error:', error);
       reply.code(500).send({
         error: 'INTERNAL_SERVER_ERROR',
         message: 'Error al establecer sesión',

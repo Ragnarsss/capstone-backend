@@ -190,18 +190,6 @@ export function mapValidationError(error: ValidationError): ErrorResponse {
 }
 
 /**
- * Mapea un código de error legacy a una respuesta HTTP
- * (Para compatibilidad con el service antiguo)
- */
-export function mapLegacyErrorCode(reason?: string): ErrorResponse {
-  if (!reason) {
-    return DEFAULT_ERROR;
-  }
-
-  return ERROR_MAP[reason] ?? DEFAULT_ERROR;
-}
-
-/**
  * Crea una respuesta de error para Fastify
  */
 export function createErrorReply(error: ValidationError) {

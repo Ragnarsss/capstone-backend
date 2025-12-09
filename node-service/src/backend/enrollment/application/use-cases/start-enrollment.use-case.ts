@@ -26,13 +26,17 @@ export interface StartEnrollmentOutput {
 /**
  * Use Case: Iniciar proceso de enrollment FIDO2
  * 
+ * Política 1:1 estricta:
+ * - 1 usuario = máximo 1 dispositivo activo
+ * - No bloqueamos el enrollment si ya tiene dispositivo (se revocará en finish)
+ * - Penalizaciones aplican por cada re-enrollment
+ * 
  * Flujo:
  * 1. Verificar penalización (delays exponenciales)
- * 2. Verificar que el usuario no tenga el máximo de dispositivos
- * 3. Obtener dispositivos existentes (para excludeCredentials)
- * 4. Generar challenge y opciones WebAuthn
- * 5. Guardar challenge en Valkey con TTL 5 minutos
- * 6. Retornar opciones para navigator.credentials.create()
+ * 2. Obtener dispositivos existentes (para excludeCredentials - evitar re-register del mismo)
+ * 3. Generar challenge y opciones WebAuthn
+ * 4. Guardar challenge en Valkey con TTL 5 minutos
+ * 5. Retornar opciones para navigator.credentials.create()
  */
 export class StartEnrollmentUseCase {
   constructor(
@@ -64,13 +68,9 @@ export class StartEnrollmentUseCase {
       };
     }
 
-    // 2. Verificar límite de dispositivos (máximo 5 por usuario)
-    const deviceCount = await this.deviceRepository.countByUserId(userId);
-    if (deviceCount >= 5) {
-      throw new Error('MAX_DEVICES_REACHED: El usuario ya tiene 5 dispositivos enrolados');
-    }
-
     // 2. Obtener dispositivos existentes para excludeCredentials
+    // Nota: Con política 1:1, esto normalmente será 0-1 dispositivos
+    // excludeCredentials evita que el MISMO dispositivo se re-registre (error WebAuthn)
     const existingDevices = await this.deviceRepository.findByUserId(userId);
     const existingCredentials = existingDevices.map((device: Device) => ({
       credentialId: device.credentialId,

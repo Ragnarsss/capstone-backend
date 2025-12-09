@@ -10,6 +10,7 @@ import type { FastifyInstance, FastifyError, FastifyRequest, FastifyReply } from
 import { AppError, isAppError, isOperationalError } from './errors/app-error';
 import { sendErrorResponse } from './errors/error-formatter';
 import { config } from '../shared/config/index.js';
+import { logger } from '../shared/infrastructure/logger';
 
 /**
  * Registra el error handler global de Fastify
@@ -24,7 +25,7 @@ export function errorHandlerMiddleware(fastify: FastifyInstance): void {
     if (!isOperationalError(error)) {
       // En producción, alertar al equipo (aquí podrías integrar con Sentry, etc.)
       if (config.env.isProduction) {
-        console.error('[CRITICAL] Non-operational error:', {
+        logger.error('[CRITICAL] Non-operational error:', {
           message: error.message,
           stack: error.stack,
           url: request.url,
@@ -143,8 +144,8 @@ function logError(error: Error, request: FastifyRequest): void {
 export function setupGlobalErrorHandlers(): void {
   // Capturar excepciones no manejadas
   process.on('uncaughtException', (error: Error) => {
-    console.error('[FATAL] Uncaught Exception:', error);
-    console.error(error.stack);
+    logger.error('[FATAL] Uncaught Exception:', error);
+    logger.error(error.stack);
     
     // En producción, dar tiempo para flush de logs antes de salir
     if (config.env.isProduction) {
@@ -158,11 +159,11 @@ export function setupGlobalErrorHandlers(): void {
 
   // Capturar promesas rechazadas no manejadas
   process.on('unhandledRejection', (reason: unknown, promise: Promise<unknown>) => {
-    console.error('[FATAL] Unhandled Rejection at:', promise);
-    console.error('Reason:', reason);
+    logger.error('[FATAL] Unhandled Rejection at:', promise);
+    logger.error('Reason:', reason);
     
     if (reason instanceof Error) {
-      console.error(reason.stack);
+      logger.error(reason.stack);
     }
     
     // En desarrollo, no matar el proceso para facilitar debugging
@@ -177,7 +178,7 @@ export function setupGlobalErrorHandlers(): void {
   const signals: NodeJS.Signals[] = ['SIGTERM', 'SIGINT'];
   signals.forEach((signal) => {
     process.on(signal, () => {
-      console.log(`[Server] Received ${signal}, shutting down gracefully`);
+      logger.info(`[Server] Received ${signal}, shutting down gracefully`);
       // El shutdown graceful se maneja en app.ts
     });
   });

@@ -1,0 +1,81 @@
+{
+  "semestres": [
+    {
+      "id": 5,
+      "nombre": "2025-1",
+      "activo": true
+    }
+  ],
+  "cursos": [
+    {
+      "id": 429,
+      "nombre": "Programacion Avanzada",
+      "codigo": "ECIN-00360",
+      "seccion": "1",
+      "semestre_id": 5,
+      "profesor_id": 1
+    },
+    {
+      "id": 430,
+      "nombre": "Bases de Datos",
+      "codigo": "ECIN-00250",
+      "seccion": "1",
+      "semestre_id": 5,
+      "profesor_id": 1
+    },
+    {
+      "id": 431,
+      "nombre": "Ingenieria de Software",
+      "codigo": "ECIN-00370",
+      "seccion": "1",
+      "semestre_id": 5,
+      "profesor_id": 2
+    }
+  ],
+  "bloques": [
+    {
+      "id": 1,
+      "nombre": "1-2",
+      "horario": "08:00 - 09:30",
+      "minuto_inicio": 480,
+      "minuto_termino": 570
+    },
+    {
+      "id": 2,
+      "nombre": "3-4",
+      "horario": "09:40 - 11:10",
+      "minuto_inicio": 580,
+      "minuto_termino": 670
+    },
+    {
+      "id": 3,
+      "nombre": "5-6",
+      "horario": "11:20 - 12:50",
+      "minuto_inicio": 680,
+      "minuto_termino": 770
+    },
+    {
+      "id": 4,
+      "nombre": "7-8",
+      "horario": "14:00 - 15:30",
+      "minuto_inicio": 840,
+      "minuto_termino": 930
+    },
+    {
+      "id": 5,
+      "nombre": "9-10",
+      "horario": "15:40 - 17:10",
+      "minuto_inicio": 940,
+      "minuto_termino": 1030
+    }
+  ],
+  "inscripciones": [
+    {"curso_id": 429, "alumno_rut": "186875052"},
+    {"curso_id": 429, "alumno_rut": "187654321"},
+    {"curso_id": 429, "alumno_rut": "189012345"},
+    {"curso_id": 430, "alumno_rut": "186875052"},
+    {"curso_id": 430, "alumno_rut": "190123456"},
+    {"curso_id": 431, "alumno_rut": "187654321"},
+    {"curso_id": 431, "alumno_rut": "191234567"}
+  ]
+}

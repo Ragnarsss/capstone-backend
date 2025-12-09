@@ -3,6 +3,7 @@ import fastifyWebSocket from '@fastify/websocket';
 import { config } from './shared/config';
 import { ValkeyClient } from './shared/infrastructure/valkey/valkey-client';
 import { PostgresPool } from './shared/infrastructure/database';
+import { logger } from './shared/infrastructure/logger';
 import {
   securityHeadersMiddleware,
   corsMiddleware,
@@ -17,8 +18,6 @@ import { registerAttendanceRoutes } from './backend/attendance/presentation/rout
 import { frontendPlugin } from './plugins/frontend-plugin';
 import { JWTUtils } from './backend/auth/domain/jwt-utils';
 import { QRProjectionService } from './backend/qr-projection/application/qr-projection.service';
-import { QRMetadataRepository } from './backend/qr-projection/infrastructure/qr-metadata.repository';
-import { ProjectionQueueRepository } from './backend/qr-projection/infrastructure/projection-queue.repository';
 
 /**
  * Application Bootstrap
@@ -48,10 +47,10 @@ export async function createApp() {
   const postgresPool = PostgresPool.getInstance();
   const isPostgresHealthy = await postgresPool.ping();
   if (!isPostgresHealthy) {
-    console.error('[PostgreSQL] No se pudo conectar a la base de datos');
+    logger.error('[PostgreSQL] No se pudo conectar a la base de datos');
     throw new Error('PostgreSQL connection failed');
   }
-  console.log('[PostgreSQL] Conectado exitosamente');
+  logger.info('[PostgreSQL] Conectado exitosamente');
 
   // ========================================
   // 2. MIDDLEWARES GLOBALES
@@ -76,15 +75,9 @@ export async function createApp() {
   // Crear instancias de servicios compartidos con configuración inyectada
   const jwtUtils = new JWTUtils(config.jwt);
 
-  // QR Projection repositories
-  const qrMetadataRepository = new QRMetadataRepository();
-  const projectionQueueRepository = new ProjectionQueueRepository();
-
-  const qrProjectionService = new QRProjectionService(
-    config.qr,
-    qrMetadataRepository,
-    projectionQueueRepository
-  );
+  // QR Projection - ahora usa constructor simplificado
+  // Los servicios internos (PoolBalancer, QREmitter) se crean con defaults
+  const qrProjectionService = new QRProjectionService(config.qr);
   const wsAuthMiddleware = new WebSocketAuthMiddleware(jwtUtils, 5000);
 
   // ========================================
@@ -118,7 +111,7 @@ export async function createApp() {
   const signals = ['SIGINT', 'SIGTERM'];
   signals.forEach((signal) => {
     process.on(signal, async () => {
-      console.log(`[Server] Recibido ${signal}, cerrando...`);
+      logger.info(`[Server] Recibido ${signal}, cerrando...`);
       await valkeyClient.close();
       await postgresPool.close();
       await fastify.close();
@@ -137,9 +130,9 @@ export async function startServer() {
       host: config.server.host,
       port: config.server.port,
     });
-    console.log(`[Server] Corriendo en http://${config.server.host}:${config.server.port}`);
+    logger.info(`[Server] Corriendo en http://${config.server.host}:${config.server.port}`);
   } catch (error) {
-    console.error('[Server] Error al iniciar:', error);
+    logger.error('[Server] Error al iniciar:', error);
     process.exit(1);
   }
 }

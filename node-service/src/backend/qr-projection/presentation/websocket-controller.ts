@@ -4,7 +4,8 @@ import { QRProjectionService, type ProjectionCallbacks, type ProjectionContext }
 import type { CountdownMessageDTO, QRUpdateMessageDTO } from './types';
 import { WebSocketAuthMiddleware } from '../../../middleware';
 import type { AuthenticatedUser } from '../../auth/domain/models';
-import { ActiveSessionRepository } from '../../attendance/infrastructure/active-session.repository';
+import { ActiveSessionRepository } from '../../../shared/infrastructure/valkey';
+import { logger } from '../../../shared/infrastructure/logger';
 
 /**
  * WebSocket Controller para QR Projection
@@ -29,14 +30,14 @@ export class WebSocketController {
   private async handleConnection(socket: WebSocket, req: any): Promise<void> {
     let isClosed = false;
 
-    console.log('[WebSocket] Nueva conexión, esperando autenticación...');
+    logger.debug('[WebSocket] Nueva conexión, esperando autenticación...');
 
     // Autenticar usando el middleware
     const authResult = await this.authMiddleware.authenticate(socket);
 
     // Si la autenticación falla, el middleware ya cerró la conexión
     if (!authResult.success || !authResult.user) {
-      console.log('[WebSocket] Autenticación fallida, conexión terminada');
+      logger.debug('[WebSocket] Autenticación fallida, conexión terminada');
       return;
     }
 
@@ -51,7 +52,7 @@ export class WebSocketController {
     // Generar sessionId
     const sessionId = this.service.generateSessionId();
     const sessionIdStr = sessionId.toString();
-    console.log(`[WebSocket] Iniciando proyección para sesión: ${sessionIdStr}, usuario: ${user.username} (ID: ${user.userId})`);
+    logger.debug(`[WebSocket] Iniciando proyección para sesión: ${sessionIdStr}, usuario: ${user.username} (ID: ${user.userId})`);
 
     // Registrar como sesión activa global
     await this.activeSessionRepo.setActiveSession({
@@ -67,7 +68,7 @@ export class WebSocketController {
       this.service.stopProjection(sessionId);
       // Limpiar sesión activa
       this.activeSessionRepo.clearActiveSession(sessionIdStr);
-      console.log(`[WebSocket] Conexión cerrada: ${user.username}`);
+      logger.debug(`[WebSocket] Conexión cerrada: ${user.username}`);
     });
 
     socket.on('error', (error) => {
@@ -75,7 +76,7 @@ export class WebSocketController {
       this.service.stopProjection(sessionId);
       // Limpiar sesión activa
       this.activeSessionRepo.clearActiveSession(sessionIdStr);
-      console.error('[WebSocket] Error en socket:', error);
+      logger.error('[WebSocket] Error en socket:', error);
     });
 
     // Handler para mensajes post-autenticación
@@ -84,9 +85,9 @@ export class WebSocketController {
         const msg = JSON.parse(data.toString());
         // Por ahora la proyección es unidireccional (servidor → cliente)
         // Pero aquí se pueden manejar comandos futuros como 'pause', 'resume', etc.
-        console.log(`[WebSocket] Mensaje de ${user.username}:`, msg.type);
+        logger.debug(`[WebSocket] Mensaje de ${user.username}:`, msg.type);
       } catch (error) {
-        console.error('[WebSocket] Error procesando mensaje:', error);
+        logger.error('[WebSocket] Error procesando mensaje:', error);
       }
     });
 

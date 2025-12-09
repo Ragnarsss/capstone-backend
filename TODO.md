@@ -1,205 +1,248 @@
 # TODO - Sistema de Asistencia con QR Dinamico
 
-> Ultima actualizacion: 2025-12-02
+> Ultima actualizacion: 2025-12-09
 
 ---
 
 ## Fases Completadas
 
-### Fases 1-5: Fundamentos
-- [x] Estructura base del proyecto
-- [x] Configuracion de contenedores (Podman)
-- [x] Integracion PHP/Node.js
-- [x] Generacion de QR dinamicos con AES-256-GCM
-- [x] Validacion basica de asistencia
+### Fases 1-5: Fundamentos ✅
+Estructura base, contenedores Podman, integracion PHP/Node.js, QR dinamicos AES-256-GCM, validacion basica.
 
-### Fase 6: Arquitectura y Refactorizacion
+### Fase 6: Arquitectura y Refactorizacion ✅
+SessionService, Round-Aware System, Multi-Salon, Validation Pipeline (10 stages), 20 tests unitarios.
 
-#### 6.1: Manejo de Sesiones
-- [x] SessionService para ciclo de vida de sesiones
-- [x] Endpoints /api/session/start y /api/session/end
-- [x] Propagacion de eventos via WebSocket
+### Fase 7: Persistencia PostgreSQL ✅
+SessionRepository, ValidationRepository, RegistrationRepository, ResultRepository, integracion con CompleteScanUseCase.
 
-#### 6.2: Round-Aware System
-- [x] Sistema multi-salon con rounds independientes
-- [x] Maquina de estados para control de rounds
-- [x] Gestion concurrente de multiples sesiones
+### Fase 8: QRs Falsos y Metricas de Fraude ✅
+PoolBalancer con fakes, FraudMetricsRepository, dev endpoints, 15 tests de integracion.
 
-#### 6.3: Sistema Multi-Salon
-- [x] RoomSessionStore con RoomRoundTracker
-- [x] Validacion de freshness del QR por salon
-- [x] Estadisticas y eventos segregados por room
+### Fase 9: Enrollment FIDO2 + ECDH ✅
+FIDO2Service, ECDHService, HkdfService, UseCases, Frontend UI, session_key, Frontend Guest (SoC), Politica 1:1 Enrollment.
 
-#### 6.4: Validation Pipeline
-- [x] Patron Pipeline con 10 stages especializados
-- [x] ValidateScanUseCase (validacion pura)
-- [x] CompleteScanUseCase (validacion + side effects)
-- [x] StatsCalculator, ErrorMapper, 3 Adapters
-- [x] 20 tests unitarios para stages
-- [x] Eliminacion de AttendanceValidationService (415 lineas legacy)
+### Fase 10: Refactoring Proyeccion QR (SoC) ✅
+PayloadBuilder, PoolFeeder, PoolBalancer, QREmitter, QRProjectionService como orquestador, repos en shared/.
+
+### Fase 11: Desacoplamiento SoC y Patrones de Dominio ✅
+QRPayloadV1 en shared/types, validador centralizado, interfaces IQRGenerator/IPoolBalancer/IQRPayloadRepository, constantes centralizadas, entidad StudentSession, Pipeline Factory, eliminacion de codigo deprecado.
+
+### Fase 13: Control de Logs por Entorno ✅
+Logger centralizado (`shared/infrastructure/logger.ts`), logs debug/info solo en desarrollo, vite drop console en produccion, migracion de ~25 archivos backend a logger, test-fase13.sh.
 
 ---
 
 ## Fases Pendientes
 
-### Fase 7: Persistencia PostgreSQL
-
-**Rama:** `fase-7-persistencia-postgresql`  
-**Estimado:** 6-8 horas
-
-#### 7.1 - SessionRepository
-- [ ] Crear SessionRepository con CRUD
-- [ ] Metodos: saveSession, getSession, updateSession
-- [ ] Test manual: insertar/leer sesion
-
-#### 7.2 - ValidationRepository
-- [ ] Crear ValidationRepository
-- [ ] Metodos: saveValidation, getValidationsByStudent
-- [ ] Test manual: insertar validacion, consultar historial
-
-#### 7.3 - ResultRepository
-- [ ] Crear ResultRepository
-- [ ] Metodos: saveResult, getResultsBySession
-- [ ] Test manual: completar flujo, verificar en DB
-
-#### 7.4 - Integracion con CompleteScanUseCase
-- [ ] Inyectar repositorios en usecase
-- [ ] Persistir validacion exitosa
-- [ ] Persistir resultado cuando isComplete=true
-
-#### 7.5 - Script test-fase7.sh
-- [ ] Verificar conexion PostgreSQL
-- [ ] Test insercion/lectura
-- [ ] Test flujo completo con persistencia
+> **Arquitectura:** Vertical Slicing + Clean Architecture (Ports & Adapters)
+> **Referencia:** `documents/01-contexto/flujo_legacy.md`, `roseta.md`
 
 ---
 
-### Fase 8: QRs Falsos Mejorados
+## Fase 12: Simulador de Desarrollo PHP
 
-**Rama:** `fase-8-qrs-falsos`  
-**Estimado:** 2-4 horas
-
-#### 8.1 - FakeQRGenerator
-- [ ] Generar N QRs con formato valido pero clave invalida
-- [ ] Configurar ratio real:falsos (ej: 1:5)
-- [ ] Test manual: verificar indescifrables
-
-#### 8.2 - Integracion con Pool
-- [ ] Metodo addFakeQRs(sessionId, count)
-- [ ] Mezclar falsos con reales en pool
-- [ ] Test manual: verificar pool mixto
-
-#### 8.3 - Metricas de Fraude
-- [ ] Contador de intentos con QR invalido
-- [ ] Log de deteccion de intentos fraudulentos
-
-#### 8.4 - Script test-fase8.sh
-- [ ] Verificar generacion de falsos
-- [ ] Verificar mezcla en pool
-- [ ] Verificar logs de fraude
+**Objetivo:** Emular el sistema Hawaii para probar flujos sin servidor real
+**Ubicacion:** `php-service/src/dev-simulator/` (NO va a produccion)
+**Estimado:** 4.5 horas
 
 ---
 
-### Fase 9: Enrollment FIDO2 + ECDH
+### Fase 12.0: Estructura Base del Simulador
+**Tiempo:** 30 min
 
-**Rama:** `fase-9-enrollment-fido2`  
-**Estimado:** 12-16 horas
+- [ ] Crear `php-service/src/dev-simulator/`
+- [ ] Crear `dev-simulator/index.php` (landing con links)
+- [ ] Crear `dev-simulator/functions.php` (stubs de db.inc: `is_logged_in`, `get_usuario_actual`, etc.)
+- [ ] Agregar ruta `/dev-simulator/` en Apache config
+- [ ] Script: `test-fase12-0.sh`
 
-#### 9.1 - FIDO2Service
-- [ ] Instalar @simplewebauthn/server
-- [ ] generateRegistrationOptions()
-- [ ] verifyRegistrationResponse()
-- [ ] Test manual: generar challenge
+### Fase 12.1: Datos Mock
+**Tiempo:** 45 min
 
-#### 9.2 - ECDHService
-- [ ] generateKeyPair()
-- [ ] deriveSharedSecret(publicKey)
-- [ ] deriveSessionKey(sharedSecret)
-- [ ] Test manual: intercambio de claves
+- [ ] Crear `dev-simulator/mock-data/usuarios.json` (profesores + alumnos con estructura legacy)
+- [ ] Crear `dev-simulator/mock-data/cursos.json` (cursos + semestres + bloques)
+- [ ] Crear `dev-simulator/mock-data/sesiones.json` (sesiones de asistencia activas)
+- [ ] Crear `dev-simulator/MockDataProvider.php` (implementa interface, carga JSONs)
+- [ ] Script: `test-fase12-1.sh`
 
-#### 9.3 - Enrollment UseCase
-- [ ] Reemplazar stubs con FIDO2Service
-- [ ] Almacenar credencial en PostgreSQL
-- [ ] Retornar public key para ECDH
+### Fase 12.2: Login Simulado
+**Tiempo:** 1 hora
 
-#### 9.4 - Login UseCase
-- [ ] Autenticacion FIDO2
-- [ ] Derivar session_key con ECDH
-- [ ] Almacenar session_key en Valkey (TTL)
+- [ ] Crear `dev-simulator/login.php` con selector de usuario (dropdown)
+- [ ] Implementar POST que guarda `$_SESSION['id']`, `['user']`, `['root']`
+- [ ] Crear `dev-simulator/logout.php`
+- [ ] Implementar stubs completos en `functions.php`
+- [ ] Script: `test-fase12-2.sh`
 
-#### 9.5 - Frontend Enrollment UI
-- [ ] Componente de enrollment
-- [ ] Integrar WebAuthn API del navegador
-- [ ] Almacenar session_key derivada
+### Fase 12.3: Dashboards por Rol
+**Tiempo:** 1 hora
 
-#### 9.6 - Reemplazar MOCK_SESSION_KEY
-- [ ] getSessionKey() obtiene clave real
-- [ ] Backend usa clave del estudiante especifico
-- [ ] Fallback a mock solo en dev sin enrollment
+- [ ] Crear `dev-simulator/profesor-dashboard.php` (lista sesiones + crear nueva)
+- [ ] Crear `dev-simulator/alumno-dashboard.php` (info alumno + boton escanear)
+- [ ] Implementar "Crear Sesion" (mock, genera codigo tipo CVYAFO)
+- [ ] Boton "Proyectar QR" abre `modal-host.php` con params
+- [ ] Boton "Escanear QR" abre `modal-reader.php` con params
+- [ ] Script: `test-fase12-3.sh`
 
-#### 9.7 - Script test-fase9.sh
-- [ ] Test enrollment FIDO2
-- [ ] Test derivacion ECDH
-- [ ] Test flujo sin mocks
+### Fase 12.4: JWT y postMessage desde Modales
+**Tiempo:** 1.5 horas
 
----
-
-### Fase 10: Integracion PHP Legacy
-
-**Rama:** `fase-10-integracion-php`  
-**Estimado:** 4-6 horas
-
-#### 10.1 - Endpoint para PHP
-- [ ] POST /api/internal/verify-enrollment
-- [ ] Autenticacion con shared secret
-- [ ] Test manual: llamada desde PHP
-
-#### 10.2 - Extraccion userId de JWT
-- [ ] Middleware para extraer userId del JWT de PHP
-- [ ] Inyectar en request context
-- [ ] Eliminar studentId como parametro manual
-
-#### 10.3 - Sincronizacion de Usuarios
-- [ ] Mapear usuarios PHP a enrollments Node
-- [ ] Manejar usuarios sin enrollment
-
-#### 10.4 - Script test-fase10.sh
-- [ ] Test endpoint interno
-- [ ] Test JWT con userId
-- [ ] Test flujo PHP-Node completo
+- [ ] Modificar `modal-host.php` para recibir params de sesion (GET/POST)
+- [ ] Generar JWT con datos de profesor + sesion + curso
+- [ ] Implementar JS: `postMessage({type: 'AUTH_TOKEN', token})` al cargar iframe
+- [ ] Agregar `postMessage({type: 'SESSION_CONTEXT', modo, codigo, curso, tipoEncuesta...})`
+- [ ] Modificar `modal-reader.php` para recibir datos de alumno
+- [ ] Generar JWT con datos de alumno (RUT, nombre)
+- [ ] Implementar postMessage con contexto de captura
+- [ ] Script: `test-fase12-4.sh`
 
 ---
 
-## Flujo de Ramas
+## Fase 14: Integracion Session Key Real
+
+**Objetivo:** Conectar enrollment con attendance, eliminar MOCK_SESSION_KEY
+**Estimado:** 4 horas
+
+---
+
+### Fase 14.1: Legacy Bridge en Frontend Node
+**Tiempo:** 1.5 horas
+
+- [ ] Crear `frontend/shared/services/legacy-bridge.service.ts`
+- [ ] Implementar listener `AUTH_TOKEN` → almacenar JWT via AuthClient
+- [ ] Implementar listener `SESSION_CONTEXT` → guardar en store
+- [ ] Crear `frontend/shared/stores/legacy-context.store.ts`
+- [ ] Integrar bridge en `qr-host/index.html`
+- [ ] Integrar bridge en `qr-reader/index.html`
+- [ ] Script: `test-fase14-1.sh`
+
+### Fase 14.2: Verificacion Enrollment en qr-reader
+**Tiempo:** 1 hora
+
+- [ ] En `qr-reader/main.ts`, verificar enrollment antes de escaneo
+- [ ] Si no enrolado → mostrar UI de enrollment inline
+- [ ] Si enrolado pero sin session_key → trigger login ECDH
+- [ ] Obtener session_key de SessionKeyStore
+- [ ] Script: `test-fase14-2.sh`
+
+### Fase 14.3: Eliminar MOCK_SESSION_KEY del Frontend
+**Tiempo:** 45 min
+
+- [ ] Modificar `qr-reader/main.ts` para NO usar MOCK_KEY por defecto
+- [ ] Mantener fallback SOLO si `ENROLLMENT_STUB_MODE=true`
+- [ ] Error claro si no hay session_key y no es stub mode
+- [ ] Script: `test-fase14-3.sh`
+
+### Fase 14.4: Session Key Real en Backend
+**Tiempo:** 1 hora
+
+- [ ] Modificar `decrypt.stage.ts` para obtener session_key de Valkey
+- [ ] Lookup: `session:{userId}:key`
+- [ ] Mantener fallback mock SOLO si `ENROLLMENT_STUB_MODE=true`
+- [ ] Test flujo completo con session_key real
+- [ ] Script: `test-fase14-4.sh`
+
+---
+
+## Fase 15: Puente PHP - Node (Produccion)
+
+**Objetivo:** Comunicacion bidireccional para flujo completo
+**Ubicacion:** `asistencia-node-integration/` (VA a produccion)
+**Estimado:** 6 horas
+
+---
+
+### Fase 15.1: Endpoint Node para Notificar Asistencia
+**Tiempo:** 1 hora
+
+- [ ] Crear `backend/attendance/presentation/routes/internal.routes.ts`
+- [ ] Implementar `POST /api/internal/mark-attendance`
+- [ ] Schema: `{codigo, rut, ip, certainty, encuesta?}`
+- [ ] Validar header `X-Node-Signature` con secret compartido
+- [ ] Responder `{success, codigo, rut, timestamp}`
+- [ ] Script: `test-fase15-1.sh`
+
+### Fase 15.2: Controller PHP para Recibir Asistencia
+**Tiempo:** 1.5 horas
+
+- [ ] Crear `presentation/api/MarkAttendanceController.php`
+- [ ] Agregar ruta `/api/mark-attendance` en Router.php
+- [ ] Validar firma `X-Node-Signature`
+- [ ] Preparar SQL template para `alumno_asistencia`
+- [ ] Preparar SQL template para `comentarios_clase` segun tipo
+- [ ] En dev-simulator: log + mock response
+- [ ] Script: `test-fase15-2.sh`
+
+### Fase 15.3: Encuesta Post-Validacion
+**Tiempo:** 2 horas
+
+- [ ] Recibir `tipo_encuesta` en SESSION_CONTEXT desde PHP
+- [ ] Crear componente `SurveyForm.ts` con plantillas tipo 2-8
+- [ ] Mostrar encuesta tras validacion exitosa de rounds
+- [ ] Al enviar, incluir respuestas en mark-attendance
+- [ ] Script: `test-fase15-3.sh`
+
+### Fase 15.4: Notificacion al Parent (iframe)
+**Tiempo:** 45 min
+
+- [ ] Implementar `postMessage({type: 'ATTENDANCE_COMPLETE', ...})`
+- [ ] Implementar `postMessage({type: 'CLOSE_IFRAME'})`
+- [ ] En modales PHP, escuchar mensajes y cerrar
+- [ ] Limpiar estado frontend tras completar
+- [ ] Script: `test-fase15-4.sh`
+
+### Fase 15.5: Limpieza y Documentacion
+**Tiempo:** 30 min
+
+- [ ] Eliminar `MOCK_SESSION_KEY` cuando no es stub mode
+- [ ] Actualizar README de asistencia-node-integration
+- [ ] Actualizar `13-estado-implementacion.md`
+- [ ] Script: `test-fase15-5.sh` (integracion completa)
+
+---
+
+## Diagrama de Dependencias
 
 ```
-main
- +-- fase-7-persistencia-postgresql (7.1 -> 7.5)
- |     merge a main cuando OK
- |
- +-- fase-8-qrs-falsos (8.1 -> 8.4)
- |     merge a main cuando OK
- |
- +-- fase-9-enrollment-fido2 (9.1 -> 9.7)
- |     merge a main cuando OK
- |
- +-- fase-10-integracion-php (10.1 -> 10.4)
-       merge a main cuando OK
+Fase 12 (Simulador PHP - solo dev)
+    │
+    12.0 ─► 12.1 ─► 12.2 ─► 12.3 ─► 12.4
+                                      │
+                                      ▼
+                              Fase 14 (Session Key Real)
+                                      │
+                              14.1 ─► 14.2 ─► 14.3 ─► 14.4
+                                                        │
+                                                        ▼
+                                                Fase 15 (Puente Produccion)
+                                                        │
+                                                15.1 ─► 15.2 ─► 15.3 ─► 15.4 ─► 15.5
 ```
+
+---
+
+## Resumen de Tiempos
+
+| Fase | Descripcion | Sub-fases | Tiempo |
+|------|-------------|-----------|--------|
+| 12 | Simulador PHP (dev) | 5 | ~4.5 h |
+| 14 | Session Key Real | 4 | ~4 h |
+| 15 | Puente Produccion | 5 | ~6 h |
+| **Total** | | **14** | **~14.5 h** |
 
 ---
 
 ## Comandos de Desarrollo
 
 ```bash
-# Ejecutar tests
-podman compose -f compose.yaml -f compose.dev.yaml exec node-service pnpm test
-
 # Verificar TypeScript
-podman compose -f compose.yaml -f compose.dev.yaml exec node-service pnpm tsc --noEmit
+podman compose -f compose.yaml -f compose.dev.yaml exec node-service npx tsc --noEmit
 
 # Ejecutar script de fase
-podman compose -f compose.yaml -f compose.dev.yaml exec node-service bash /app/scripts/test-faseN.sh
+bash scripts/test-faseN.sh
+
+# Reconstruir contenedores
+podman compose -f compose.yaml -f compose.dev.yaml up --build
 ```
 
 ---
@@ -207,5 +250,7 @@ podman compose -f compose.yaml -f compose.dev.yaml exec node-service bash /app/s
 ## Referencias
 
 - `daRulez.md` - Reglas del proyecto
+- `PROJECT-CONSTITUTION.md` - Principios arquitectonicos
+- `documents/01-contexto/flujo_legacy.md` - Flujo sistema Hawaii
+- `roseta.md` - Roseta de integracion PHP-Node
 - `documents/03-especificaciones-tecnicas/13-estado-implementacion.md` - Estado detallado
-- `flujo-validacion-qr-20251128.md` - Especificacion del flujo QR

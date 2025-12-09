@@ -25,6 +25,7 @@
     "@zxing/browser": "^0.1.5",
     "@zxing/library": "^0.21.0",
     "@simplewebauthn/server": "^11.0.0",
+    "@simplewebauthn/browser": "^11.0.0",
     "pg": "^8.13.1"
   },
   "devDependencies": {

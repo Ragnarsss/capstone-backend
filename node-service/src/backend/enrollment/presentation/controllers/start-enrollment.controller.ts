@@ -1,6 +1,7 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import { StartEnrollmentUseCase } from '../../application/use-cases';
 import type { StartEnrollmentInput } from '../../application/use-cases';
+import { logger } from '../../../../shared/infrastructure/logger';
 
 /**
  * DTO para request de start enrollment
@@ -46,17 +47,21 @@ export class StartEnrollmentController {
     } catch (error) {
       // Manejo de errores específicos
       if (error instanceof Error) {
-        if (error.message.startsWith('MAX_DEVICES_REACHED')) {
-          reply.code(400).send({
-            error: 'MAX_DEVICES_REACHED',
-            message: 'El usuario ya tiene el máximo de dispositivos enrolados (5)',
+        if (error.message.startsWith('PENALTY_ACTIVE')) {
+          // Extraer minutos de espera del mensaje
+          const match = error.message.match(/esperar (\d+) minutos/);
+          const waitMinutes = match ? parseInt(match[1], 10) : 0;
+          reply.code(429).send({
+            error: 'PENALTY_ACTIVE',
+            message: error.message.replace('PENALTY_ACTIVE: ', ''),
+            waitMinutes,
           });
           return;
         }
       }
 
       // Error genérico
-      console.error('[StartEnrollmentController] Error:', error);
+      logger.error('[StartEnrollmentController] Error:', error);
       reply.code(500).send({
         error: 'INTERNAL_SERVER_ERROR',
         message: 'Error al iniciar enrollment',

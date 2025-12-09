@@ -2,6 +2,7 @@ import type { WebSocket } from 'ws';
 import { JWTUtils } from '../backend/auth/domain/jwt-utils';
 import { UserId } from '../backend/auth/domain/user-id';
 import type { AuthenticatedUser } from '../backend/auth/domain/models';
+import { logger } from '../shared/infrastructure/logger';
 
 /**
  * Resultado de la autenticación WebSocket
@@ -47,7 +48,7 @@ export class WebSocketAuthMiddleware {
 
       authTimeout = setTimeout(() => {
         this.cleanupListeners(socket, messageHandler);
-        console.log('[WebSocket Auth] Timeout de autenticación');
+        logger.debug('[WebSocket Auth] Timeout de autenticación');
 
         this.sendMessage(socket, {
           type: 'error',
@@ -66,7 +67,7 @@ export class WebSocketAuthMiddleware {
             this.cleanupListeners(socket, messageHandler);
             clearTimeout(authTimeout);
 
-            console.log('[WebSocket Auth] Primer mensaje no es AUTH:', msg.type);
+            logger.debug('[WebSocket Auth] Primer mensaje no es AUTH:', msg.type);
             this.sendMessage(socket, {
               type: 'error',
               message: 'Debe autenticar primero. Envíe mensaje tipo AUTH con token.'
@@ -81,7 +82,7 @@ export class WebSocketAuthMiddleware {
             this.cleanupListeners(socket, messageHandler);
             clearTimeout(authTimeout);
 
-            console.log('[WebSocket Auth] Mensaje AUTH sin token');
+            logger.debug('[WebSocket Auth] Mensaje AUTH sin token');
             this.sendMessage(socket, {
               type: 'error',
               message: 'Token JWT requerido en mensaje AUTH'
@@ -104,7 +105,7 @@ export class WebSocketAuthMiddleware {
             this.cleanupListeners(socket, messageHandler);
             clearTimeout(authTimeout);
 
-            console.log(`[WebSocket Auth] Usuario autenticado: ${user.username} (ID: ${user.userId.toNumber()})`);
+            logger.debug(`[WebSocket Auth] Usuario autenticado: ${user.username} (ID: ${user.userId.toNumber()})`);
 
             this.sendMessage(socket, {
               type: 'auth-ok',
@@ -117,7 +118,7 @@ export class WebSocketAuthMiddleware {
             this.cleanupListeners(socket, messageHandler);
             clearTimeout(authTimeout);
 
-            console.error('[WebSocket Auth] Error validando token:', error);
+            logger.error('[WebSocket Auth] Error validando token:', error);
             this.sendMessage(socket, {
               type: 'error',
               message: error instanceof Error ? error.message : 'Token inválido o expirado'
@@ -134,7 +135,7 @@ export class WebSocketAuthMiddleware {
           this.cleanupListeners(socket, messageHandler);
           clearTimeout(authTimeout);
 
-          console.error('[WebSocket Auth] Error procesando mensaje:', error);
+          logger.error('[WebSocket Auth] Error procesando mensaje:', error);
           socket.close(4400, 'Bad request');
           resolve({ success: false, error: 'Bad request' });
         }

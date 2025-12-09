@@ -1,9 +1,18 @@
 import type { RegisterParticipationResult, GetStatusResult } from '../domain/models';
 import { StudentSessionRepository } from '../infrastructure/student-session.repository';
-import { ProjectionPoolRepository } from '../infrastructure/projection-pool.repository';
+import { ProjectionPoolRepository } from '../../../shared/infrastructure/valkey';
 import { QRPayloadRepository } from '../../qr-projection/infrastructure/qr-payload.repository';
 import { QRGenerator } from '../../qr-projection/domain/qr-generator';
-import { CryptoService } from '../../../shared/infrastructure/crypto';
+import type { IQRGenerator, IPoolBalancer, IQRPayloadRepository } from '../../../shared/ports';
+import { AesGcmService } from '../../../shared/infrastructure/crypto';
+import { PoolBalancer } from '../../qr-projection/application/services';
+import {
+  DEFAULT_MAX_ROUNDS,
+  DEFAULT_MAX_ATTEMPTS,
+  DEFAULT_QR_TTL_SECONDS,
+  DEFAULT_MIN_POOL_SIZE,
+} from '../../../shared/config';
+import { logger } from '../../../shared/infrastructure/logger';
 
 /**
  * Configuración del servicio
@@ -14,13 +23,19 @@ interface ParticipationServiceConfig {
   qrTTL: number;
   /** ID del host (mock por ahora) */
   mockHostUserId: number;
+  /** Habilitar balanceo automatico de QRs falsos */
+  enableFakeQRBalancing: boolean;
+  /** Tamano minimo del pool (para PoolBalancer) */
+  minPoolSize: number;
 }
 
 const DEFAULT_CONFIG: ParticipationServiceConfig = {
-  maxRounds: 3,
-  maxAttempts: 3,
-  qrTTL: 30,
+  maxRounds: DEFAULT_MAX_ROUNDS,
+  maxAttempts: DEFAULT_MAX_ATTEMPTS,
+  qrTTL: DEFAULT_QR_TTL_SECONDS,
   mockHostUserId: 1,
+  enableFakeQRBalancing: true,
+  minPoolSize: DEFAULT_MIN_POOL_SIZE,
 };
 
 /**
@@ -38,22 +53,50 @@ const DEFAULT_CONFIG: ParticipationServiceConfig = {
 export class ParticipationService {
   private readonly studentRepo: StudentSessionRepository;
   private readonly poolRepo: ProjectionPoolRepository;
-  private readonly payloadRepo: QRPayloadRepository;
-  private readonly qrGenerator: QRGenerator;
+  private readonly payloadRepo: IQRPayloadRepository;
+  private readonly qrGenerator: IQRGenerator;
+  private readonly poolBalancer: IPoolBalancer | null;
   private readonly config: ParticipationServiceConfig;
 
   constructor(
     studentRepo?: StudentSessionRepository,
     poolRepo?: ProjectionPoolRepository,
-    payloadRepo?: QRPayloadRepository,
-    cryptoService?: CryptoService,
-    config?: Partial<ParticipationServiceConfig>
+    payloadRepo?: IQRPayloadRepository,
+    aesGcmService?: AesGcmService,
+    config?: Partial<ParticipationServiceConfig>,
+    poolBalancer?: IPoolBalancer
   ) {
     this.studentRepo = studentRepo ?? new StudentSessionRepository();
     this.poolRepo = poolRepo ?? new ProjectionPoolRepository();
     this.payloadRepo = payloadRepo ?? new QRPayloadRepository(config?.qrTTL ?? DEFAULT_CONFIG.qrTTL);
-    this.qrGenerator = new QRGenerator(cryptoService ?? new CryptoService());
+    this.qrGenerator = new QRGenerator(aesGcmService ?? new AesGcmService());
     this.config = { ...DEFAULT_CONFIG, ...config };
+    
+    // Inicializar PoolBalancer si el balanceo esta habilitado
+    if (this.config.enableFakeQRBalancing) {
+      this.poolBalancer = poolBalancer ?? new PoolBalancer(
+        undefined,  // aesGcmService - usa default
+        this.poolRepo,
+        { minPoolSize: this.config.minPoolSize }
+      );
+    } else {
+      this.poolBalancer = null;
+    }
+  }
+
+  /**
+   * Balancea el pool de QRs falsos para una sesion
+   * Llamado automaticamente despues de registrar un estudiante
+   */
+  private async balanceFakeQRs(sessionId: string): Promise<void> {
+    if (!this.poolBalancer) return;
+    
+    try {
+      await this.poolBalancer.balance(sessionId);
+    } catch (error) {
+      // No fallar el registro si el balanceo falla
+      logger.error('[Participation] Error balancing fake QRs:', error);
+    }
   }
 
   /**
@@ -106,7 +149,10 @@ export class ParticipationService {
       // 6. Agregar QR al pool de proyección
       await this.poolRepo.upsertStudentQR(sessionId, studentId, encrypted, state.currentRound);
 
-      console.log(`[Participation] Registered student=${studentId} session=${sessionId.substring(0, 8)}... round=${state.currentRound}`);
+      // 7. Balancear QRs falsos en el pool
+      await this.balanceFakeQRs(sessionId);
+
+      logger.debug(`[Participation] Registered student=${studentId} session=${sessionId.substring(0, 8)}... round=${state.currentRound}`);
 
       return {
         success: true,
@@ -120,7 +166,7 @@ export class ParticipationService {
         },
       };
     } catch (error) {
-      console.error('[Participation] Error registering:', error);
+      logger.error('[Participation] Error registering:', error);
       return {
         success: false,
         reason: 'Error interno al registrar participación',
@@ -213,21 +259,19 @@ export class ParticipationService {
           totalRounds: newState.maxRounds,
           currentAttempt: newState.currentAttempt,
           maxAttempts: newState.maxAttempts,
-          qrPayload: encrypted,
-          qrTTL: this.config.qrTTL,
-        },
-      };
-    } catch (error) {
-      console.error('[Participation] Error requesting new QR:', error);
-      return {
-        success: false,
-        reason: 'Error interno al solicitar nuevo QR',
-        errorCode: 'INTERNAL_ERROR',
-      };
-    }
+        qrPayload: encrypted,
+        qrTTL: this.config.qrTTL,
+      },
+    };
+  } catch (error) {
+    logger.error('[Participation] Error requesting new QR:', error);
+    return {
+      success: false,
+      reason: 'Error interno al solicitar nuevo QR',
+      errorCode: 'INTERNAL_ERROR',
+    };
   }
-
-  /**
+}  /**
    * Consulta el estado actual del estudiante en la sesión
    */
   async getStatus(sessionId: string, studentId: number): Promise<GetStatusResult> {

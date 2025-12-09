@@ -51,8 +51,7 @@ export async function registerEnrollmentRoutes(fastify: FastifyInstance): Promis
     deviceRepository,
     sessionKeyRepository,
     ecdhService,
-    hkdfService,
-    fido2Service
+    hkdfService
   );
 
   const revokeDeviceUseCase = new RevokeDeviceUseCase(deviceRepository);

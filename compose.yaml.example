@@ -41,10 +41,20 @@ services:
       - PORT=3000
       - VALKEY_HOST=valkey
       - VALKEY_PORT=6379
-      # Variables JWT para validacion de tokens internos desde PHP
+      # PostgreSQL connection (nombres internos de la red Podman)
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=asistencia_db
+      - POSTGRES_USER=asistencia
+      - POSTGRES_PASSWORD=asistencia_pass
+      # Variables JWT para validacion de tokens desde PHP
+      - JWT_SECRET=${JWT_SECRET:-change_this_secret_in_production}
       - JWT_SECRET_INTERNAL=${JWT_SECRET_INTERNAL:-change_this_internal_secret_in_production}
     depends_on:
-      - valkey
+      valkey:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
     networks:
       - asistencia-network
     expose:
@@ -63,6 +73,12 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./database:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U asistencia -d asistencia_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   # Valkey (Redis compatible) para cache y sesiones
   valkey:
@@ -73,6 +89,12 @@ services:
     volumes:
       - valkey-data:/data
     command: ["valkey-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
 
 networks:
   asistencia-network:

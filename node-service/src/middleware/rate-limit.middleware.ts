@@ -15,6 +15,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import Redis from 'ioredis';
 import { config } from '../shared/config/index.js';
+import { logger } from '../shared/infrastructure/logger';
 
 interface RateLimitConfig {
   /** Número máximo de requests permitidos en la ventana */
@@ -66,16 +67,16 @@ class ValkeyRateLimitClient {
       });
 
       this.client.on('error', (err: Error) => {
-        console.error('[RateLimit] Valkey connection error:', err);
+        logger.error('[RateLimit] Valkey connection error:', err);
       });
 
       this.client.on('connect', () => {
-        console.log('[RateLimit] Connected to Valkey');
+        logger.info('[RateLimit] Connected to Valkey');
       });
 
       this.isConnected = true;
     } catch (error) {
-      console.error('[RateLimit] Failed to connect to Valkey:', error);
+      logger.error('[RateLimit] Failed to connect to Valkey:', error);
       throw error;
     }
   }
@@ -106,7 +107,7 @@ class ValkeyRateLimitClient {
         limit: max,
       };
     } catch (error) {
-      console.error('[RateLimit] Error checking limit:', error);
+      logger.error('[RateLimit] Error checking limit:', error);
       // En caso de error con Valkey, permitir el request (fail open)
       return {
         remaining: max,
@@ -120,7 +121,7 @@ class ValkeyRateLimitClient {
     if (this.client && this.isConnected) {
       await this.client.quit();
       this.isConnected = false;
-      console.log('[RateLimit] Disconnected from Valkey');
+      logger.info('[RateLimit] Disconnected from Valkey');
     }
   }
 }

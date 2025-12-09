@@ -1,5 +1,13 @@
 // Configuracion centralizada del servicio
 
+// Re-export attendance defaults para acceso desde shared/config
+export {
+  DEFAULT_MAX_ROUNDS,
+  DEFAULT_MAX_ATTEMPTS,
+  DEFAULT_QR_TTL_SECONDS,
+  DEFAULT_MIN_POOL_SIZE,
+} from './attendance.defaults';
+
 export const config = {
   env: {
     isDevelopment: process.env.NODE_ENV !== 'production',

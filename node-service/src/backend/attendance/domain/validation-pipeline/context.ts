@@ -5,7 +5,7 @@
  * Cada stage puede leer datos previos y agregar nuevos.
  */
 
-import type { QRPayloadV1 } from '../../../qr-projection/domain/models';
+import type { QRPayloadV1 } from '../../../../shared/types';
 
 /**
  * Respuesta desencriptada del estudiante

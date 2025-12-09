@@ -220,7 +220,72 @@
   color: var(--text-secondary);
 }
 
-/* Enrolled */
+/* Enrollment Success */
+.success-container {
+  background: var(--bg-primary);
+  border-radius: 1rem;
+  padding: 2rem;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+}
+
+.success-container h2 {
+  margin: 0 0 0.75rem;
+  color: var(--success-color);
+}
+
+.success-container p {
+  margin: 0 0 1.5rem;
+  color: var(--text-secondary);
+}
+
+.penalty-info {
+  background: #fef3c7;
+  color: #92400e;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Penalty Wait */
+.penalty-container {
+  background: var(--bg-primary);
+  border-radius: 1rem;
+  padding: 2rem;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+}
+
+.penalty-container h2 {
+  margin: 0 0 0.75rem;
+  color: var(--warning-color);
+}
+
+.penalty-container p {
+  margin: 0 0 1.5rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.icon-container.warning {
+  background: #fef3c7;
+  color: var(--warning-color);
+}
+
+/* Validating */
+.validating-container {
+  background: var(--bg-primary);
+  border-radius: 1rem;
+  padding: 2rem;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+  text-align: center;
+}
+
+.validating-container p {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+/* Enrolled - Listo para escanear */
 .enrolled-container {
   background: var(--bg-primary);
   border-radius: 1rem;

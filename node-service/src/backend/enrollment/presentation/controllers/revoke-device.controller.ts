@@ -1,5 +1,6 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import { RevokeDeviceUseCase } from '../../application/use-cases';
+import { logger } from '../../../../shared/infrastructure/logger';
 
 /**
  * Params para la ruta
@@ -86,7 +87,7 @@ export class RevokeDeviceController {
       }
 
       // Error genérico
-      console.error('[RevokeDeviceController] Error:', error);
+      logger.error('[RevokeDeviceController] Error:', error);
       reply.code(500).send({
         error: 'INTERNAL_SERVER_ERROR',
         message: 'Error al revocar dispositivo',

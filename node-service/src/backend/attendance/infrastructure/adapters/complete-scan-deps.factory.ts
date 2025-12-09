@@ -5,14 +5,17 @@
  * conectando los repositorios existentes.
  */
 
-import type { CompleteScanDependencies } from '../../application/complete-scan.usecase';
-import { CryptoService } from '../../../../shared/infrastructure/crypto';
+import type { CompleteScanDependencies, PersistenceDependencies } from '../../application/complete-scan.usecase';
+import { AesGcmService } from '../../../../shared/infrastructure/crypto';
 import { QRPayloadRepository } from '../../../qr-projection/infrastructure/qr-payload.repository';
 import { StudentSessionRepository } from '../student-session.repository';
-import { ProjectionPoolRepository } from '../projection-pool.repository';
+import { ProjectionPoolRepository } from '../../../../shared/infrastructure/valkey';
 import { QRGenerator } from '../../../qr-projection/domain/qr-generator';
+import type { IQRGenerator, IQRPayloadRepository } from '../../../../shared/ports';
 import { QRStateAdapter } from './qr-state.adapter';
 import { StudentStateAdapter } from './student-state.adapter';
+import { ValidationRepository, ResultRepository, RegistrationRepository } from '../repositories';
+import { logger } from '../../../../shared/infrastructure/logger';
 
 /**
  * Configuración del factory
@@ -20,12 +23,22 @@ import { StudentStateAdapter } from './student-state.adapter';
 interface FactoryConfig {
   qrTTL: number;
   mockHostUserId: number;
+  enablePostgresPersistence: boolean;
 }
 
 const DEFAULT_CONFIG: FactoryConfig = {
-  qrTTL: 30,
+  qrTTL: 60,
   mockHostUserId: 1,
+  enablePostgresPersistence: false,
 };
+
+/**
+ * Resultado del factory
+ */
+export interface CompleteScanDepsResult {
+  deps: CompleteScanDependencies;
+  persistence?: PersistenceDependencies;
+}
 
 /**
  * Crea todas las dependencias para CompleteScanUseCase
@@ -33,22 +46,31 @@ const DEFAULT_CONFIG: FactoryConfig = {
 export function createCompleteScanDependencies(
   config?: Partial<FactoryConfig>
 ): CompleteScanDependencies {
+  return createCompleteScanDepsWithPersistence(config).deps;
+}
+
+/**
+ * Crea dependencias con persistencia PostgreSQL opcional
+ */
+export function createCompleteScanDepsWithPersistence(
+  config?: Partial<FactoryConfig>
+): CompleteScanDepsResult {
   const cfg = { ...DEFAULT_CONFIG, ...config };
   
   // Instanciar repositorios
-  const cryptoService = new CryptoService();
+  const aesGcmService = new AesGcmService();
   const payloadRepo = new QRPayloadRepository(cfg.qrTTL);
   const studentRepo = new StudentSessionRepository();
   const poolRepo = new ProjectionPoolRepository();
-  const qrGenerator = new QRGenerator(cryptoService);
+  const qrGenerator = new QRGenerator(aesGcmService);
 
   // Adapters para el pipeline de validación
   const qrStateLoader = new QRStateAdapter(poolRepo, cfg.qrTTL);
   const studentStateLoader = new StudentStateAdapter(studentRepo);
 
-  return {
+  const deps: CompleteScanDependencies = {
     // Para ValidateScanUseCase (pipeline)
-    cryptoService,
+    aesGcmService,
     qrStateLoader,
     studentStateLoader,
 
@@ -98,4 +120,18 @@ export function createCompleteScanDependencies(
       await poolRepo.upsertStudentQR(sessionId, studentId, encrypted, round);
     },
   };
+
+  // Crear dependencias de persistencia si está habilitado
+  let persistence: PersistenceDependencies | undefined;
+  
+  if (cfg.enablePostgresPersistence) {
+    persistence = {
+      validationRepo: new ValidationRepository(),
+      resultRepo: new ResultRepository(),
+      registrationRepo: new RegistrationRepository(),
+    };
+    logger.debug('[CompleteScanDeps] Persistencia PostgreSQL habilitada');
+  }
+
+  return { deps, persistence };
 }

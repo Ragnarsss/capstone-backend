@@ -1,14 +1,14 @@
 /**
  * ValidateScan UseCase
  * 
- * Orquesta la validación de un scan usando el pipeline.
- * Este UseCase encapsula la composición del pipeline y la ejecución.
+ * Orquesta la validacion de un scan usando el pipeline.
+ * Este UseCase encapsula la composicion del pipeline y la ejecucion.
  * 
  * Responsabilidades:
  * - Crear el contexto
- * - Configurar los stages con dependencias
+ * - Delegar construccion del pipeline al factory
  * - Ejecutar el pipeline
- * - Transformar el resultado para la capa de presentación
+ * - Transformar el resultado para la capa de presentacion
  */
 
 import { 
@@ -19,23 +19,10 @@ import {
 } from '../domain/validation-pipeline/context';
 import { runPipeline, formatTrace } from '../domain/validation-pipeline/runner';
 import type { Stage } from '../domain/validation-pipeline/stage.interface';
-import { toAsyncStage } from '../domain/validation-pipeline/stage.interface';
-import {
-  createDecryptStage,
-  validateStructureStage,
-  validateOwnershipStage,
-  createLoadQRStateStage,
-  validateQRNotExpiredStage,
-  validateQRNotConsumedStage,
-  createLoadStudentStateStage,
-  validateStudentRegisteredStage,
-  validateStudentActiveStage,
-  validateStudentOwnsQRStage,
-  validateRoundMatchStage,
-} from '../domain/validation-pipeline/stages';
+import { createDefaultPipeline, type PipelineDependencies } from '../domain/validation-pipeline';
 import type { QRStateLoader } from '../domain/validation-pipeline/stages/load-qr-state.stage';
 import type { StudentStateLoader } from '../domain/validation-pipeline/stages/load-student-state.stage';
-import { CryptoService } from '../../../shared/infrastructure/crypto';
+import { AesGcmService } from '../../../shared/infrastructure/crypto';
 
 /**
  * Resultado del UseCase
@@ -54,7 +41,7 @@ export interface ValidateScanResult {
  * Dependencias del UseCase
  */
 export interface ValidateScanDependencies {
-  cryptoService: CryptoService;
+  aesGcmService: AesGcmService;
   qrStateLoader: QRStateLoader;
   studentStateLoader: StudentStateLoader;
 }
@@ -62,22 +49,22 @@ export interface ValidateScanDependencies {
 /**
  * UseCase: Validar escaneo de QR
  * 
- * Ejecuta el pipeline completo de validación y retorna el resultado.
+ * Ejecuta el pipeline completo de validacion y retorna el resultado.
  * No tiene efectos secundarios (no marca como consumido, no avanza rounds).
  * 
- * Para completar la transacción, el caller debe usar otro UseCase/Service
+ * Para completar la transaccion, el caller debe usar otro UseCase/Service
  * que consuma el QR y avance el estado del estudiante.
  */
 export class ValidateScanUseCase {
   private readonly stages: Stage[];
 
   constructor(private readonly deps: ValidateScanDependencies) {
-    // Componer el pipeline una vez
-    this.stages = this.buildPipeline();
+    // Delegar construccion del pipeline al factory
+    this.stages = createDefaultPipeline(deps);
   }
 
   /**
-   * Ejecuta la validación
+   * Ejecuta la validacion
    */
   async execute(encrypted: string, studentId: number): Promise<ValidateScanResult> {
     const ctx = createContext(encrypted, studentId);
@@ -99,36 +86,6 @@ export class ValidateScanUseCase {
       context: result.ctx,
     };
   }
-
-  /**
-   * Construye el pipeline de stages
-   */
-  private buildPipeline(): Stage[] {
-    return [
-      // 1. Decrypt
-      createDecryptStage(this.deps.cryptoService),
-      
-      // 2. Pure validations (sync wrapped as async)
-      toAsyncStage(validateStructureStage),
-      toAsyncStage(validateOwnershipStage),
-      
-      // 3. Load QR state
-      createLoadQRStateStage(this.deps.qrStateLoader),
-      
-      // 4. QR validations (pure)
-      toAsyncStage(validateQRNotExpiredStage),
-      toAsyncStage(validateQRNotConsumedStage),
-      
-      // 5. Load student state
-      createLoadStudentStateStage(this.deps.studentStateLoader),
-      
-      // 6. Student validations (pure)
-      toAsyncStage(validateStudentRegisteredStage),
-      toAsyncStage(validateStudentActiveStage),
-      toAsyncStage(validateStudentOwnsQRStage),
-      toAsyncStage(validateRoundMatchStage),
-    ];
-  }
 }
 
 /**
@@ -140,7 +97,7 @@ export function createValidateScanUseCase(
   // Las dependencias reales se inyectan desde la capa de infraestructura
   // Aquí solo proveemos defaults para desarrollo/testing
   
-  const cryptoService = deps?.cryptoService ?? new CryptoService();
+  const aesGcmService = deps?.aesGcmService ?? new AesGcmService();
   
   // Los loaders deben ser provistos - no hay defaults seguros
   if (!deps?.qrStateLoader || !deps?.studentStateLoader) {
@@ -151,7 +108,7 @@ export function createValidateScanUseCase(
   }
 
   return new ValidateScanUseCase({
-    cryptoService,
+    aesGcmService,
     qrStateLoader: deps.qrStateLoader,
     studentStateLoader: deps.studentStateLoader,
   });

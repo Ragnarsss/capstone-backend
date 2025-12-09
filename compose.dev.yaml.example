@@ -24,6 +24,12 @@ services:
       target: development
     environment:
       - NODE_ENV=development
+      # STUB MODE: Bypass enrollment para desarrollo de flujo asistencia
+      - ENROLLMENT_STUB_MODE=true
+      # Habilitar persistencia PostgreSQL para validaciones
+      - ENABLE_POSTGRES_PERSISTENCE=true
+      # Habilitar endpoints de desarrollo (fakes, fraud, pool)
+      - DEV_ENDPOINTS=true
     ports:
       # Puerto expuesto para debug/testing directo (bypass proxy PHP)
       - "9503:3000"
@@ -37,6 +43,8 @@ services:
       - ./node-service/package.json:/app/package.json:z
       - ./node-service/tsconfig.json:/app/tsconfig.json:z
       - ./node-service/vite.config.ts:/app/vite.config.ts:z
+      # Scripts de testing (solo dev, no en prod)
+      - ./scripts:/app/scripts:ro,z
       # Volume para node_modules (named volume, no necesita :z)
       - node-modules:/app/node_modules
     command: ["npm", "run", "dev"]

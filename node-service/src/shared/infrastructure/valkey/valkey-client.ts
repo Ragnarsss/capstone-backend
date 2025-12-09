@@ -1,5 +1,6 @@
 import Redis from 'ioredis';
 import { config } from '../../config';
+import { logger } from '../logger';
 
 /**
  * Cliente base de Valkey (Redis compatible)
@@ -15,7 +16,7 @@ export class ValkeyClient {
       port: config.valkey.port,
       retryStrategy: (times) => {
         if (times > 10) {
-          console.error('[Valkey] Max reintentos alcanzado');
+          logger.error('[Valkey] Max reintentos alcanzado');
           return null;
         }
         return 2000;
@@ -34,15 +35,15 @@ export class ValkeyClient {
 
   private setupEventHandlers(): void {
     this.client.on('connect', () => {
-      console.log('[Valkey] Conectado exitosamente');
+      logger.info('[Valkey] Conectado exitosamente');
     });
 
     this.client.on('error', (error) => {
-      console.error('[Valkey] Error:', error);
+      logger.error('[Valkey] Error:', error);
     });
 
     this.client.on('close', () => {
-      console.log('[Valkey] Conexion cerrada');
+      logger.info('[Valkey] Conexion cerrada');
     });
   }
 

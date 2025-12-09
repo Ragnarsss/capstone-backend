@@ -1,4 +1,5 @@
-import { ValkeyClient } from '../../../shared/infrastructure/valkey/valkey-client';
+import { ValkeyClient } from './valkey-client';
+import { logger } from '../logger';
 
 /**
  * Información de la sesión activa
@@ -19,6 +20,12 @@ export interface ActiveSessionInfo {
  * 
  * Responsabilidad: Rastrear qué sesión de QR está activa actualmente.
  * Solo puede haber UNA sesión activa a la vez (simplificación para MVP).
+ * 
+ * NOTA: Este repositorio es COMPARTIDO entre módulos:
+ * - qr-projection: WebSocketController registra/limpia la sesión activa
+ * - attendance: Rutas de validación consultan la sesión activa
+ * 
+ * Por eso vive en shared/infrastructure/valkey/
  * 
  * Clave en Valkey:
  * - active:session → ActiveSessionInfo (con TTL)
@@ -43,7 +50,7 @@ export class ActiveSessionRepository {
       JSON.stringify(info)
     );
     
-    console.log(`[ActiveSession] Sesión activa: ${info.sessionId.substring(0, 16)}... por ${info.hostUsername}`);
+    logger.info(`[ActiveSession] Sesión activa: ${info.sessionId.substring(0, 16)}... por ${info.hostUsername}`);
   }
 
   /**
@@ -60,7 +67,7 @@ export class ActiveSessionRepository {
     try {
       return JSON.parse(data) as ActiveSessionInfo;
     } catch (error) {
-      console.error('[ActiveSession] Error parsing session:', error);
+      logger.error('[ActiveSession] Error parsing session:', error);
       return null;
     }
   }
@@ -77,7 +84,7 @@ export class ActiveSessionRepository {
     }
 
     await this.client.del(ActiveSessionRepository.ACTIVE_KEY);
-    console.log(`[ActiveSession] Sesión terminada: ${sessionId.substring(0, 16)}...`);
+    logger.info(`[ActiveSession] Sesión terminada: ${sessionId.substring(0, 16)}...`);
     return true;
   }
 

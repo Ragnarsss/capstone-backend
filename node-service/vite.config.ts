@@ -11,6 +11,9 @@ import path from 'path';
  * - Vite sirve con base: '/asistencia/' para que los assets tengan el prefijo correcto
  * - Los HTMLs usan rutas relativas desde /asistencia/ (ej: /asistencia/shared/styles/base.css)
  */
+
+const isProduction = process.env.NODE_ENV === 'production';
+
 export default defineConfig({
   // Directorio raíz del frontend
   root: 'src/frontend',
@@ -18,6 +21,11 @@ export default defineConfig({
   // Base path para assets - Debe ser '/asistencia/' en todos los entornos
   // porque Apache siempre hace proxy desde /asistencia/*
   base: '/asistencia/',
+
+  // Configuración de esbuild - eliminar console.* en producción
+  esbuild: {
+    drop: isProduction ? ['console', 'debugger'] : [],
+  },
 
   // Configuración de build
   build: {

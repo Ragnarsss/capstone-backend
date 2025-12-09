@@ -17,3 +17,15 @@ export { toAsyncStage } from './stage.interface';
 
 export { runPipeline, formatTrace } from './runner';
 export type { RunnerResult } from './runner';
+
+// Pipeline Factory
+export {
+  createDefaultPipeline,
+  createMinimalPipeline,
+  createCustomPipeline,
+} from './pipeline.factory';
+export type {
+  PipelineDependencies,
+  CustomPipelineOptions,
+  OptionalStage,
+} from './pipeline.factory';

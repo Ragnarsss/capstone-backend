@@ -4,8 +4,9 @@
  * Implementa encriptación/desencriptación compatible con el backend.
  * Formato de payload: iv.ciphertext.authTag (separado por puntos, todo en base64)
  * 
- * NOTA: En desarrollo usa MOCK_SESSION_KEY.
- * En Fase 9+ usará session_key derivada de ECDH.
+ * Estrategia de claves:
+ * 1. Busca session_key derivada de ECDH (SessionKeyStore)
+ * 2. Fallback a MOCK_SESSION_KEY en desarrollo
  */
 import { getMockSessionKey } from './mock-keys';
 
@@ -15,16 +16,57 @@ const AUTH_TAG_LENGTH = 16; // 128 bits
 
 // Cache de la clave para evitar importarla múltiples veces
 let cachedKey: CryptoKey | null = null;
+let cachedKeySource: 'ecdh' | 'mock' | null = null;
+
+// Referencia al SessionKeyStore (lazy load para evitar import circular)
+let sessionKeyStorePromise: Promise<typeof import('../../features/enrollment/services/session-key.store')> | null = null;
 
 /**
- * Obtiene la clave de sesión (cacheada)
- * TODO: En Fase 9+ recibirá la session_key del handshake ECDH
+ * Obtiene la clave de sesión con prioridad:
+ * 1. session_key derivada de ECDH (producción)
+ * 2. MOCK_SESSION_KEY (desarrollo)
  */
 async function getSessionKey(): Promise<CryptoKey> {
-  if (!cachedKey) {
+  // Intentar obtener session_key real de ECDH
+  try {
+    if (!sessionKeyStorePromise) {
+      sessionKeyStorePromise = import('../../features/enrollment/services/session-key.store');
+    }
+    const { SessionKeyStore } = await sessionKeyStorePromise;
+    const store = new SessionKeyStore();
+    
+    if (store.hasSessionKey()) {
+      const realKey = await store.getSessionKey();
+      if (realKey) {
+        if (cachedKeySource !== 'ecdh') {
+          console.log('[Crypto] Usando session_key derivada de ECDH');
+          cachedKeySource = 'ecdh';
+        }
+        cachedKey = realKey;
+        return cachedKey;
+      }
+    }
+  } catch {
+    // SessionKeyStore no disponible, usar mock
+  }
+
+  // Fallback a mock key
+  if (!cachedKey || cachedKeySource !== 'mock') {
     cachedKey = await getMockSessionKey();
+    cachedKeySource = 'mock';
+    console.warn('[Crypto] Usando MOCK_SESSION_KEY - solo para desarrollo');
   }
   return cachedKey;
+}
+
+/**
+ * Establece manualmente una session_key derivada de ECDH
+ * Útil para pruebas o cuando no se usa SessionKeyStore
+ */
+export function setSessionKey(key: CryptoKey): void {
+  cachedKey = key;
+  cachedKeySource = 'ecdh';
+  console.log('[Crypto] Session key establecida manualmente');
 }
 
 /**
@@ -163,4 +205,13 @@ export async function encryptPayload(plaintext: string): Promise<string> {
  */
 export function clearKeyCache(): void {
   cachedKey = null;
+  cachedKeySource = null;
+}
+
+/**
+ * Obtiene la fuente actual de la clave de sesión
+ * @returns 'ecdh' si usa clave real, 'mock' si usa desarrollo, null si no hay clave
+ */
+export function getKeySource(): 'ecdh' | 'mock' | null {
+  return cachedKeySource;
 }

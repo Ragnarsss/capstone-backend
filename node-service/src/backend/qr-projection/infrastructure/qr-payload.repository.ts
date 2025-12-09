@@ -1,23 +1,10 @@
 import type { QRPayloadV1 } from '../domain/models';
 import { ValkeyClient } from '../../../shared/infrastructure/valkey/valkey-client';
+import type { IQRPayloadRepository, StoredPayload, PayloadValidationResult } from '../../../shared/ports';
+import { logger } from '../../../shared/infrastructure/logger';
 
-/**
- * Datos almacenados para validación de payload
- */
-export interface StoredPayload {
-  /** Payload original (para validación) */
-  payload: QRPayloadV1;
-  /** Payload encriptado (el que va en el QR) */
-  encrypted: string;
-  /** Timestamp de creación */
-  createdAt: number;
-  /** Si ya fue consumido (escaneado exitosamente) */
-  consumed: boolean;
-  /** ID del estudiante que lo consumió (si aplica) */
-  consumedBy?: number;
-  /** Timestamp de consumo */
-  consumedAt?: number;
-}
+// Re-exportamos tipos desde shared/ports para compatibilidad
+export type { StoredPayload, PayloadValidationResult } from '../../../shared/ports';
 
 /**
  * Repository para almacenamiento temporal de payloads QR
@@ -25,12 +12,12 @@ export interface StoredPayload {
  * Responsabilidad: Almacenar payloads generados para validación posterior
  * 
  * Estrategia:
- * - Cada payload se almacena con TTL corto (configurable, default 30s)
+ * - Cada payload se almacena con TTL corto (configurable, default 60s)
  * - La clave incluye el nonce para lookup rápido
  * - Permite validar que un payload escaneado fue realmente generado
  * - Previene replay attacks marcando payloads como consumidos
  */
-export class QRPayloadRepository {
+export class QRPayloadRepository implements IQRPayloadRepository {
   private client = ValkeyClient.getInstance().getClient();
   
   /** TTL por defecto en segundos */
@@ -41,9 +28,9 @@ export class QRPayloadRepository {
 
   /**
    * Constructor
-   * @param ttlSeconds - TTL en segundos para payloads (default: 30)
+   * @param ttlSeconds - TTL en segundos para payloads (default: 60)
    */
-  constructor(ttlSeconds = 30) {
+  constructor(ttlSeconds = 60) {
     this.defaultTTL = ttlSeconds;
   }
 
@@ -70,7 +57,7 @@ export class QRPayloadRepository {
       JSON.stringify(stored)
     );
 
-    console.debug(`[QRPayloadRepository] Stored payload nonce=${payload.n.substring(0, 8)}... TTL=${ttl ?? this.defaultTTL}s`);
+    logger.debug(`[QRPayloadRepository] Stored payload nonce=${payload.n.substring(0, 8)}... TTL=${ttl ?? this.defaultTTL}s`);
   }
 
   /**
@@ -89,7 +76,7 @@ export class QRPayloadRepository {
     try {
       return JSON.parse(data) as StoredPayload;
     } catch (error) {
-      console.error(`[QRPayloadRepository] Error parsing stored payload:`, error);
+      logger.error(`[QRPayloadRepository] Error parsing stored payload:`, error);
       return null;
     }
   }
@@ -99,7 +86,7 @@ export class QRPayloadRepository {
    * @param payload - Payload recibido del escaneo
    * @returns true si el payload es válido y no ha sido consumido
    */
-  async validate(payload: QRPayloadV1): Promise<{ valid: boolean; reason?: string }> {
+  async validate(payload: QRPayloadV1): Promise<PayloadValidationResult> {
     const stored = await this.findByNonce(payload.n);
 
     if (!stored) {
@@ -162,7 +149,7 @@ export class QRPayloadRepository {
       await this.client.setex(key, ttl, JSON.stringify(stored));
     }
 
-    console.debug(`[QRPayloadRepository] Marked as consumed nonce=${nonce.substring(0, 8)}... by user=${consumedBy}`);
+    logger.debug(`[QRPayloadRepository] Marked as consumed nonce=${nonce.substring(0, 8)}... by user=${consumedBy}`);
     return true;
   }
 

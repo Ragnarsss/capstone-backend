@@ -1,53 +1,18 @@
 import { ValkeyClient } from '../../../shared/infrastructure/valkey/valkey-client';
+import {
+  DEFAULT_MAX_ROUNDS,
+  DEFAULT_MAX_ATTEMPTS,
+  DEFAULT_QR_TTL_SECONDS,
+} from '../../../shared/config';
+import {
+  StudentSession,
+  type StudentSessionData,
+  type RoundResult,
+} from '../domain/student-session.entity';
+import { logger } from '../../../shared/infrastructure/logger';
 
-/**
- * Resultado de un round completado
- */
-export interface RoundResult {
-  /** Número de round */
-  round: number;
-  /** Response Time en milisegundos */
-  responseTime: number;
-  /** Timestamp de validación */
-  validatedAt: number;
-  /** Nonce del QR usado */
-  nonce: string;
-}
-
-/**
- * Estado de un estudiante en una sesión de asistencia
- */
-export interface StudentSessionState {
-  /** ID del estudiante */
-  studentId: number;
-  /** ID de la sesión */
-  sessionId: string;
-  
-  /** Round actual (1-based) */
-  currentRound: number;
-  /** Número máximo de rounds a completar */
-  maxRounds: number;
-  /** Rounds completados exitosamente */
-  roundsCompleted: RoundResult[];
-  
-  /** Intento actual (1-based) */
-  currentAttempt: number;
-  /** Número máximo de intentos */
-  maxAttempts: number;
-  
-  /** Nonce del QR activo (null si no hay QR pendiente) */
-  activeQRNonce: string | null;
-  /** Timestamp de generación del QR activo */
-  qrGeneratedAt: number | null;
-  
-  /** Estado general */
-  status: 'active' | 'completed' | 'failed';
-  
-  /** Timestamp de registro inicial */
-  registeredAt: number;
-  /** Timestamp de última actualización */
-  updatedAt: number;
-}
+// Re-export types for backward compatibility
+export type { RoundResult, StudentSessionData };
 
 /**
  * Configuración de sesión
@@ -58,11 +23,11 @@ export interface SessionConfig {
   qrTTL: number;
 }
 
-/** Configuración por defecto */
+/** Configuracion por defecto - usa constantes centralizadas */
 const DEFAULT_CONFIG: SessionConfig = {
-  maxRounds: 3,
-  maxAttempts: 3,
-  qrTTL: 30,
+  maxRounds: DEFAULT_MAX_ROUNDS,
+  maxAttempts: DEFAULT_MAX_ATTEMPTS,
+  qrTTL: DEFAULT_QR_TTL_SECONDS,
 };
 
 /**
@@ -71,14 +36,19 @@ const DEFAULT_CONFIG: SessionConfig = {
  * Responsabilidad: Gestionar el estado de rounds e intentos por estudiante
  * 
  * Claves en Valkey:
- * - student:session:{sessionId}:{studentId} → StudentSessionState
+ * - student:session:{sessionId}:{studentId} → StudentSessionData
  * - session:{sessionId}:config → SessionConfig
  * - session:{sessionId}:students → SET de studentIds participando
+ * 
+ * TTL Strategy:
+ * - El TTL se RENUEVA en cada operación (registro, setActiveQR, completeRound)
+ * - Esto asegura que el estado no expire durante una sesión activa
+ * - Cada round tiene su propio "tiempo de vida" desde que se genera el QR
  */
 export class StudentSessionRepository {
   private client = ValkeyClient.getInstance().getClient();
   
-  /** TTL para estado de estudiante (2 horas) */
+  /** TTL para estado de estudiante (2 horas) - se renueva en cada operación */
   private readonly stateTTL = 7200;
   
   /** Prefijos de claves */
@@ -96,7 +66,7 @@ export class StudentSessionRepository {
     sessionId: string,
     studentId: number,
     config?: Partial<SessionConfig>
-  ): Promise<StudentSessionState> {
+  ): Promise<StudentSessionData> {
     // Verificar si ya existe
     const existing = await this.getState(sessionId, studentId);
     if (existing) {
@@ -108,7 +78,7 @@ export class StudentSessionRepository {
 
     // Crear estado inicial
     const now = Date.now();
-    const state: StudentSessionState = {
+    const state: StudentSessionData = {
       studentId,
       sessionId,
       currentRound: 1,
@@ -126,14 +96,14 @@ export class StudentSessionRepository {
     await this.saveState(state);
     await this.addStudentToSession(sessionId, studentId);
 
-    console.log(`[StudentSession] Registered student=${studentId} in session=${sessionId.substring(0, 8)}...`);
+    logger.debug(`[StudentSession] Registered student=${studentId} in session=${sessionId.substring(0, 8)}...`);
     return state;
   }
 
   /**
    * Obtiene el estado de un estudiante en una sesión
    */
-  async getState(sessionId: string, studentId: number): Promise<StudentSessionState | null> {
+  async getState(sessionId: string, studentId: number): Promise<StudentSessionData | null> {
     const key = this.buildStudentKey(sessionId, studentId);
     const data = await this.client.get(key);
 
@@ -142,9 +112,9 @@ export class StudentSessionRepository {
     }
 
     try {
-      return JSON.parse(data) as StudentSessionState;
+      return JSON.parse(data) as StudentSessionData;
     } catch (error) {
-      console.error('[StudentSession] Error parsing state:', error);
+      logger.error('[StudentSession] Error parsing state:', error);
       return null;
     }
   }
@@ -152,7 +122,7 @@ export class StudentSessionRepository {
   /**
    * Guarda el estado de un estudiante
    */
-  async saveState(state: StudentSessionState): Promise<void> {
+  async saveState(state: StudentSessionData): Promise<void> {
     const key = this.buildStudentKey(state.sessionId, state.studentId);
     state.updatedAt = Date.now();
     
@@ -161,12 +131,13 @@ export class StudentSessionRepository {
 
   /**
    * Actualiza el QR activo para un estudiante
+   * IMPORTANTE: Renueva el TTL del estado al generar nuevo QR
    */
   async setActiveQR(
     sessionId: string,
     studentId: number,
     nonce: string
-  ): Promise<StudentSessionState | null> {
+  ): Promise<StudentSessionData | null> {
     const state = await this.getState(sessionId, studentId);
     if (!state) {
       return null;
@@ -175,85 +146,78 @@ export class StudentSessionRepository {
     state.activeQRNonce = nonce;
     state.qrGeneratedAt = Date.now();
     
+    // saveState ya renueva el TTL automáticamente
     await this.saveState(state);
+    logger.debug(`[StudentSession] QR activo renovado para student=${studentId}, TTL reset a ${this.stateTTL}s`);
     return state;
   }
 
   /**
    * Registra un round completado exitosamente
    * Avanza al siguiente round o marca como completado
+   * IMPORTANTE: Renueva el TTL del estado
+   * 
+   * Delega logica de negocio a StudentSession entity
    */
   async completeRound(
     sessionId: string,
     studentId: number,
     result: Omit<RoundResult, 'round'>
-  ): Promise<{ state: StudentSessionState; isComplete: boolean }> {
-    const state = await this.getState(sessionId, studentId);
-    if (!state) {
-      throw new Error(`No state found for student=${studentId} session=${sessionId}`);
+  ): Promise<{ state: StudentSessionData; isComplete: boolean }> {
+    const stateData = await this.getState(sessionId, studentId);
+    if (!stateData) {
+      const key = this.buildStudentKey(sessionId, studentId);
+      const ttl = await this.client.ttl(key);
+      logger.error(`[StudentSession] State not found: student=${studentId}, session=${sessionId.substring(0, 20)}..., key TTL=${ttl}`);
+      throw new Error(`No state found for student=${studentId} session=${sessionId} (TTL was ${ttl})`);
     }
 
-    // Registrar round completado
-    const roundResult: RoundResult = {
-      round: state.currentRound,
-      ...result,
-    };
-    state.roundsCompleted.push(roundResult);
-
-    // Limpiar QR activo
-    state.activeQRNonce = null;
-    state.qrGeneratedAt = null;
-
-    // Verificar si completó todos los rounds
-    const isComplete = state.currentRound >= state.maxRounds;
+    // Usar entidad de dominio para logica de negocio
+    const session = StudentSession.fromData(stateData);
+    const { session: newSession, isComplete } = session.completeRound(result);
 
     if (isComplete) {
-      state.status = 'completed';
-      console.log(`[StudentSession] Student=${studentId} completed all ${state.maxRounds} rounds`);
+      logger.debug(`[StudentSession] Student=${studentId} completed all ${newSession.maxRounds} rounds`);
     } else {
-      state.currentRound++;
-      console.log(`[StudentSession] Student=${studentId} advanced to round ${state.currentRound}`);
+      logger.debug(`[StudentSession] Student=${studentId} advanced to round ${newSession.currentRound}`);
     }
 
-    await this.saveState(state);
-    return { state, isComplete };
+    // Persistir nuevo estado
+    const newState = newSession.toData();
+    await this.saveState(newState);
+    return { state: newState, isComplete };
   }
 
   /**
    * Registra un fallo en el round actual
    * Consume un intento o marca como fallido si no quedan intentos
+   * 
+   * Delega logica de negocio a StudentSession entity
    */
   async failRound(
     sessionId: string,
     studentId: number,
     reason: string
-  ): Promise<{ state: StudentSessionState; canRetry: boolean }> {
-    const state = await this.getState(sessionId, studentId);
-    if (!state) {
+  ): Promise<{ state: StudentSessionData; canRetry: boolean }> {
+    const stateData = await this.getState(sessionId, studentId);
+    if (!stateData) {
       throw new Error(`No state found for student=${studentId} session=${sessionId}`);
     }
 
-    // Limpiar QR activo
-    state.activeQRNonce = null;
-    state.qrGeneratedAt = null;
-
-    // Verificar si quedan intentos
-    const canRetry = state.currentAttempt < state.maxAttempts;
+    // Usar entidad de dominio para logica de negocio
+    const session = StudentSession.fromData(stateData);
+    const { session: newSession, canRetry } = session.failRound();
 
     if (canRetry) {
-      // Reiniciar desde round 1 con nuevo intento
-      state.currentAttempt++;
-      state.currentRound = 1;
-      state.roundsCompleted = [];
-      console.log(`[StudentSession] Student=${studentId} failed (${reason}), attempt ${state.currentAttempt}/${state.maxAttempts}`);
+      logger.debug(`[StudentSession] Student=${studentId} failed (${reason}), attempt ${newSession.currentAttempt}/${newSession.maxAttempts}`);
     } else {
-      // Sin intentos restantes
-      state.status = 'failed';
-      console.log(`[StudentSession] Student=${studentId} failed permanently, no attempts left`);
+      logger.debug(`[StudentSession] Student=${studentId} failed permanently, no attempts left`);
     }
 
-    await this.saveState(state);
-    return { state, canRetry };
+    // Persistir nuevo estado
+    const newState = newSession.toData();
+    await this.saveState(newState);
+    return { state: newState, canRetry };
   }
 
   /**

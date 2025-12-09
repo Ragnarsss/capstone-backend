@@ -2,12 +2,14 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { ParticipationService } from '../application/participation.service';
 import { ValidateScanUseCase } from '../application/validate-scan.usecase';
 import { CompleteScanUseCase } from '../application/complete-scan.usecase';
-import { ActiveSessionRepository } from '../infrastructure/active-session.repository';
-import { ProjectionPoolRepository } from '../infrastructure/projection-pool.repository';
+import { PoolBalancer } from '../../qr-projection/application/services';
+import { ActiveSessionRepository, ProjectionPoolRepository } from '../../../shared/infrastructure/valkey';
 import { StudentSessionRepository } from '../infrastructure/student-session.repository';
-import { QRStateAdapter, StudentStateAdapter, createCompleteScanDependencies } from '../infrastructure/adapters';
-import { CryptoService } from '../../../shared/infrastructure/crypto';
+import { FraudMetricsRepository } from '../infrastructure/fraud-metrics.repository';
+import { QRStateAdapter, StudentStateAdapter, createCompleteScanDepsWithPersistence } from '../infrastructure/adapters';
+import { AesGcmService } from '../../../shared/infrastructure/crypto';
 import { mapValidationError } from './error-mapper';
+import { logger } from '../../../shared/infrastructure/logger';
 
 /**
  * Request body schema para validación
@@ -55,14 +57,18 @@ export async function registerAttendanceRoutes(
   
   // UseCase para solo validación (debugging)
   const validateScanUseCase = new ValidateScanUseCase({
-    cryptoService: new CryptoService(),
+    aesGcmService: new AesGcmService(),
     qrStateLoader: new QRStateAdapter(poolRepo),
     studentStateLoader: new StudentStateAdapter(studentRepo),
   });
 
   // UseCase completo (validación + side effects)
-  const completeScanDeps = createCompleteScanDependencies();
-  const completeScanUseCase = new CompleteScanUseCase(completeScanDeps);
+  // Habilitar persistencia PostgreSQL si ENABLE_POSTGRES_PERSISTENCE=true
+  const enablePostgresPersistence = process.env.ENABLE_POSTGRES_PERSISTENCE === 'true';
+  const { deps: completeScanDeps, persistence } = createCompleteScanDepsWithPersistence({
+    enablePostgresPersistence,
+  });
+  const completeScanUseCase = new CompleteScanUseCase(completeScanDeps, {}, persistence);
 
   /**
    * GET /asistencia/api/attendance/active-session
@@ -337,5 +343,188 @@ export async function registerAttendanceRoutes(
     }
   );
 
-  console.log('[Attendance] Rutas registradas: active-session, register, validate, validate-debug, status, refresh-qr, health');
+  logger.info('[Attendance] Rutas registradas: active-session, register, validate, validate-debug, status, refresh-qr, health');
+
+  // ===========================================================================
+  // ENDPOINTS DE DESARROLLO - Solo habilitados si DEV_ENDPOINTS=true
+  // ===========================================================================
+  const devEndpointsEnabled = process.env.DEV_ENDPOINTS === 'true';
+  
+  if (devEndpointsEnabled) {
+    const poolBalancer = new PoolBalancer(undefined, poolRepo);
+    const fraudMetricsRepo = new FraudMetricsRepository();
+
+    /**
+     * POST /asistencia/api/attendance/dev/fakes
+     * 
+     * Inyecta QRs falsos en el pool de una sesion
+     * Solo disponible en desarrollo
+     */
+    fastify.post<{ Body: { sessionId: string; count?: number } }>(
+      '/asistencia/api/attendance/dev/fakes',
+      {
+        schema: {
+          body: {
+            type: 'object',
+            required: ['sessionId'],
+            properties: {
+              sessionId: { type: 'string', minLength: 1 },
+              count: { type: 'number', minimum: 1, maximum: 100 },
+            },
+          },
+        },
+      },
+      async (request, reply) => {
+        const { sessionId, count } = request.body;
+        const toInject = count ?? 10;
+
+        await poolBalancer.injectFakes(sessionId, toInject);
+        const stats = await poolRepo.getPoolStats(sessionId);
+
+        return reply.send({
+          success: true,
+          data: {
+            injected: toInject,
+            pool: stats,
+          },
+        });
+      }
+    );
+
+    /**
+     * POST /asistencia/api/attendance/dev/balance
+     * 
+     * Balancea el pool de una sesion (agrega/remueve falsos segun minPoolSize)
+     */
+    fastify.post<{ Body: { sessionId: string } }>(
+      '/asistencia/api/attendance/dev/balance',
+      {
+        schema: {
+          body: {
+            type: 'object',
+            required: ['sessionId'],
+            properties: {
+              sessionId: { type: 'string', minLength: 1 },
+            },
+          },
+        },
+      },
+      async (request, reply) => {
+        const { sessionId } = request.body;
+
+        const result = await poolBalancer.balance(sessionId);
+        const stats = await poolRepo.getPoolStats(sessionId);
+
+        return reply.send({
+          success: true,
+          data: {
+            balanced: result,
+            pool: stats,
+          },
+        });
+      }
+    );
+
+    /**
+     * GET /asistencia/api/attendance/dev/pool/:sessionId
+     * 
+     * Obtiene estadisticas del pool de proyeccion
+     */
+    fastify.get<{ Params: { sessionId: string } }>(
+      '/asistencia/api/attendance/dev/pool/:sessionId',
+      async (request, reply) => {
+        const { sessionId } = request.params;
+        const stats = await poolRepo.getPoolStats(sessionId);
+        const config = poolBalancer.getConfig();
+
+        return reply.send({
+          success: true,
+          data: {
+            sessionId,
+            pool: stats,
+            config,
+          },
+        });
+      }
+    );
+
+    /**
+     * GET /asistencia/api/attendance/dev/fraud/:sessionId
+     * 
+     * Obtiene metricas de fraude de una sesion
+     */
+    fastify.get<{ Params: { sessionId: string } }>(
+      '/asistencia/api/attendance/dev/fraud/:sessionId',
+      async (request, reply) => {
+        const { sessionId } = request.params;
+        const stats = await fraudMetricsRepo.getStats(sessionId);
+        const suspiciousStudents = await fraudMetricsRepo.getSuspiciousStudents(sessionId);
+
+        return reply.send({
+          success: true,
+          data: {
+            sessionId,
+            fraud: stats,
+            suspiciousStudents,
+          },
+        });
+      }
+    );
+
+    /**
+     * DELETE /asistencia/api/attendance/dev/pool/:sessionId
+     * 
+     * Limpia el pool de proyeccion de una sesion
+     */
+    fastify.delete<{ Params: { sessionId: string } }>(
+      '/asistencia/api/attendance/dev/pool/:sessionId',
+      async (request, reply) => {
+        const { sessionId } = request.params;
+        await poolRepo.clearPool(sessionId);
+
+        return reply.send({
+          success: true,
+          data: {
+            sessionId,
+            message: 'Pool cleared',
+          },
+        });
+      }
+    );
+
+    /**
+     * PUT /asistencia/api/attendance/dev/config
+     * 
+     * Actualiza la configuracion del PoolBalancer en runtime
+     */
+    fastify.put<{ Body: { minPoolSize?: number } }>(
+      '/asistencia/api/attendance/dev/config',
+      {
+        schema: {
+          body: {
+            type: 'object',
+            properties: {
+              minPoolSize: { type: 'number', minimum: 1, maximum: 100 },
+            },
+          },
+        },
+      },
+      async (request, reply) => {
+        const { minPoolSize } = request.body;
+
+        if (minPoolSize !== undefined) {
+          poolBalancer.updateConfig({ minPoolSize });
+        }
+
+        return reply.send({
+          success: true,
+          data: {
+            config: poolBalancer.getConfig(),
+          },
+        });
+      }
+    );
+
+    logger.info('[Attendance] DEV endpoints habilitados: dev/fakes, dev/balance, dev/pool, dev/fraud, dev/config');
+  }
 }

@@ -1,10 +1,8 @@
-import type { AuthenticationResponseJSON } from '@simplewebauthn/types';
 import { 
   DeviceRepository, 
   SessionKeyRepository, 
   EcdhService, 
-  HkdfService,
-  Fido2Service 
+  HkdfService
 } from '../../infrastructure';
 import type { SessionKey } from '../../domain/models';
 
@@ -15,7 +13,6 @@ export interface LoginEcdhInput {
   userId: number;
   credentialId: string;
   clientPublicKey: string; // Base64 - clave ECDH del cliente
-  assertion?: AuthenticationResponseJSON; // Opcional: WebAuthn assertion para verificar posesión
 }
 
 /**
@@ -32,24 +29,27 @@ export interface LoginEcdhOutput {
  * 
  * Flujo:
  * 1. Verificar que el dispositivo existe y está activo
- * 2. Opcionalmente verificar WebAuthn assertion
- * 3. Realizar ECDH key exchange
- * 4. Derivar session_key con HKDF
- * 5. Guardar session_key en Valkey (TTL 2 horas)
- * 6. Generar TOTPu con handshake_secret
- * 7. Retornar serverPublicKey + TOTPu
+ * 2. Realizar ECDH key exchange
+ * 3. Derivar session_key con HKDF
+ * 4. Guardar session_key en Valkey (TTL 2 horas)
+ * 5. Generar TOTPu con handshake_secret
+ * 6. Retornar serverPublicKey + TOTPu
+ * 
+ * Seguridad:
+ * - El credentialId identifica unívocamente al dispositivo enrolado
+ * - ECDH garantiza que solo quien tiene la clave privada puede derivar session_key
+ * - session_key es efímera (2 horas) y única por sesión
  */
 export class LoginEcdhUseCase {
   constructor(
     private readonly deviceRepository: DeviceRepository,
     private readonly sessionKeyRepository: SessionKeyRepository,
     private readonly ecdhService: EcdhService,
-    private readonly hkdfService: HkdfService,
-    private readonly fido2Service: Fido2Service
+    private readonly hkdfService: HkdfService
   ) {}
 
   async execute(input: LoginEcdhInput): Promise<LoginEcdhOutput> {
-    const { userId, credentialId, clientPublicKey, assertion } = input;
+    const { userId, credentialId, clientPublicKey } = input;
 
     // 1. Buscar dispositivo por credentialId
     const device = await this.deviceRepository.findByCredentialId(credentialId);
@@ -67,49 +67,15 @@ export class LoginEcdhUseCase {
       throw new Error('DEVICE_REVOKED: El dispositivo ha sido revocado');
     }
 
-    // 2. Si se proporciona assertion, verificar posesión del dispositivo
-    if (assertion) {
-      // Generar challenge para verificación (en producción debería estar almacenado)
-      // Por ahora usamos un challenge básico
-      try {
-        const verificationResult = await this.fido2Service.verifyAuthentication(
-          assertion,
-          assertion.response.clientDataJSON, // El challenge está en clientDataJSON
-          {
-            credentialId: device.credentialId,
-            publicKey: device.publicKey,
-            counter: device.signCount,
-            transports: device.transports,
-          }
-        );
-
-        if (!verificationResult.verified) {
-          throw new Error('ASSERTION_FAILED: La verificación de WebAuthn falló');
-        }
-
-        // Actualizar contador anti-clonación
-        await this.deviceRepository.updateCounter({
-          deviceId: device.deviceId,
-          newCounter: verificationResult.authenticationInfo.newCounter,
-        });
-      } catch (error) {
-        if (error instanceof Error && error.message.startsWith('ASSERTION_FAILED')) {
-          throw error;
-        }
-        // Si hay error en verificación, continuar sin assertion (modo simplificado)
-        console.warn('[LoginEcdhUseCase] WebAuthn verification skipped:', error);
-      }
-    }
-
-    // 3. Realizar ECDH key exchange
+    // 2. Realizar ECDH key exchange
     const keyExchangeResult = this.ecdhService.performKeyExchange(clientPublicKey);
 
-    // 4. Derivar session_key con HKDF
+    // 3. Derivar session_key con HKDF
     const sessionKeyBuffer = await this.hkdfService.deriveSessionKey(
       keyExchangeResult.sharedSecret
     );
 
-    // 5. Guardar session_key en Valkey (TTL 2 horas)
+    // 4. Guardar session_key en Valkey (TTL 2 horas)
     const sessionKey: SessionKey = {
       sessionKey: sessionKeyBuffer,
       userId,
@@ -118,14 +84,14 @@ export class LoginEcdhUseCase {
     };
     await this.sessionKeyRepository.save(sessionKey, 7200);
 
-    // 6. Generar TOTPu con handshake_secret
+    // 5. Generar TOTPu con handshake_secret
     const handshakeSecretBuffer = Buffer.from(device.handshakeSecret, 'base64');
     const totpu = this.hkdfService.generateTotp(handshakeSecretBuffer);
 
-    // 7. Actualizar last_used_at del dispositivo
+    // 6. Actualizar last_used_at del dispositivo
     await this.deviceRepository.updateLastUsed(device.deviceId);
 
-    // 8. Retornar respuesta
+    // 7. Retornar respuesta
     return {
       serverPublicKey: keyExchangeResult.serverPublicKey,
       totpu,

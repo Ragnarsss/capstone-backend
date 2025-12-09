@@ -60,19 +60,19 @@ done
 
 # 4. Verificar AttendanceValidationService
 echo ""
-echo "Verificando AttendanceValidationService..."
-SERVICE_FILE="node-service/src/backend/attendance/application/attendance-validation.service.ts"
+echo "Verificando servicios de attendance..."
+SERVICE_FILE="node-service/src/backend/attendance/application/validate-scan.usecase.ts"
 
-if grep -q "validateScannedPayload(" "$SERVICE_FILE"; then
-    pass "Metodo validateScannedPayload() existe"
+if grep -q "execute(" "$SERVICE_FILE"; then
+    pass "Metodo execute() existe en ValidateScanUseCase"
 else
-    fail "Metodo validateScannedPayload() no encontrado"
+    fail "Metodo execute() no encontrado"
 fi
 
-if grep -q "CryptoService" "$SERVICE_FILE"; then
-    pass "Usa CryptoService para desencriptar"
+if grep -q "AesGcmService" "$SERVICE_FILE"; then
+    pass "Usa AesGcmService para desencriptar"
 else
-    fail "No usa CryptoService"
+    fail "No usa AesGcmService"
 fi
 
 if grep -q "QRPayloadRepository" "$SERVICE_FILE"; then

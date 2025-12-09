@@ -7,6 +7,16 @@
 // Models
 export * from './models';
 
+// Entities
+export {
+  StudentSession,
+  type StudentSessionData,
+  type StudentSessionStatus,
+  type RoundResult,
+  type CompleteRoundResult,
+  type FailRoundResult,
+} from './student-session.entity';
+
 // Stats Calculator
 export { calculateStats, type ResponseTimeStats } from './stats-calculator';
 

@@ -81,12 +81,33 @@ export class DeviceRepository {
   }
 
   /**
-   * Busca dispositivo por credential_id
+   * Busca dispositivo por credential_id (solo activos)
    */
   async findByCredentialId(credentialId: string): Promise<Device | null> {
     const query = `
       SELECT * FROM enrollment.devices
       WHERE credential_id = $1 AND is_active = TRUE
+    `;
+
+    const result = await this.pool.query<DeviceRow>(query, [credentialId]);
+    
+    if (result.rows.length === 0) {
+      return null;
+    }
+
+    return this.mapRowToDevice(result.rows[0]);
+  }
+
+  /**
+   * Busca dispositivo por credential_id incluyendo inactivos
+   * Usado para política 1:1: detectar si dispositivo estuvo enrolado por otro usuario
+   */
+  async findByCredentialIdIncludingInactive(credentialId: string): Promise<Device | null> {
+    const query = `
+      SELECT * FROM enrollment.devices
+      WHERE credential_id = $1
+      ORDER BY is_active DESC, enrolled_at DESC
+      LIMIT 1
     `;
 
     const result = await this.pool.query<DeviceRow>(query, [credentialId]);
@@ -180,6 +201,47 @@ export class DeviceRepository {
   async hasEnrolledDevices(userId: number): Promise<boolean> {
     const count = await this.countByUserId(userId);
     return count > 0;
+  }
+
+  /**
+   * Revoca todos los dispositivos activos de un usuario
+   * Usado para política 1:1: auto-desvincular antes de nuevo enrollment
+   * @returns número de dispositivos revocados
+   */
+  async revokeAllByUserId(userId: number, reason?: string): Promise<number> {
+    const result = await this.pool.transaction(async (client) => {
+      // Obtener IDs de dispositivos activos
+      const devicesResult = await client.query<{ device_id: number }>(
+        `SELECT device_id FROM enrollment.devices WHERE user_id = $1 AND is_active = TRUE`,
+        [userId]
+      );
+
+      if (devicesResult.rows.length === 0) {
+        return 0;
+      }
+
+      const deviceIds = devicesResult.rows.map(r => r.device_id);
+
+      // Desactivar todos los dispositivos
+      await client.query(
+        `UPDATE enrollment.devices SET is_active = FALSE WHERE user_id = $1 AND is_active = TRUE`,
+        [userId]
+      );
+
+      // Registrar en historial para cada dispositivo
+      for (const deviceId of deviceIds) {
+        await client.query(
+          `INSERT INTO enrollment.enrollment_history 
+            (device_id, user_id, action, reason) 
+           VALUES ($1, $2, 'revoked', $3)`,
+          [deviceId, userId, reason || 'Auto-revoked: 1:1 policy enforcement']
+        );
+      }
+
+      return deviceIds.length;
+    });
+
+    return result;
   }
 
   /**

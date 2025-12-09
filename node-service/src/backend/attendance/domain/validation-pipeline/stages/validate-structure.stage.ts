@@ -7,7 +7,7 @@
 
 import type { SyncStage } from '../stage.interface';
 import type { ValidationContext, StudentResponse } from '../context';
-import type { QRPayloadV1 } from '../../../../qr-projection/domain/models';
+import { isQRPayloadV1 } from '../../../../../shared/types';
 
 /**
  * Valida estructura de StudentResponse
@@ -24,27 +24,6 @@ function isValidResponseStructure(response: unknown): response is StudentRespons
     r.original !== null &&
     typeof r.studentId === 'number' &&
     typeof r.receivedAt === 'number'
-  );
-}
-
-/**
- * Valida estructura de QRPayloadV1
- */
-function isValidPayloadStructure(payload: unknown): payload is QRPayloadV1 {
-  if (!payload || typeof payload !== 'object') {
-    return false;
-  }
-
-  const p = payload as Record<string, unknown>;
-
-  return (
-    p.v === 1 &&
-    typeof p.sid === 'string' &&
-    typeof p.uid === 'number' &&
-    typeof p.r === 'number' &&
-    typeof p.ts === 'number' &&
-    typeof p.n === 'string' &&
-    (p.n as string).length === 32
   );
 }
 
@@ -69,8 +48,8 @@ export const validateStructureStage: SyncStage = {
       return false;
     }
 
-    // Validar estructura del payload original
-    if (!isValidPayloadStructure(ctx.response.original)) {
+    // Validar estructura del payload original usando isQRPayloadV1 de shared
+    if (!isQRPayloadV1(ctx.response.original)) {
       ctx.error = {
         code: 'INVALID_FORMAT',
         message: 'Estructura de payload original invalida',
