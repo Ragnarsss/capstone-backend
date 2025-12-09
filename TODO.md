@@ -30,71 +30,15 @@ QRPayloadV1 en shared/types, validador centralizado, interfaces IQRGenerator/IPo
 ### Fase 13: Control de Logs por Entorno ✅
 Logger centralizado (`shared/infrastructure/logger.ts`), logs debug/info solo en desarrollo, vite drop console en produccion, migracion de ~25 archivos backend a logger, test-fase13.sh.
 
+### Fase 12: Simulador de Desarrollo PHP ✅
+Dev Simulator completo (`php-service/src/dev-simulator/`), login mock, dashboards profesor/alumno, JWT real via `asistencia-node-integration`, postMessage para iframes, 106 tests. Accesible desde raiz (9500/9505) con `<base href>`.
+
 ---
 
 ## Fases Pendientes
 
 > **Arquitectura:** Vertical Slicing + Clean Architecture (Ports & Adapters)
 > **Referencia:** `documents/01-contexto/flujo_legacy.md`, `roseta.md`
-
----
-
-## Fase 12: Simulador de Desarrollo PHP
-
-**Objetivo:** Emular el sistema Hawaii para probar flujos sin servidor real
-**Ubicacion:** `php-service/src/dev-simulator/` (NO va a produccion)
-**Estimado:** 4.5 horas
-
----
-
-### Fase 12.0: Estructura Base del Simulador
-**Tiempo:** 30 min
-
-- [ ] Crear `php-service/src/dev-simulator/`
-- [ ] Crear `dev-simulator/index.php` (landing con links)
-- [ ] Crear `dev-simulator/functions.php` (stubs de db.inc: `is_logged_in`, `get_usuario_actual`, etc.)
-- [ ] Agregar ruta `/dev-simulator/` en Apache config
-- [ ] Script: `test-fase12-0.sh`
-
-### Fase 12.1: Datos Mock
-**Tiempo:** 45 min
-
-- [ ] Crear `dev-simulator/mock-data/usuarios.json` (profesores + alumnos con estructura legacy)
-- [ ] Crear `dev-simulator/mock-data/cursos.json` (cursos + semestres + bloques)
-- [ ] Crear `dev-simulator/mock-data/sesiones.json` (sesiones de asistencia activas)
-- [ ] Crear `dev-simulator/MockDataProvider.php` (implementa interface, carga JSONs)
-- [ ] Script: `test-fase12-1.sh`
-
-### Fase 12.2: Login Simulado
-**Tiempo:** 1 hora
-
-- [ ] Crear `dev-simulator/login.php` con selector de usuario (dropdown)
-- [ ] Implementar POST que guarda `$_SESSION['id']`, `['user']`, `['root']`
-- [ ] Crear `dev-simulator/logout.php`
-- [ ] Implementar stubs completos en `functions.php`
-- [ ] Script: `test-fase12-2.sh`
-
-### Fase 12.3: Dashboards por Rol
-**Tiempo:** 1 hora
-
-- [ ] Crear `dev-simulator/profesor-dashboard.php` (lista sesiones + crear nueva)
-- [ ] Crear `dev-simulator/alumno-dashboard.php` (info alumno + boton escanear)
-- [ ] Implementar "Crear Sesion" (mock, genera codigo tipo CVYAFO)
-- [ ] Boton "Proyectar QR" abre `modal-host.php` con params
-- [ ] Boton "Escanear QR" abre `modal-reader.php` con params
-- [ ] Script: `test-fase12-3.sh`
-
-### Fase 12.4: JWT y postMessage desde Modales
-**Tiempo:** 1.5 horas
-
-- [ ] Modificar `modal-host.php` para recibir params de sesion (GET/POST)
-- [ ] Generar JWT con datos de profesor + sesion + curso
-- [ ] Implementar JS: `postMessage({type: 'AUTH_TOKEN', token})` al cargar iframe
-- [ ] Agregar `postMessage({type: 'SESSION_CONTEXT', modo, codigo, curso, tipoEncuesta...})`
-- [ ] Modificar `modal-reader.php` para recibir datos de alumno
-- [ ] Generar JWT con datos de alumno (RUT, nombre)
-- [ ] Implementar postMessage con contexto de captura
-- [ ] Script: `test-fase12-4.sh`
 
 ---
 
