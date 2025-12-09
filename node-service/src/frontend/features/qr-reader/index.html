@@ -11,9 +11,32 @@
     <h1>Lector QR</h1>
     <p id="scanner-status" class="scanner__status">Esperando autenticacion...</p>
 
-    <!-- Pantalla inicial: botón de registro -->
-    <div id="register-section" class="scanner__register">
-      <p class="scanner__info">Presiona el botón para registrar tu asistencia</p>
+    <!-- Seccion de enrollment (si no esta enrolado) -->
+    <div id="enrollment-section" class="scanner__enrollment" style="display: none;">
+      <div class="scanner__enrollment-info">
+        <p>Para registrar asistencia, primero debes vincular este dispositivo.</p>
+        <p class="scanner__enrollment-note">Solo necesitas hacer esto una vez por dispositivo.</p>
+      </div>
+      <button id="enroll-btn" class="btn primary btn--large" disabled>
+        Vincular Dispositivo
+      </button>
+      <p id="enrollment-message" class="scanner__message"></p>
+    </div>
+
+    <!-- Seccion de login ECDH (si esta enrolado pero sin session_key) -->
+    <div id="login-section" class="scanner__login" style="display: none;">
+      <div class="scanner__login-info">
+        <p>Tu dispositivo esta vinculado. Inicia sesion para continuar.</p>
+      </div>
+      <button id="login-btn" class="btn primary btn--large" disabled>
+        Iniciar Sesion
+      </button>
+      <p id="login-message" class="scanner__message"></p>
+    </div>
+
+    <!-- Pantalla inicial: boton de registro (visible cuando tiene session_key) -->
+    <div id="register-section" class="scanner__register" style="display: none;">
+      <p class="scanner__info">Presiona el boton para registrar tu asistencia</p>
       <button id="register-btn" class="btn primary btn--large" disabled>
         Registrar Asistencia
       </button>
