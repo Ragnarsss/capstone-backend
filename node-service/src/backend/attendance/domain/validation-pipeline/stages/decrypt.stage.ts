@@ -2,7 +2,12 @@
  * Stage: Decrypt Response
  * 
  * Desencripta la respuesta del estudiante y la parsea.
- * Requiere acceso a AesGcmService (I/O stage).
+ * Requiere acceso a AesGcmService y SessionKeyRepository (I/O stage).
+ * 
+ * Flujo de session_key:
+ * 1. Obtiene session_key del estudiante desde Valkey (SessionKeyRepository)
+ * 2. Crea AesGcmService con esa clave especifica
+ * 3. Desencripta el payload con la clave del estudiante
  * 
  * En STUB MODE (ENROLLMENT_STUB_MODE=true):
  * - Acepta el QR encriptado del servidor directamente
@@ -12,18 +17,50 @@
 
 import type { Stage } from '../stage.interface';
 import type { ValidationContext, StudentResponse } from '../context';
-import type { AesGcmService } from '../../../../../shared/infrastructure/crypto';
+import { AesGcmService } from '../../../../../shared/infrastructure/crypto';
+import { SessionKeyRepository } from '../../../../enrollment/infrastructure/session-key.repository';
 import type { QRPayloadV1 } from '../../../../../shared/types';
 
 const STUB_MODE = process.env.ENROLLMENT_STUB_MODE === 'true';
 
-export function createDecryptStage(aesGcmService: AesGcmService): Stage {
+/**
+ * Dependencias para el DecryptStage
+ */
+export interface DecryptStageDeps {
+  /** Servicio AES-GCM de fallback (usa mock key) */
+  fallbackAesGcmService: AesGcmService;
+  /** Repositorio de session keys para obtener clave real */
+  sessionKeyRepo: SessionKeyRepository;
+}
+
+export function createDecryptStage(deps: DecryptStageDeps): Stage;
+export function createDecryptStage(aesGcmService: AesGcmService): Stage;
+export function createDecryptStage(
+  depsOrService: DecryptStageDeps | AesGcmService
+): Stage {
+  // Compatibilidad: si recibe AesGcmService directamente, usar como fallback
+  const deps: DecryptStageDeps = depsOrService instanceof AesGcmService
+    ? { fallbackAesGcmService: depsOrService, sessionKeyRepo: new SessionKeyRepository() }
+    : depsOrService;
+
   return {
     name: 'decrypt',
 
     async execute(ctx: ValidationContext): Promise<boolean> {
-      // Verificar formato
-      if (!aesGcmService.isValidPayloadFormat(ctx.encrypted)) {
+      // 1. Obtener session_key del estudiante desde Valkey
+      let aesService: AesGcmService;
+      const sessionKeyData = await deps.sessionKeyRepo.findByUserId(ctx.studentId);
+      
+      if (sessionKeyData) {
+        // Usar session_key real del estudiante
+        aesService = new AesGcmService(sessionKeyData.sessionKey);
+      } else {
+        // Fallback a mock key (solo desarrollo)
+        aesService = deps.fallbackAesGcmService;
+      }
+
+      // 2. Verificar formato
+      if (!aesService.isValidPayloadFormat(ctx.encrypted)) {
         ctx.error = {
           code: 'INVALID_FORMAT',
           message: 'Formato de payload invalido',
@@ -31,9 +68,9 @@ export function createDecryptStage(aesGcmService: AesGcmService): Stage {
         return false;
       }
 
-      // Desencriptar
+      // 3. Desencriptar
       try {
-        const decrypted = aesGcmService.decryptFromPayload(ctx.encrypted);
+        const decrypted = aesService.decryptFromPayload(ctx.encrypted);
         const parsed = JSON.parse(decrypted);
 
         // En STUB MODE: el payload es el QR original del servidor (QRPayloadV1)
