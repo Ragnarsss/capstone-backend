@@ -1,5 +1,7 @@
 import { PostgresPool } from '../../../../shared/infrastructure/database';
 import type { Device, CreateDeviceDto, UpdateCounterDto } from '../../domain/entities';
+import type { EnrollmentState } from '../../domain/models';
+import { ENROLLMENT_STATES } from '../../domain/models';
 
 /**
  * Row type para mapeo de PostgreSQL
@@ -17,6 +19,7 @@ interface DeviceRow {
   enrolled_at: Date;
   last_used_at: Date | null;
   is_active: boolean;
+  status: string; // EnrollmentState
   transports: string | null; // JSON string
 }
 
@@ -41,8 +44,9 @@ export class DeviceRepository {
         device_fingerprint,
         attestation_format,
         sign_count,
-        transports
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        transports,
+        status
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       RETURNING *
     `;
 
@@ -56,6 +60,7 @@ export class DeviceRepository {
       dto.attestationFormat || null,
       dto.signCount || 0,
       dto.transports ? JSON.stringify(dto.transports) : null,
+      dto.status || ENROLLMENT_STATES.ENROLLED,
     ];
 
     const result = await this.pool.query<DeviceRow>(query, values);
@@ -261,6 +266,7 @@ export class DeviceRepository {
       enrolledAt: row.enrolled_at,
       lastUsedAt: row.last_used_at,
       isActive: row.is_active,
+      status: (row.status as EnrollmentState) || ENROLLMENT_STATES.ENROLLED,
       transports: row.transports ? JSON.parse(row.transports) : undefined,
     };
   }

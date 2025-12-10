@@ -1,4 +1,5 @@
 import type { AuthenticatorTransportFuture } from '@simplewebauthn/types';
+import type { EnrollmentState } from '../models';
 
 /**
  * Entidad Device
@@ -18,6 +19,7 @@ export interface Device {
   readonly enrolledAt: Date;
   readonly lastUsedAt: Date | null;
   readonly isActive: boolean;
+  readonly status: EnrollmentState; // Estado del automata
   readonly transports?: AuthenticatorTransportFuture[];
 }
 
@@ -34,6 +36,7 @@ export interface CreateDeviceDto {
   attestationFormat?: string;
   signCount?: number;
   transports?: AuthenticatorTransportFuture[];
+  status?: EnrollmentState; // Default: 'enrolled'
 }
 
 /**
