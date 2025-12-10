@@ -1,6 +1,6 @@
 # TODO - Sistema de Asistencia con QR Dinamico
 
-> Ultima actualizacion: 2025-12-09
+> Ultima actualizacion: 2025-12-10
 
 ---
 
@@ -158,22 +158,107 @@ Legacy Bridge (postMessage PHP-Node), verificacion enrollment en qr-reader, elim
 
 ---
 
+## Fase 16: Automata Enrollment FIDO2 (PRIORIDAD)
+
+**Objetivo:** Formalizar flujo FIDO2 como automata explicito, centralizando estados y transiciones
+**Ubicacion:** `backend/enrollment/domain/state-machines/`
+**Estimado:** 8 horas
+**Prioridad:** ALTA - Ejecutar ANTES de Fase 15
+
+---
+
+### Fase 16.1: Tipos de Estado
+**Tiempo:** 30 min
+
+- [ ] Crear `EnrollmentState = 'not_enrolled' | 'pending' | 'enrolled' | 'revoked'` en `domain/models.ts`
+- [ ] Crear `SessionState = 'no_session' | 'session_active' | 'session_expired'` en `domain/models.ts`
+- [ ] Script: `test-fase16-1.sh`
+
+### Fase 16.2: Enrollment State Machine
+**Tiempo:** 1.5 horas
+
+- [ ] Crear `domain/state-machines/enrollment-state-machine.ts`
+- [ ] Tabla de transiciones validas como `Map<EnrollmentState, EnrollmentState[]>`
+- [ ] Metodo `canTransition(from, to): boolean`
+- [ ] Metodo `getValidTransitions(from): EnrollmentState[]`
+- [ ] Metodo `assertTransition(from, to): void` (throws si invalida)
+- [ ] Script: `test-fase16-2.sh`
+
+### Fase 16.3: Session State Machine
+**Tiempo:** 1 hora
+
+- [ ] Crear `domain/state-machines/session-state-machine.ts`
+- [ ] Tabla de transiciones validas
+- [ ] Precondicion: solo permite transiciones si `enrollmentState === 'enrolled'`
+- [ ] Metodo `isEnabled(enrollmentState): boolean`
+- [ ] Script: `test-fase16-3.sh`
+
+### Fase 16.4: Migracion Base de Datos
+**Tiempo:** 45 min
+
+- [ ] Crear `database/migrations/003-add-enrollment-status.sql`
+- [ ] Columna `status TEXT DEFAULT 'enrolled' CHECK (status IN ('pending', 'enrolled', 'revoked'))`
+- [ ] Migrar datos: `is_active=false` → `status='revoked'`, `is_active=true` → `status='enrolled'`
+- [ ] Actualizar `device.entity.ts` con campo `status: EnrollmentState`
+- [ ] Actualizar `DeviceRepository` para leer/escribir `status`
+- [ ] Script: `test-fase16-4.sh`
+
+### Fase 16.5: Refactorizar Use Cases
+**Tiempo:** 2 horas
+
+- [ ] `StartEnrollmentUseCase`: validar `canTransition(current, 'pending')` antes de ejecutar
+- [ ] `FinishEnrollmentUseCase`: validar transicion + actualizar `status` en DB
+- [ ] `RevokeDeviceUseCase`: validar transicion + invalidar session_key en Valkey (eager)
+- [ ] Script: `test-fase16-5.sh`
+
+### Fase 16.6: Fix GetEnrollmentStatus + credentialId
+**Tiempo:** 45 min
+
+- [ ] Agregar `credentialId` a `DeviceInfo` interface (FIX BUG)
+- [ ] Retornar `credentialId` en response de `/api/enrollment/status`
+- [ ] Retornar estado del automata en response
+- [ ] Script: `test-fase16-6.sh`
+
+### Fase 16.7: Verificacion Dispositivo en LoginEcdh
+**Tiempo:** 1 hora
+
+- [ ] Validar `credentialId` del cliente vs DB
+- [ ] Si `deviceFingerprint` cambio pero `credentialId` OK → actualizar fingerprint (probable update OS)
+- [ ] Si `credentialId` no coincide → ofrecer re-enrollment con penalty
+- [ ] Script: `test-fase16-7.sh`
+
+### Fase 16.8: Tests y Documentacion
+**Tiempo:** 30 min
+
+- [ ] Script `test-fase16.sh` (integracion completa)
+- [ ] Actualizar `documents/02-modulos/enrollment.md` con diagramas de automata
+- [ ] Commit y merge
+
+---
+
 ## Diagrama de Dependencias
 
 ```
-Fase 12 (Simulador PHP - solo dev)
+Fase 14 (Session Key Real) ✅
     │
-    12.0 ─► 12.1 ─► 12.2 ─► 12.3 ─► 12.4
-                                      │
-                                      ▼
-                              Fase 14 (Session Key Real)
-                                      │
-                              14.1 ─► 14.2 ─► 14.3 ─► 14.4
-                                                        │
-                                                        ▼
-                                                Fase 15 (Puente Produccion)
-                                                        │
-                                                15.1 ─► 15.2 ─► 15.3 ─► 15.4 ─► 15.5
+    ├──────────────────────────────┐
+    ▼                              ▼
+Fase 16 (Automata Enrollment)    Fase 15 (Puente Produccion)
+[PRIORIDAD - hacer primero]            │
+    │                                  │
+    16.1 ─► 16.2 ─► 16.3              │
+                      │                │
+                    16.4               │
+                      │                │
+              16.5 ─► 16.6 ─► 16.7    │
+                             │        │
+                           16.8       │
+                             │        │
+                             ▼        ▼
+                    [Enrollment robusto antes de produccion]
+                             │
+                             ▼
+                    15.1 ─► 15.2 ─► 15.3 ─► 15.4 ─► 15.5
 ```
 
 ---
@@ -182,10 +267,10 @@ Fase 12 (Simulador PHP - solo dev)
 
 | Fase | Descripcion | Sub-fases | Tiempo |
 |------|-------------|-----------|--------|
-| 12 | Simulador PHP (dev) | 5 | ~4.5 h |
-| 14 | Session Key Real | 4 | ~4 h |
+| 14 | Session Key Real | 5 | ~5 h ✅ |
+| **16** | **Automata Enrollment** | **8** | **~8 h** |
 | 15 | Puente Produccion | 5 | ~6 h |
-| **Total** | | **14** | **~14.5 h** |
+| **Total Pendiente** | | **13** | **~14 h** |
 
 ---
 

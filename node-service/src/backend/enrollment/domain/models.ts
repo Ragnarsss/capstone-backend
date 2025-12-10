@@ -2,6 +2,54 @@
  * Domain models para Enrollment (FIDO2/WebAuthn)
  */
 
+// ============================================================================
+// State Machine Types
+// ============================================================================
+
+/**
+ * Estados del automata de Enrollment
+ * 
+ * Transiciones validas:
+ * - not_enrolled -> pending (startEnrollment)
+ * - pending -> enrolled (finishEnrollment OK)
+ * - pending -> not_enrolled (TTL expira)
+ * - enrolled -> revoked (revoke manual o auto-1:1)
+ * - enrolled -> pending (re-enrollment)
+ * - revoked -> pending (nuevo enrollment)
+ */
+export type EnrollmentState = 'not_enrolled' | 'pending' | 'enrolled' | 'revoked';
+
+/**
+ * Estados del automata de Session
+ * Subordinado a Enrollment: solo permite transiciones si enrollment === 'enrolled'
+ * 
+ * Transiciones validas:
+ * - no_session -> session_active (loginEcdh)
+ * - session_active -> session_expired (TTL 2h)
+ * - session_expired -> no_session (auto-cleanup)
+ */
+export type SessionState = 'no_session' | 'session_active' | 'session_expired';
+
+/**
+ * Constantes de estados para uso en comparaciones
+ */
+export const ENROLLMENT_STATES = {
+  NOT_ENROLLED: 'not_enrolled' as const,
+  PENDING: 'pending' as const,
+  ENROLLED: 'enrolled' as const,
+  REVOKED: 'revoked' as const,
+};
+
+export const SESSION_STATES = {
+  NO_SESSION: 'no_session' as const,
+  SESSION_ACTIVE: 'session_active' as const,
+  SESSION_EXPIRED: 'session_expired' as const,
+};
+
+// ============================================================================
+// WebAuthn Types
+// ============================================================================
+
 export interface WebAuthnOptions {
   rp: RelyingParty;
   user: UserInfo;
