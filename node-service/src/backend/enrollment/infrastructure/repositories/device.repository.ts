@@ -167,7 +167,7 @@ export class DeviceRepository {
   }
 
   /**
-   * Actualiza timestamp de último uso
+   * Actualiza timestamp de ultimo uso
    */
   async updateLastUsed(deviceId: number): Promise<void> {
     const query = `
@@ -177,6 +177,20 @@ export class DeviceRepository {
     `;
 
     await this.pool.query(query, [deviceId]);
+  }
+
+  /**
+   * Actualiza el deviceFingerprint de un dispositivo
+   * Usado cuando el fingerprint cambia pero credentialId coincide (probable OS update)
+   */
+  async updateDeviceFingerprint(deviceId: number, newFingerprint: string): Promise<void> {
+    const query = `
+      UPDATE enrollment.devices
+      SET device_fingerprint = $1, last_used_at = NOW()
+      WHERE device_id = $2
+    `;
+
+    await this.pool.query(query, [newFingerprint, deviceId]);
   }
 
   /**

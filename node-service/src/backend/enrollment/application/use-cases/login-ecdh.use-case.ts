@@ -14,6 +14,7 @@ export interface LoginEcdhInput {
   userId: number;
   credentialId: string;
   clientPublicKey: string; // Base64 - clave ECDH del cliente
+  deviceFingerprint?: string; // Opcional - para verificacion de dispositivo
 }
 
 /**
@@ -21,8 +22,9 @@ export interface LoginEcdhInput {
  */
 export interface LoginEcdhOutput {
   serverPublicKey: string; // Base64 - clave ECDH del servidor
-  totpu: string; // TOTP de usuario para validación
+  totpu: string; // TOTP de usuario para validacion
   deviceId: number;
+  fingerprintUpdated?: boolean; // True si el fingerprint fue actualizado (probable OS update)
 }
 
 /**
@@ -50,7 +52,7 @@ export class LoginEcdhUseCase {
   ) {}
 
   async execute(input: LoginEcdhInput): Promise<LoginEcdhOutput> {
-    const { userId, credentialId, clientPublicKey } = input;
+    const { userId, credentialId, clientPublicKey, deviceFingerprint } = input;
 
     // 1. Buscar dispositivo por credentialId
     const device = await this.deviceRepository.findByCredentialId(credentialId);
@@ -71,15 +73,25 @@ export class LoginEcdhUseCase {
       );
     }
 
-    // 2. Realizar ECDH key exchange
+    // 2. Verificar y actualizar deviceFingerprint si es necesario
+    // Si el fingerprint cambio pero credentialId coincide, es probable update de OS
+    let fingerprintUpdated = false;
+    if (deviceFingerprint && deviceFingerprint !== device.deviceFingerprint) {
+      // credentialId ya coincide (lo buscamos por el), asi que actualizamos el fingerprint
+      await this.deviceRepository.updateDeviceFingerprint(device.deviceId, deviceFingerprint);
+      fingerprintUpdated = true;
+      console.log(`[LoginEcdh] DeviceFingerprint actualizado para device ${device.deviceId} (probable OS update)`);
+    }
+
+    // 3. Realizar ECDH key exchange
     const keyExchangeResult = this.ecdhService.performKeyExchange(clientPublicKey);
 
-    // 3. Derivar session_key con HKDF
+    // 4. Derivar session_key con HKDF
     const sessionKeyBuffer = await this.hkdfService.deriveSessionKey(
       keyExchangeResult.sharedSecret
     );
 
-    // 4. Guardar session_key en Valkey (TTL 2 horas)
+    // 5. Guardar session_key en Valkey (TTL 2 horas)
     const sessionKey: SessionKey = {
       sessionKey: sessionKeyBuffer,
       userId,
@@ -88,18 +100,19 @@ export class LoginEcdhUseCase {
     };
     await this.sessionKeyRepository.save(sessionKey, 7200);
 
-    // 5. Generar TOTPu con handshake_secret
+    // 6. Generar TOTPu con handshake_secret
     const handshakeSecretBuffer = Buffer.from(device.handshakeSecret, 'base64');
     const totpu = this.hkdfService.generateTotp(handshakeSecretBuffer);
 
-    // 6. Actualizar last_used_at del dispositivo
+    // 7. Actualizar last_used_at del dispositivo
     await this.deviceRepository.updateLastUsed(device.deviceId);
 
-    // 7. Retornar respuesta
+    // 8. Retornar respuesta
     return {
       serverPublicKey: keyExchangeResult.serverPublicKey,
       totpu,
       deviceId: device.deviceId,
+      fingerprintUpdated,
     };
   }
 }

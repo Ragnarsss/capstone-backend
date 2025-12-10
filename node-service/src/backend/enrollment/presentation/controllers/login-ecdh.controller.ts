@@ -9,6 +9,7 @@ import { logger } from '../../../../shared/infrastructure/logger';
 interface LoginEcdhRequestDTO {
   credentialId: string;
   clientPublicKey: string; // Base64
+  deviceFingerprint?: string; // Opcional - para verificacion de dispositivo
 }
 
 /**
@@ -31,7 +32,7 @@ export class LoginEcdhController {
       }
 
       // Validar body
-      const { credentialId, clientPublicKey } = request.body;
+      const { credentialId, clientPublicKey, deviceFingerprint } = request.body;
       if (!credentialId || !clientPublicKey) {
         reply.code(400).send({
           error: 'INVALID_REQUEST',
@@ -45,6 +46,7 @@ export class LoginEcdhController {
         userId: user.userId.toNumber(),
         credentialId,
         clientPublicKey,
+        deviceFingerprint,
       };
 
       // Ejecutar use case
@@ -57,8 +59,11 @@ export class LoginEcdhController {
           serverPublicKey: output.serverPublicKey,
           totpu: output.totpu,
           deviceId: output.deviceId,
+          fingerprintUpdated: output.fingerprintUpdated,
         },
-        message: 'Sesión establecida exitosamente',
+        message: output.fingerprintUpdated 
+          ? 'Sesion establecida. Fingerprint actualizado (probable OS update).'
+          : 'Sesion establecida exitosamente',
       });
     } catch (error) {
       // Manejo de errores específicos
