@@ -39,7 +39,7 @@ export class EnrollmentController {
   async register(fastify: FastifyInstance): Promise<void> {
     // Rate limiters específicos para enrollment (más restrictivos)
     const enrollmentRateLimit = createEndpointRateLimiter({
-      max: 5, // 5 intentos por minuto
+      max: 100, // 100 intentos por minuto (desarrollo)
       windowSeconds: 60,
       keyGenerator: userIdKeyGenerator,
       message: 'Too many enrollment attempts, please try again later',

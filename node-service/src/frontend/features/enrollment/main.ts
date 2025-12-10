@@ -14,12 +14,14 @@ import { AuthClient } from '../../shared/auth/auth-client';
 import { EnrollmentService } from './services/enrollment.service';
 import { LoginService } from './services/login.service';
 import { SessionKeyStore } from './services/session-key.store';
+import { getRemoteLogger, RemoteLoggerService } from './services/remote-logger.service';
 
 class EnrollmentApplication {
   private authClient: AuthClient;
   private enrollmentService: EnrollmentService;
   private loginService: LoginService;
   private sessionKeyStore: SessionKeyStore;
+  private remoteLogger: RemoteLoggerService;
   
   // UI Elements
   private statusElement: HTMLElement | null = null;
@@ -39,6 +41,9 @@ class EnrollmentApplication {
   private debugOutput: HTMLElement | null = null;
 
   constructor() {
+    this.remoteLogger = getRemoteLogger();
+    this.remoteLogger.info('EnrollmentApplication constructor');
+    
     this.authClient = new AuthClient();
     this.enrollmentService = new EnrollmentService();
     this.loginService = new LoginService();
@@ -46,20 +51,29 @@ class EnrollmentApplication {
   }
 
   async initialize(): Promise<void> {
+    this.remoteLogger.info('initialize() called');
     this.initializeElements();
+    
+    // Mostrar panel de logs siempre (para debugging móvil)
+    if (this.debugSection) {
+      this.debugSection.style.display = 'block';
+    }
+    
+    // Log inicial para confirmar que el script cargó
+    this.log('🚀 Enrollment inicializado', 'info');
+    this.log(`User Agent: ${navigator.userAgent.substring(0, 50)}...`, 'info');
+    this.log(`WebAuthn soportado: ${window.PublicKeyCredential ? 'Sí' : 'No'}`, 'info');
     
     // Iniciar autenticación
     this.authClient.initialize();
+    this.log('Iniciando autenticación...', 'info');
 
     if (this.authClient.isUserAuthenticated()) {
+      this.log('Usuario ya autenticado', 'success');
       await this.handleAuthReady();
     } else {
+      this.log('Esperando token JWT...', 'info');
       this.authClient.onAuthenticated(() => this.handleAuthReady());
-    }
-
-    // Mostrar debug section en desarrollo
-    if (import.meta.env.DEV && this.debugSection) {
-      this.debugSection.style.display = 'block';
     }
   }
 
@@ -83,15 +97,28 @@ class EnrollmentApplication {
     // Configurar event listeners
     this.enrollBtn?.addEventListener('click', () => this.handleEnrollClick());
     this.loginBtn?.addEventListener('click', () => this.handleLoginClick());
+    
+    // Botón para limpiar log
+    const clearLogBtn = document.getElementById('clear-log-btn');
+    clearLogBtn?.addEventListener('click', () => {
+      if (this.debugOutput) {
+        this.debugOutput.innerHTML = '';
+        this.log('Log limpiado', 'info');
+      }
+    });
   }
 
   private async handleAuthReady(): Promise<void> {
-    this.log('[Enrollment] Autenticación lista');
+    // Mostrar información del navegador
+    this.log('=== Iniciando Enrollment ===', 'info');
+    this.log(`Navegador: ${navigator.userAgent}`, 'info');
+    this.log(`WebAuthn soportado: ${!!window.PublicKeyCredential}`, 'info');
+    this.log('Autenticación JWT lista', 'success');
     this.updateStatus('Cargando información de dispositivos...');
 
     // Mostrar info del usuario
     const userId = this.authClient.getUserId();
-    const username = this.authClient.getUsername();
+    const username = this.authClient.getUserName();
     
     if (this.userNameSpan) {
       this.userNameSpan.textContent = username || `Usuario ${userId}`;
@@ -102,10 +129,13 @@ class EnrollmentApplication {
 
     // Verificar si WebAuthn está soportado
     if (!this.enrollmentService.isWebAuthnSupported()) {
+      this.log('WebAuthn NO soportado en este navegador', 'error');
       this.updateStatus('Este navegador no soporta WebAuthn');
       this.showEnrollmentMessage('Tu navegador no soporta autenticación biométrica', 'error');
       return;
     }
+    
+    this.log('WebAuthn soportado ✓', 'success');
 
     // Cargar estado de enrollment
     await this.loadEnrollmentStatus();
@@ -113,9 +143,10 @@ class EnrollmentApplication {
 
   private async loadEnrollmentStatus(): Promise<void> {
     try {
+      this.log('Cargando estado de enrollment...', 'info');
       const status = await this.enrollmentService.getStatus();
       
-      this.log('[Enrollment] Status:', status);
+      this.log(`Dispositivos: ${status.deviceCount}/5`, 'success', status);
 
       // Actualizar conteo de dispositivos
       if (this.deviceCountSpan) {
@@ -156,7 +187,7 @@ class EnrollmentApplication {
       }
 
     } catch (error) {
-      this.log('[Enrollment] Error cargando status:', error);
+      this.logError('Error cargando status', error);
       this.updateStatus('Error al cargar información');
       this.showEnrollmentMessage('Error al conectar con el servidor', 'error');
     }
@@ -201,47 +232,97 @@ class EnrollmentApplication {
   private async handleEnrollClick(): Promise<void> {
     if (!this.enrollBtn) return;
 
+    this.remoteLogger.info('=== handleEnrollClick START ===');
+
     try {
       this.enrollBtn.disabled = true;
       this.updateEnrollButtonText('Preparando...');
       this.showEnrollmentMessage('Iniciando registro seguro...', 'info');
+      this.log('=== Iniciando Enrollment ===', 'info');
 
       // Paso 1: Obtener opciones del servidor
-      this.log('[Enrollment] Solicitando opciones de registro...');
+      this.log('Paso 1: Solicitando opciones del servidor...', 'info');
+      this.remoteLogger.info('Paso 1: Llamando /start');
+      
       const startResult = await this.enrollmentService.startEnrollment();
+      this.remoteLogger.info('Paso 1: Respuesta de /start', { success: startResult.success, hasOptions: !!startResult.options, error: startResult.error });
 
       if (!startResult.success) {
+        this.log(`Error en /start: ${startResult.error}`, 'error');
+        this.remoteLogger.error('Error en /start', startResult.error);
         throw new Error(startResult.error || 'Error al iniciar enrollment');
       }
 
+      // Validar que recibimos opciones
+      if (!startResult.options) {
+        this.log('No se recibieron opciones del servidor', 'error', startResult);
+        throw new Error('No se recibieron opciones de registro del servidor');
+      }
+
+      this.log('Opciones recibidas del servidor ✓', 'success');
+      this.log('Challenge: ' + startResult.options.challenge?.substring(0, 20) + '...', 'info');
+      this.log('RP: ' + JSON.stringify(startResult.options.rp), 'info');
+      this.log('User ID: ' + startResult.options.user?.id, 'info');
+
       // Mostrar info de penalización si existe
       if (startResult.penaltyInfo) {
-        this.log('[Enrollment] Penalización:', startResult.penaltyInfo);
+        this.log('Info penalización: ' + JSON.stringify(startResult.penaltyInfo), 'warn');
       }
 
       // Paso 2: Crear credencial con WebAuthn
+      this.log('Paso 2: Creando credencial WebAuthn...', 'info');
+      this.log('Esto mostrará el diálogo de biometría/PIN del dispositivo', 'info');
+      this.remoteLogger.info('Paso 2: Llamando createCredential (WebAuthn)', { 
+        rpId: startResult.options.rp?.id,
+        rpName: startResult.options.rp?.name,
+        challengeLength: startResult.options.challenge?.length 
+      });
+      
       this.updateEnrollButtonText('Esperando biometría...');
       this.showEnrollmentMessage(
         'Sigue las instrucciones de tu dispositivo para registrar biometría o PIN',
         'info'
       );
 
-      this.log('[Enrollment] Creando credencial WebAuthn...');
-      const credential = await this.enrollmentService.createCredential(startResult.options);
+      let credential;
+      try {
+        credential = await this.enrollmentService.createCredential(startResult.options);
+        this.log('Credencial creada exitosamente ✓', 'success');
+        this.log('Credential ID: ' + credential.id?.substring(0, 30) + '...', 'info');
+        this.log('Type: ' + credential.type, 'info');
+        this.remoteLogger.success('Paso 2: Credencial creada', { 
+          credentialId: credential.id?.substring(0, 30),
+          type: credential.type,
+          hasResponse: !!credential.response 
+        });
+      } catch (webauthnError) {
+        this.logError('Error en WebAuthn createCredential', webauthnError);
+        const errorInfo = webauthnError instanceof Error 
+          ? { name: webauthnError.name, message: webauthnError.message } 
+          : String(webauthnError);
+        this.remoteLogger.error('Paso 2 FAILED: Error en createCredential', errorInfo);
+        throw webauthnError;
+      }
 
       // Paso 3: Enviar credencial al servidor
+      this.log('Paso 3: Enviando credencial al servidor...', 'info');
+      this.remoteLogger.info('Paso 3: Llamando /finish');
       this.updateEnrollButtonText('Verificando...');
       this.showEnrollmentMessage('Verificando credencial...', 'info');
 
-      this.log('[Enrollment] Enviando credencial al servidor...');
       const finishResult = await this.enrollmentService.finishEnrollment(credential);
+      this.remoteLogger.info('Paso 3: Respuesta de /finish', { success: finishResult.success, deviceId: finishResult.deviceId, error: finishResult.error });
 
       if (!finishResult.success) {
+        this.log(`Error en /finish: ${finishResult.error}`, 'error');
+        this.remoteLogger.error('Error en /finish', finishResult.error);
         throw new Error(finishResult.error || 'Error al completar enrollment');
       }
 
       // Éxito
-      this.log('[Enrollment] Enrollment completado:', finishResult);
+      this.log('=== Enrollment Completado ✓ ===', 'success');
+      this.log(`Device ID: ${finishResult.deviceId}`, 'success');
+      this.remoteLogger.success('=== ENROLLMENT COMPLETADO ===', { deviceId: finishResult.deviceId });
       this.showEnrollmentMessage(
         `✅ ¡Dispositivo registrado correctamente! ID: ${finishResult.deviceId}`,
         'success'
@@ -253,14 +334,26 @@ class EnrollmentApplication {
       this.showLoginSection();
 
     } catch (error) {
-      this.log('[Enrollment] Error:', error);
+      const errorInfo = error instanceof Error 
+        ? { name: error.name, message: error.message } 
+        : String(error);
+      this.remoteLogger.error('=== ENROLLMENT FAILED ===', errorInfo);
+      this.logError('Error en enrollment', error);
       
       let message = 'Error durante el registro';
       if (error instanceof Error) {
         if (error.name === 'NotAllowedError') {
           message = 'Registro cancelado por el usuario';
+          this.log('Usuario canceló el registro', 'warn');
         } else if (error.name === 'InvalidStateError') {
           message = 'Este dispositivo ya está registrado';
+          this.log('Dispositivo ya registrado', 'warn');
+        } else if (error.name === 'SecurityError') {
+          message = 'Error de seguridad - verifica que estás en HTTPS';
+          this.log('SecurityError - ¿HTTPS habilitado?', 'error');
+        } else if (error.name === 'NotSupportedError') {
+          message = 'Algoritmo no soportado por este dispositivo';
+          this.log('NotSupportedError - algoritmo no soportado', 'error');
         } else {
           message = error.message;
         }
@@ -386,14 +479,45 @@ class EnrollmentApplication {
     this.loginMessage.className = `enrollment__message enrollment__message--${type}`;
   }
 
-  private log(...args: unknown[]): void {
-    console.log(...args);
+  private log(message: string, type: 'info' | 'success' | 'error' | 'warn' = 'info', data?: unknown): void {
+    const timestamp = new Date().toLocaleTimeString('es-CL');
+    console.log(`[${timestamp}]`, message, data ?? '');
     
     if (this.debugOutput) {
-      const text = args.map(arg => 
-        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
-      ).join(' ');
-      this.debugOutput.textContent += text + '\n';
+      const logEntry = document.createElement('div');
+      logEntry.className = `log-entry log-entry--${type}`;
+      
+      let text = `[${timestamp}] ${message}`;
+      if (data !== undefined) {
+        if (typeof data === 'object') {
+          text += '\n' + JSON.stringify(data, null, 2);
+        } else {
+          text += ' ' + String(data);
+        }
+      }
+      
+      logEntry.textContent = text;
+      this.debugOutput.appendChild(logEntry);
+      this.debugOutput.scrollTop = this.debugOutput.scrollHeight;
+    }
+  }
+
+  private logError(message: string, error: unknown): void {
+    let errorMessage = 'Error desconocido';
+    let errorDetails = '';
+    
+    if (error instanceof Error) {
+      errorMessage = error.message;
+      errorDetails = error.name + (error.stack ? '\n' + error.stack : '');
+    } else if (typeof error === 'string') {
+      errorMessage = error;
+    } else if (error && typeof error === 'object') {
+      errorMessage = JSON.stringify(error);
+    }
+    
+    this.log(`${message}: ${errorMessage}`, 'error');
+    if (errorDetails) {
+      console.error('Error details:', errorDetails);
     }
   }
 }

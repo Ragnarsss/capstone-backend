@@ -78,19 +78,21 @@ export class Fido2Service {
       userID: this.userIdToUint8Array(userId),
       userName: username,
       userDisplayName: displayName,
-      // No solicitar attestation para simplificar (none = sin certificado)
-      attestationType: 'none',
+      // Solicitar attestation directa para obtener el certificado del dispositivo
+      attestationType: 'direct',
       // Excluir credenciales existentes para evitar duplicados
       excludeCredentials: existingCredentials.map((cred) => ({
         id: cred.credentialId,
         type: 'public-key' as const,
         transports: cred.transports,
       })),
-      // Preferir autenticador de plataforma (TouchID, FaceID, Windows Hello)
+      // Forzar autenticador de plataforma (hardware del dispositivo)
+      // Esto vincula la credencial al dispositivo físico
       authenticatorSelection: {
-        authenticatorAttachment: 'platform',
+        authenticatorAttachment: 'platform',  // Solo autenticador del dispositivo
         userVerification: 'required',
-        residentKey: 'preferred',
+        residentKey: 'discouraged',  // No crear passkey sincronizable
+        requireResidentKey: false,
       },
       // Algoritmos soportados: ES256 (preferido), RS256 (fallback)
       supportedAlgorithmIDs: [-7, -257],
@@ -179,13 +181,21 @@ export class Fido2Service {
     aaguid: string;
     transports?: AuthenticatorTransportFuture[];
   } {
-    const { credential } = verified.registrationInfo!;
+    if (!verified.registrationInfo) {
+      throw new Error('Missing registration info');
+    }
+    
+    const { credential } = verified.registrationInfo;
+    
+    if (!credential || !credential.id) {
+      throw new Error('Missing credential ID');
+    }
 
     return {
       credentialId: credential.id,
       publicKey: this.uint8ArrayToBase64Url(credential.publicKey),
       counter: credential.counter,
-      aaguid: verified.registrationInfo!.aaguid,
+      aaguid: verified.registrationInfo.aaguid,
       transports: credential.transports,
     };
   }

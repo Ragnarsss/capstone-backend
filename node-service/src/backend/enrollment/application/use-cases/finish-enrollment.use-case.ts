@@ -77,6 +77,17 @@ export class FinishEnrollmentUseCase {
       throw new Error('CHALLENGE_EXPIRED: El challenge ha expirado');
     }
 
+    // Debug: log credential recibida
+    console.log('[FinishEnrollment] Credential recibida:', JSON.stringify({
+      id: credential.id?.substring(0, 30) + '...',
+      rawId: credential.rawId?.substring(0, 30) + '...',
+      type: credential.type,
+      hasResponse: !!credential.response,
+      hasClientDataJSON: !!credential.response?.clientDataJSON,
+      hasAttestationObject: !!credential.response?.attestationObject,
+    }));
+    console.log('[FinishEnrollment] Challenge esperado:', storedChallenge.challenge?.substring(0, 30) + '...');
+
     // 2. Verificar respuesta WebAuthn
     let verificationResult;
     try {
@@ -84,7 +95,15 @@ export class FinishEnrollmentUseCase {
         credential,
         storedChallenge.challenge
       );
+      // Debug log
+      console.log('[FinishEnrollment] Verification result:', JSON.stringify({
+        verified: verificationResult.verified,
+        hasRegistrationInfo: !!verificationResult.registrationInfo,
+        hasCredential: !!verificationResult.registrationInfo?.credential,
+        credentialId: verificationResult.registrationInfo?.credential?.id?.substring(0, 20) + '...',
+      }));
     } catch (error) {
+      console.error('[FinishEnrollment] verifyRegistration error:', error);
       await this.challengeRepository.delete(userId);
       const message = error instanceof Error ? error.message : 'Unknown error';
       throw new Error(`VERIFICATION_FAILED: ${message}`);

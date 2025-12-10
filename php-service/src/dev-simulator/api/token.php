@@ -49,6 +49,16 @@ $username = $_SESSION[K_USER];
 $fullName = $_SESSION['nombre_completo'] ?? $username;
 $role = dev_get_user_role();
 
+// Para alumnos (id == -1 en legacy), usar el RUT como userId
+// El RUT sin formato es un número entero válido (ej: 186875052)
+// Node requiere userId > 0, y el RUT cumple perfectamente
+if ($userId == -1 && $role === 'alumno') {
+    $rut = $_SESSION['rut'] ?? $username;
+    // El RUT ya viene limpio (sin guión ni puntos) en el sistema
+    // Solo convertir a entero
+    $userId = (int) preg_replace('/[^0-9]/', '', $rut);
+}
+
 // Crear payload JWT (mismo formato que producción)
 $payload = [
     'userId' => $userId,

@@ -250,4 +250,3 @@ The following principles SHALL NOT be amended:
 This constitution represents the fundamental agreement on how the project shall be developed and maintained.
 
 **Ratified:** 2025-11-24  
-**Branch:** feature/database-infrastructure

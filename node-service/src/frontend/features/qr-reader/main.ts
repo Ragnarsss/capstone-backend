@@ -251,7 +251,8 @@ class QRReaderApplication {
     this.showEnrollmentMessage('Iniciando vinculacion...', 'info');
 
     try {
-      // Iniciar enrollment
+      // Paso 1: Iniciar enrollment - obtener opciones WebAuthn
+      console.log('[QRReader] Iniciando enrollment...');
       const startResult = await this.enrollmentService.startEnrollment();
       
       if (!startResult.success || !startResult.options) {
@@ -259,9 +260,17 @@ class QRReaderApplication {
         this.enrollBtn.disabled = false;
         return;
       }
+      console.log('[QRReader] Opciones recibidas, challenge:', startResult.options.challenge?.substring(0, 20));
 
-      // Completar enrollment con WebAuthn
-      const finishResult = await this.enrollmentService.finishEnrollment(startResult.options);
+      // Paso 2: Crear credencial con WebAuthn (biometría/PIN)
+      this.showEnrollmentMessage('Esperando biometría o PIN...', 'info');
+      console.log('[QRReader] Creando credencial WebAuthn...');
+      const credential = await this.enrollmentService.createCredential(startResult.options);
+      console.log('[QRReader] Credencial creada, id:', credential?.id?.substring(0, 20));
+
+      // Paso 3: Completar enrollment enviando credencial al servidor
+      this.showEnrollmentMessage('Verificando credencial...', 'info');
+      const finishResult = await this.enrollmentService.finishEnrollment(credential);
       
       if (!finishResult.success) {
         this.showEnrollmentMessage(finishResult.error || 'Error al completar enrollment', 'error');

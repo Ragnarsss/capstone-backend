@@ -75,7 +75,7 @@ export async function registerEnrollmentRoutes(fastify: FastifyInstance): Promis
 
   // Rate limiter para enrollment (más restrictivo)
   const enrollmentRateLimit = createEndpointRateLimiter({
-    max: 5, // 5 intentos por minuto
+    max: 100, // 100 intentos por minuto (desarrollo)
     windowSeconds: 60,
     keyGenerator: userIdKeyGenerator,
     message: 'Too many enrollment attempts, please try again later',
@@ -120,6 +120,32 @@ export async function registerEnrollmentRoutes(fastify: FastifyInstance): Promis
     // DELETE /api/enrollment/devices/:deviceId - Revocar dispositivo
     enrollmentRoutes.delete('/api/enrollment/devices/:deviceId', {
       handler: revokeDeviceController.handle.bind(revokeDeviceController),
+    });
+
+    // POST /api/enrollment/client-log - Recibir logs del frontend
+    enrollmentRoutes.post('/api/enrollment/client-log', {
+      preHandler: [jsonOnly],
+      handler: async (request, reply) => {
+        const body = request.body as { logs?: Array<{ level: string; message: string; data?: unknown; timestamp: string }> };
+        const userId = (request as unknown as { userId?: number }).userId ?? 'unknown';
+        const userAgent = request.headers['user-agent'] ?? 'unknown';
+        
+        console.log('\n========== CLIENT LOGS ==========');
+        console.log(`User: ${userId} | UA: ${userAgent.substring(0, 50)}...`);
+        
+        if (body.logs && Array.isArray(body.logs)) {
+          for (const log of body.logs) {
+            const prefix = log.level === 'error' ? '❌' : log.level === 'warn' ? '⚠️' : log.level === 'success' ? '✅' : 'ℹ️';
+            console.log(`${prefix} [${log.timestamp}] ${log.message}`);
+            if (log.data) {
+              console.log('   Data:', JSON.stringify(log.data, null, 2));
+            }
+          }
+        }
+        console.log('=================================\n');
+        
+        return reply.send({ received: true });
+      },
     });
   });
 }

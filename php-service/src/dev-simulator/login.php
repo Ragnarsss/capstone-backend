@@ -55,7 +55,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($userType === 'alumno') {
             $alumno = $provider->getAlumnoByRut($userId);
             if ($alumno) {
-                // Alumnos tienen id = -1 en sistema legacy
+                // Alumnos tienen id = -1 en sistema legacy (marca semántica)
+                // El JWT generará un userId válido basado en el RUT
                 dev_save_auth_token([
                     'id' => -1,
                     'user' => $alumno['rut'],

@@ -14,7 +14,15 @@ export interface LoginResult {
 
 export class LoginService {
   private authClient = new AuthClient();
-  private baseUrl = '/api/enrollment';
+  private baseUrl: string;
+
+  constructor() {
+    // Detectar si estamos embebidos en PHP (puerto 9500/9505) o acceso directo a Node (9503)
+    const isEmbeddedInPhp = window.location.port === '9500' || 
+                            window.location.port === '9505' ||
+                            window.location.port === '';
+    this.baseUrl = isEmbeddedInPhp ? '/minodo-api/enrollment' : '/api/enrollment';
+  }
 
   /**
    * Realiza login ECDH para obtener session_key

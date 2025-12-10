@@ -56,6 +56,8 @@ export class EnrollmentStatusController {
         userId: user.userId.toNumber(),
       });
 
+      logger.info(`[EnrollmentStatusController] Usuario ${user.userId}: isEnrolled=${output.isEnrolled}, deviceCount=${output.deviceCount}`);
+
       // Retornar estado de enrollment
       reply.code(200).send({
         success: true,
