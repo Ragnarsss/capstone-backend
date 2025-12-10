@@ -2,6 +2,8 @@ import type { PublicKeyCredentialCreationOptionsJSON } from '@simplewebauthn/typ
 import { Fido2Service, DeviceRepository, EnrollmentChallengeRepository, PenaltyService } from '../../infrastructure';
 import type { RegistrationOptionsInput } from '../../infrastructure';
 import type { Device } from '../../domain/entities';
+import type { EnrollmentState } from '../../domain/models';
+import { EnrollmentStateMachine } from '../../domain/state-machines';
 
 /**
  * Input DTO para Start Enrollment
@@ -17,6 +19,7 @@ export interface StartEnrollmentInput {
  */
 export interface StartEnrollmentOutput {
   options: PublicKeyCredentialCreationOptionsJSON;
+  previousState: EnrollmentState;
   penaltyInfo?: {
     enrollmentCount: number;
     nextDelayMinutes: number;
@@ -49,7 +52,25 @@ export class StartEnrollmentUseCase {
   async execute(input: StartEnrollmentInput): Promise<StartEnrollmentOutput> {
     const { userId, username, displayName } = input;
 
-    // 1. Verificar penalización (si el servicio está configurado)
+    // 0. Inferir estado actual de enrollment
+    const existingDevices = await this.deviceRepository.findByUserId(userId);
+    const allDevices = await this.deviceRepository.findByUserIdIncludingInactive(userId);
+    const existingChallenge = await this.challengeRepository.findByUserId(userId);
+    
+    const hasActiveDevice = existingDevices.length > 0;
+    const hasRevokedDevice = allDevices.some((d: Device) => !d.isActive);
+    const hasPendingChallenge = existingChallenge !== null && Date.now() < existingChallenge.expiresAt;
+
+    const currentState = EnrollmentStateMachine.inferState({
+      hasActiveDevice,
+      hasRevokedDevice,
+      hasPendingChallenge,
+    });
+
+    // Validar transicion a 'pending'
+    EnrollmentStateMachine.assertTransition(currentState, 'pending');
+
+    // 1. Verificar penalizacion (si el servicio esta configurado)
     let penaltyInfo: { enrollmentCount: number; nextDelayMinutes: number } | undefined;
     
     if (this.penaltyService) {
@@ -58,7 +79,7 @@ export class StartEnrollmentUseCase {
       if (!eligibility.canEnroll) {
         throw new Error(
           `PENALTY_ACTIVE: Debe esperar ${eligibility.waitMinutes} minutos antes de enrolar otro dispositivo. ` +
-          `Próximo intento permitido: ${eligibility.nextEnrollmentAt?.toISOString()}`
+          `Proximo intento permitido: ${eligibility.nextEnrollmentAt?.toISOString()}`
         );
       }
       
@@ -68,10 +89,8 @@ export class StartEnrollmentUseCase {
       };
     }
 
-    // 2. Obtener dispositivos existentes para excludeCredentials
-    // Nota: Con política 1:1, esto normalmente será 0-1 dispositivos
+    // 2. Obtener credenciales para excludeCredentials
     // excludeCredentials evita que el MISMO dispositivo se re-registre (error WebAuthn)
-    const existingDevices = await this.deviceRepository.findByUserId(userId);
     const existingCredentials = existingDevices.map((device: Device) => ({
       credentialId: device.credentialId,
       publicKey: device.publicKey,
@@ -102,6 +121,6 @@ export class StartEnrollmentUseCase {
     );
 
     // 5. Retornar opciones para el cliente
-    return { options, penaltyInfo };
+    return { options, previousState: currentState, penaltyInfo };
   }
 }

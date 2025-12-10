@@ -5,6 +5,7 @@ import {
   HkdfService
 } from '../../infrastructure';
 import type { SessionKey } from '../../domain/models';
+import { EnrollmentStateMachine } from '../../domain/state-machines';
 
 /**
  * Input DTO para Login ECDH
@@ -62,9 +63,12 @@ export class LoginEcdhUseCase {
       throw new Error('DEVICE_NOT_OWNED: El dispositivo no pertenece a este usuario');
     }
 
-    // Verificar que el dispositivo está activo
-    if (!device.isActive) {
-      throw new Error('DEVICE_REVOKED: El dispositivo ha sido revocado');
+    // Validar que el estado permite iniciar sesion
+    if (!EnrollmentStateMachine.canStartSession(device.status)) {
+      throw new Error(
+        `SESSION_NOT_ALLOWED: No se puede iniciar sesion en estado '${device.status}'. ` +
+        `Solo dispositivos 'enrolled' pueden iniciar sesion.`
+      );
     }
 
     // 2. Realizar ECDH key exchange

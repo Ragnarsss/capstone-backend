@@ -139,7 +139,22 @@ export class DeviceRepository {
   }
 
   /**
-   * Actualiza el contador de firmas (anti-clonación)
+   * Busca todos los dispositivos de un usuario (incluyendo revocados)
+   * Usado para inferir estado de enrollment
+   */
+  async findByUserIdIncludingInactive(userId: number): Promise<Device[]> {
+    const query = `
+      SELECT * FROM enrollment.devices
+      WHERE user_id = $1
+      ORDER BY is_active DESC, enrolled_at DESC
+    `;
+
+    const result = await this.pool.query<DeviceRow>(query, [userId]);
+    return result.rows.map((row: DeviceRow) => this.mapRowToDevice(row));
+  }
+
+  /**
+   * Actualiza el contador de firmas (anti-clonacion)
    */
   async updateCounter(dto: UpdateCounterDto): Promise<void> {
     const query = `
