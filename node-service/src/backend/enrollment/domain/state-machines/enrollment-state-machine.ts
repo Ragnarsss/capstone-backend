@@ -23,10 +23,13 @@ import { EnrollmentState, ENROLLMENT_STATES } from '../models';
  * Tabla de transiciones validas
  * Key: estado origen
  * Value: array de estados destino permitidos
+ * 
+ * pending -> pending: permite reintentar enrollment si el challenge anterior
+ * no se completo (usuario cancelo, error, timeout en cliente, etc.)
  */
 const VALID_TRANSITIONS: Map<EnrollmentState, EnrollmentState[]> = new Map([
   ['not_enrolled', ['pending']],
-  ['pending', ['enrolled', 'not_enrolled']],
+  ['pending', ['enrolled', 'not_enrolled', 'pending']],
   ['enrolled', ['revoked', 'pending']],
   ['revoked', ['pending']],
 ]);
