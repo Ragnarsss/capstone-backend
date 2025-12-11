@@ -84,12 +84,13 @@ EnrollmentStateMachine, SessionStateMachine, migracion DB `status` column, refac
 #### 17.2: Renombrar EnrollmentStateMachine a DeviceStateMachine
 
 **Rama:** `fase-17.2-device-state-machine`
+**Estado:** COMPLETADO
 
-- [ ] Renombrar archivo: `enrollment-state-machine.ts` -> `device-state-machine.ts`
-- [ ] Renombrar clase: `EnrollmentStateMachine` -> `DeviceStateMachine`
-- [ ] Actualizar imports en todos los archivos que usen la clase
-- [ ] Actualizar tests: `enrollment-state-machine.test.ts` -> `device-state-machine.test.ts`
-- [ ] Verificar tests pasan
+- [x] Renombrar archivo: `enrollment-state-machine.ts` -> `device-state-machine.ts`
+- [x] Renombrar clase: `EnrollmentStateMachine` -> `DeviceStateMachine`
+- [x] Actualizar imports en todos los archivos que usen la clase
+- [x] Actualizar tests: `enrollment-state-machine.test.ts` -> `device-state-machine.test.ts`
+- [x] Verificar tests pasan: 92 tests OK
 
 **Justificacion:** El nombre `DeviceStateMachine` refleja mejor que maneja estados del dispositivo FIDO2, no del proceso de enrollment.
 
