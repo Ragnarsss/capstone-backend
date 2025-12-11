@@ -1,8 +1,8 @@
-# Estado de Implementación del Sistema
+# Estado de Implementacion del Sistema
 
-**Versión:** 6.0  
-**Fecha:** 2025-12-03  
-**Propósito:** Documento vivo que refleja el estado actual de implementación de todos los módulos
+**Version:** 7.1
+**Fecha:** 2025-12-11
+**Proposito:** Documento vivo que refleja el estado actual de implementacion de todos los modulos
 
 ---
 
@@ -11,20 +11,20 @@
 ### Estado General del Proyecto
 
 ```text
-Flujo Anfitrión:  ████████████████████████ 100% [OK] PRODUCCIÓN
-Flujo Invitado:   ██████████████████████░░  92% [WIP] EN DESARROLLO
-  ├─ Enrollment:  ██████████████████████░░  90% (backend + frontend completo)
+Flujo Anfitrion:  ████████████████████████ 100% [OK] PRODUCCION
+Flujo Invitado:   ████████████████████████  93% [WIP] EN DESARROLLO
+  ├─ Enrollment:  ████████████████████████  95% (backend + frontend + state machine)
   ├─ Asistencia:  █████████████████████████ 100% (backend + persistencia + QRs falsos)
   └─ Frontend:    ██████████████████████░░  85% (scanner + crypto + enrollment UI)
 
-Sistema Completo: ██████████████████████░░  90%
+Sistema Completo: ████████████████████████  93%
 ```
 
 ### Hitos Completados
 
 - [OK] **Arquitectura JWT completa** (PHP emite, Node valida)
-- [OK] **WebSocket con autenticación segura** (Opción 5B)
-- [OK] **Proyección QR para profesores** (funcional en dev + prod)
+- [OK] **WebSocket con autenticacion segura** (Opcion 5B)
+- [OK] **Proyeccion QR para profesores** (funcional en dev + prod)
 - [OK] **Monolito Modular con Vertical Slicing** (arquitectura implementada)
 - [OK] **QRPayloadV1 con AES-256-GCM** (cifrado funcional con mock key)
 - [OK] **Backend Attendance con Rounds e Intentos** (22 tests pasando)
@@ -36,37 +36,106 @@ Sistema Completo: ████████████████████�
 - [OK] **Persistencia PostgreSQL** (validaciones, resultados - Fase 7)
 - [OK] **Stub Mode para Testing** (bypass FIDO2 en desarrollo)
 - [OK] **QRs Falsos con Auto-Balance** (fixed pool size - Fase 8)
-- [OK] **Métricas de Fraude** (intentos fraudulentos en Valkey - Fase 8)
+- [OK] **Metricas de Fraude** (intentos fraudulentos en Valkey - Fase 8)
 - [OK] **FIDO2Service + ECDHService + HkdfService** (backend crypto - Fase 9)
 - [OK] **Frontend Enrollment UI** (WebAuthn + ECDH login - Fase 9)
-- [OK] **Integración session_key real** (con fallback mock - Fase 9)
+- [OK] **Integracion session_key real** (con fallback mock - Fase 9)
+- [OK] **EnrollmentStateMachine** (not_enrolled, pending, enrolled, revoked - Fase 16)
+- [OK] **SessionStateMachine** (no_session, session_active, session_expired - Fase 16)
+- [OK] **Verificacion deviceFingerprint en login** (con auto-update - Fase 16)
 
-### Próximos Hitos
+### Proximos Hitos
 
-- [TODO] **Integración PHP Legacy** (autenticación delegada - Fase 10)
+- [TODO] **Integracion PHP Legacy** (autenticacion delegada - Fase 15)
+- [TODO] **Correcciones finales** (hardening criptografico - ver seccion abajo)
 
 ---
 
-## Fases de Implementación
+## Fases de Implementacion
 
 ### Historial de Fases Completadas
 
-| Fase | Descripción | Estado | Commits |
+| Fase | Descripcion | Estado | Commits |
 |------|-------------|--------|---------|
-| 0 | Baseline - Análisis exploratorio | ✅ Completo | `a17bb0e` |
-| 1 | QRPayloadV1 estructura | ✅ Completo | `d988f2e` |
-| 2 | AES-256-GCM cifrado | ✅ Completo | `3cd39c4` |
-| 3 | Valkey storage | ✅ Completo | `e24e1f4` |
-| 4 | Endpoint validación | ✅ Completo | `5ce7ea7` |
-| 5 | Frontend scanner | ✅ Completo | `7f7c8a9` |
-| 6 | Rounds e Intentos backend | ✅ Completo | `fa66afb` |
-| 6.1 | Frontend crypto infrastructure | ✅ Completo | 16 tests |
-| 6.2 | UI State Machine scanner | ✅ Completo | 23 tests |
-| 6.3 | Room-Aware Multi-Session | ✅ Completo | Múltiples commits |
-| 6.4 | SoC Refactor - Validation Pipeline | ✅ Completo | 12 commits, 20 tests |
-| 7 | Persistencia PostgreSQL | ✅ Completo | Repositorios + UseCase |
-| 8 | QRs Falsos + Métricas Fraude | ✅ Completo | 7 commits, 15 tests |
-| 9 | FIDO2 + ECDH Enrollment | ✅ Completo | 4 commits, 19 tests |
+| 0 | Baseline - Analisis exploratorio | Completo | `a17bb0e` |
+| 1 | QRPayloadV1 estructura | Completo | `d988f2e` |
+| 2 | AES-256-GCM cifrado | Completo | `3cd39c4` |
+| 3 | Valkey storage | Completo | `e24e1f4` |
+| 4 | Endpoint validacion | Completo | `5ce7ea7` |
+| 5 | Frontend scanner | Completo | `7f7c8a9` |
+| 6 | Rounds e Intentos backend | Completo | `fa66afb` |
+| 6.1 | Frontend crypto infrastructure | Completo | 16 tests |
+| 6.2 | UI State Machine scanner | Completo | 23 tests |
+| 6.3 | Room-Aware Multi-Session | Completo | Multiples commits |
+| 6.4 | SoC Refactor - Validation Pipeline | Completo | 12 commits, 20 tests |
+| 7 | Persistencia PostgreSQL | Completo | Repositorios + UseCase |
+| 8 | QRs Falsos + Metricas Fraude | Completo | 7 commits, 15 tests |
+| 9 | FIDO2 + ECDH Enrollment | Completo | 4 commits, 19 tests |
+| 16 | EnrollmentStateMachine | Completo | 5 sub-fases, 8 commits |
+
+### Fase 16 Completada: EnrollmentStateMachine
+
+**Objetivo alcanzado:** Implementar automatas de estado explicitos para enrollment y sesion
+
+**State Machines implementados:**
+
+```text
+EnrollmentStateMachine:
+  not_enrolled ─────► pending ─────► enrolled ─────► revoked
+       │                 │              │              │
+       │                 ▼              │              │
+       │           not_enrolled ◄──────┘              │
+       │          (TTL expira)                        │
+       └──────────────────────────────────────────────┘
+                    (nuevo enrollment)
+
+SessionStateMachine:
+  no_session ─────► session_active ─────► session_expired
+       ▲                 │                     │
+       │                 │                     │
+       └─────────────────┴─────────────────────┘
+                    (TTL o logout)
+```
+
+**Componentes implementados:**
+
+```text
+src/backend/enrollment/
+├── domain/
+│   ├── models.ts                         # EnrollmentState, SessionState types
+│   └── state-machines/
+│       ├── index.ts
+│       ├── enrollment-state-machine.ts   # Transiciones enrollment
+│       └── session-state-machine.ts      # Transiciones sesion
+├── application/use-cases/
+│   ├── get-enrollment-status.use-case.ts # inferState() + credentialId fix
+│   ├── start-enrollment.use-case.ts      # assertTransition()
+│   ├── revoke-device.use-case.ts         # assertTransition()
+│   └── login-ecdh.use-case.ts            # canStartSession() + fingerprint
+└── infrastructure/repositories/
+    └── device.repository.ts              # status field + updateFingerprint()
+```
+
+**Sub-fases:**
+
+| Sub-fase | Descripcion | Tests |
+|----------|-------------|-------|
+| 16.1 | Tipos EnrollmentState y SessionState | 9/9 |
+| 16.4 | Migracion DB status column | 8/8 |
+| 16.5 | Refactorizar use cases con state machine | 12/12 |
+| 16.6 | Debug logs, attestation direct, proxy | 11/11 |
+| 16.7 | Verificacion deviceFingerprint en login | 10/10 |
+
+**Migracion DB:**
+
+```sql
+-- 003-add-enrollment-status.sql
+ALTER TABLE enrollment.devices 
+ADD COLUMN status VARCHAR(20) DEFAULT 'enrolled'
+CHECK (status IN ('not_enrolled', 'pending', 'enrolled', 'revoked'));
+```
+
+---
 
 ### Fase 7 Completada: Persistencia PostgreSQL
 
@@ -385,17 +454,6 @@ src/backend/attendance/
 
 ---
 
-### Frontend: features/enrollment
-
-| Componente | Estado | Notas |
-|------------|--------|-------|
-| Enrollment UI | [FAIL] No existe | Pendiente Fase 9 |
-| WebAuthn Integration | [FAIL] No existe | Pendiente Fase 9 |
-
-**Estado general:** [FAIL] **0%**
-
----
-
 ## Infraestructura
 
 ### Base de Datos: PostgreSQL 18
@@ -441,11 +499,37 @@ src/backend/attendance/
 
 ---
 
+## Correcciones Finales (Hardening)
+
+Mejoras no críticas identificadas en revisión de seguridad. El sistema funciona correctamente sin estas, pero aumentan robustez.
+
+### Prioridad Alta
+
+| Corrección | Archivo | Acción |
+|------------|---------|--------|
+| **TOTPu no validado** | `validation-pipeline/stages/` | Agregar stage que valide TOTPu en payload de respuesta |
+
+### Prioridad Media
+
+| Corrección | Archivo | Acción |
+|------------|---------|--------|
+| **Attestation sin validación AAGUID** | `fido2.service.ts` | Validar AAGUIDs contra lista de authenticators confiables, o cambiar a `attestationType: 'none'` |
+| **Session key sin binding** | `hkdf.service.ts` | Incluir `credentialId` en derivación de session_key para binding explícito |
+
+### Prioridad Baja (Opcional)
+
+| Corrección | Archivo | Notas |
+|------------|---------|-------|
+| **TOTP usa SHA256** | `hkdf.service.ts` | RFC 4226 usa SHA1. No es problema de seguridad pero impide interoperabilidad con apps TOTP estándar |
+| **Device Fingerprint débil** | Frontend | OK como está - es secundario, `credentialId` es el identificador real |
+
+---
+
 ## Fases Pendientes
 
-### Fase 10: Integración PHP Legacy
-**Rama:** `fase-10-integracion-php`  
-**Estimado: 4-6 horas**
+### Fase 15: Integración PHP Legacy
+
+**Rama:** `fase-15-integracion-php`
 
 - [ ] Endpoints de sincronización con PHP
 - [ ] Autenticación delegada
@@ -463,6 +547,6 @@ src/backend/attendance/
 
 ---
 
-**Última actualización:** 2025-12-03  
-**Rama activa:** `fase-9-enrollment-fido2`  
-**Próximo paso:** Fase 10 - Integración PHP Legacy
+**Última actualización:** 2025-12-11
+**Rama activa:** `fase-16.8-tests-docs`
+**Próximo paso:** Correcciones finales (TOTPu) → Fase 15 (PHP Legacy)
