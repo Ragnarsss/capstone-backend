@@ -3,7 +3,7 @@ import { Fido2Service, DeviceRepository, EnrollmentChallengeRepository, PenaltyS
 import type { RegistrationOptionsInput } from '../../infrastructure';
 import type { Device } from '../../domain/entities';
 import type { EnrollmentState } from '../../domain/models';
-import { EnrollmentStateMachine } from '../../domain/state-machines';
+import { DeviceStateMachine } from '../../domain/state-machines';
 
 /**
  * Input DTO para Start Enrollment
@@ -61,14 +61,14 @@ export class StartEnrollmentUseCase {
     const hasRevokedDevice = allDevices.some((d: Device) => !d.isActive);
     const hasPendingChallenge = existingChallenge !== null && Date.now() < existingChallenge.expiresAt;
 
-    const currentState = EnrollmentStateMachine.inferState({
+    const currentState = DeviceStateMachine.inferState({
       hasActiveDevice,
       hasRevokedDevice,
       hasPendingChallenge,
     });
 
     // Validar transicion a 'pending'
-    EnrollmentStateMachine.assertTransition(currentState, 'pending');
+    DeviceStateMachine.assertTransition(currentState, 'pending');
 
     // 1. Verificar penalizacion (si el servicio esta configurado)
     let penaltyInfo: { enrollmentCount: number; nextDelayMinutes: number } | undefined;

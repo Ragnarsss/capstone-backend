@@ -1,7 +1,7 @@
 /**
  * State Machines para Enrollment
- * Exporta automatas de estado para enrollment y session
+ * Exporta automatas de estado para dispositivos y sesiones
  */
 
-export { EnrollmentStateMachine } from './enrollment-state-machine';
+export { DeviceStateMachine } from './device-state-machine';
 export { SessionStateMachine } from './session-state-machine';

@@ -5,7 +5,7 @@ import {
   HkdfService
 } from '../../infrastructure';
 import type { SessionKey } from '../../domain/models';
-import { EnrollmentStateMachine } from '../../domain/state-machines';
+import { DeviceStateMachine } from '../../domain/state-machines';
 
 /**
  * Input DTO para Login ECDH
@@ -66,7 +66,7 @@ export class LoginEcdhUseCase {
     }
 
     // Validar que el estado permite iniciar sesion
-    if (!EnrollmentStateMachine.canStartSession(device.status)) {
+    if (!DeviceStateMachine.canStartSession(device.status)) {
       throw new Error(
         `SESSION_NOT_ALLOWED: No se puede iniciar sesion en estado '${device.status}'. ` +
         `Solo dispositivos 'enrolled' pueden iniciar sesion.`

@@ -1,5 +1,5 @@
 import { DeviceRepository } from '../../infrastructure';
-import { EnrollmentStateMachine } from '../../domain/state-machines';
+import { DeviceStateMachine } from '../../domain/state-machines';
 
 /**
  * Input DTO para Revoke Device
@@ -47,7 +47,7 @@ export class RevokeDeviceUseCase {
     }
 
     // 3. Validar transicion de estado (enrolled -> revoked)
-    EnrollmentStateMachine.assertTransition(device.status, 'revoked');
+    DeviceStateMachine.assertTransition(device.status, 'revoked');
 
     // 4. Revocar el dispositivo (el repository registra en enrollment_history)
     await this.deviceRepository.revoke(deviceId, reason || 'Revocado por el usuario');

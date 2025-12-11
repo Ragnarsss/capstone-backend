@@ -1,6 +1,6 @@
 /**
- * Enrollment State Machine
- * Automata de estados para el flujo de enrollment FIDO2
+ * Device State Machine
+ * Automata de estados para dispositivos FIDO2
  * 
  * Estados:
  * - not_enrolled: Usuario sin credential activa
@@ -23,9 +23,6 @@ import { EnrollmentState, ENROLLMENT_STATES } from '../models';
  * Tabla de transiciones validas
  * Key: estado origen
  * Value: array de estados destino permitidos
- * 
- * pending -> pending: permite reintentar enrollment si el challenge anterior
- * no se completo (usuario cancelo, error, timeout en cliente, etc.)
  */
 const VALID_TRANSITIONS: Map<EnrollmentState, EnrollmentState[]> = new Map([
   ['not_enrolled', ['pending']],
@@ -35,10 +32,10 @@ const VALID_TRANSITIONS: Map<EnrollmentState, EnrollmentState[]> = new Map([
 ]);
 
 /**
- * Enrollment State Machine
- * Gestiona transiciones de estado del enrollment FIDO2
+ * Device State Machine
+ * Gestiona transiciones de estado del dispositivo FIDO2
  */
-export class EnrollmentStateMachine {
+export class DeviceStateMachine {
   /**
    * Verifica si una transicion es valida
    */
