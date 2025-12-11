@@ -71,12 +71,13 @@ EnrollmentStateMachine, SessionStateMachine, migracion DB `status` column, refac
 #### 17.1: Configurar Vitest
 
 **Rama:** `fase-17.1-vitest-setup`
+**Estado:** COMPLETADO
 
-- [ ] Instalar vitest como devDependency
-- [ ] Crear `vitest.config.ts` con alias y coverage
-- [ ] Migrar tests existentes de `node:test` a vitest
-- [ ] Agregar script `npm run test` y `npm run test:watch`
-- [ ] Verificar tests pasan: `podman compose exec node-service npm run test`
+- [x] Instalar vitest como devDependency
+- [x] Integrar config test en vite.config.ts (no archivo separado)
+- [x] Migrar tests existentes de `node:test` a vitest
+- [x] Agregar script `npm run test` y `npm run test:watch`
+- [x] Verificar tests pasan: 92 tests (20 stages + 37 enrollment + 35 session)
 
 ---
 
