@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import path from 'path';
 
 /**
@@ -60,5 +60,23 @@ export default defineConfig({
   // Resolución de módulos
   resolve: {
     extensions: ['.ts', '.js'],
+  },
+
+  // Configuración de Vitest (unit tests para backend)
+  test: {
+    globals: true,
+    environment: 'node',
+    root: '.',
+    include: ['src/**/__tests__/**/*.test.ts'],
+    exclude: ['node_modules', 'dist', 'src/frontend'],
+    alias: {
+      '@backend': path.resolve(__dirname, 'src/backend'),
+      '@shared': path.resolve(__dirname, 'src/shared'),
+    },
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html'],
+      exclude: ['node_modules', 'dist', 'src/frontend', '**/*.test.ts'],
+    },
   },
 });
