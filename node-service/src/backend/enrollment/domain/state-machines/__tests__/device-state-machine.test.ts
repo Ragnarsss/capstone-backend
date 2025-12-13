@@ -195,29 +195,10 @@ describe('DeviceStateMachine', () => {
     });
   });
 
-  describe('canStartSession', () => {
-    it('retorna true solo para estado enrolled', () => {
-      expect(DeviceStateMachine.canStartSession('enrolled')).toBe(true);
-    });
-
-    it('retorna false para not_enrolled', () => {
-      expect(DeviceStateMachine.canStartSession('not_enrolled')).toBe(false);
-    });
-
-    it('retorna false para pending', () => {
-      expect(DeviceStateMachine.canStartSession('pending')).toBe(false);
-    });
-
-    it('retorna false para revoked', () => {
-      expect(DeviceStateMachine.canStartSession('revoked')).toBe(false);
-    });
-  });
-
   describe('flujos completos', () => {
     it('flujo happy path: not_enrolled -> pending -> enrolled', () => {
       expect(DeviceStateMachine.canTransition('not_enrolled', 'pending')).toBe(true);
       expect(DeviceStateMachine.canTransition('pending', 'enrolled')).toBe(true);
-      expect(DeviceStateMachine.canStartSession('enrolled')).toBe(true);
     });
 
     it('flujo enrollment fallido: not_enrolled -> pending -> not_enrolled', () => {
@@ -226,9 +207,7 @@ describe('DeviceStateMachine', () => {
     });
 
     it('flujo revoke y re-enrollment', () => {
-      expect(DeviceStateMachine.canStartSession('enrolled')).toBe(true);
       expect(DeviceStateMachine.canTransition('enrolled', 'revoked')).toBe(true);
-      expect(DeviceStateMachine.canStartSession('revoked')).toBe(false);
       expect(DeviceStateMachine.canTransition('revoked', 'pending')).toBe(true);
       expect(DeviceStateMachine.canTransition('pending', 'enrolled')).toBe(true);
     });

@@ -5,7 +5,7 @@ import {
   HkdfService
 } from '../../infrastructure';
 import type { SessionKey } from '../../domain/models';
-import { DeviceStateMachine } from '../../domain/state-machines';
+import { SessionStateMachine } from '../../domain/state-machines';
 
 /**
  * Input DTO para Login ECDH
@@ -65,8 +65,8 @@ export class LoginEcdhUseCase {
       throw new Error('DEVICE_NOT_OWNED: El dispositivo no pertenece a este usuario');
     }
 
-    // Validar que el estado permite iniciar sesion
-    if (!DeviceStateMachine.canStartSession(device.status)) {
+    // Validar que el estado permite iniciar sesion (SoC: SessionStateMachine decide)
+    if (!SessionStateMachine.isEnabled(device.status)) {
       throw new Error(
         `SESSION_NOT_ALLOWED: No se puede iniciar sesion en estado '${device.status}'. ` +
         `Solo dispositivos 'enrolled' pueden iniciar sesion.`

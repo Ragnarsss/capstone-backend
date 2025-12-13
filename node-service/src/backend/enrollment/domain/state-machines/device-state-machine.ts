@@ -91,11 +91,4 @@ export class DeviceStateMachine {
 
     return ENROLLMENT_STATES.NOT_ENROLLED;
   }
-
-  /**
-   * Verifica si el estado permite operaciones de session
-   */
-  static canStartSession(state: EnrollmentState): boolean {
-    return state === ENROLLMENT_STATES.ENROLLED;
-  }
 }
