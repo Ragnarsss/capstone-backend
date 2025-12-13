@@ -55,12 +55,12 @@ export class EnrollmentService {
       challengeRepo
     );
 
+    // Nota: PenaltyService y 1:1 policy se movieron al orchestrator (SoC refactor fase 17.7)
     this.finishEnrollmentUseCase = new FinishEnrollmentUseCase(
       fido2,
       deviceRepo,
       challengeRepo,
-      hkdf,
-      penalty
+      hkdf
     );
 
     this.getEnrollmentStatusUseCase = new GetEnrollmentStatusUseCase(deviceRepo);

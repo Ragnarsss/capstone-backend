@@ -183,12 +183,13 @@ attemptAccess():
 #### 17.7: Refactorizar FinishEnrollmentUseCase
 
 **Rama:** `fase-17.7-slim-finish-enrollment`
+**Estado:** COMPLETADO
 
-- [ ] Eliminar logica de politica 1:1 (ya esta en OneToOnePolicyService)
-- [ ] Eliminar registro de penalizacion (mover a orchestrator)
-- [ ] Mantener SOLO: verificar WebAuthn + derivar HKDF + guardar dispositivo
-- [ ] Actualizar tests
-- [ ] Verificar tests pasan
+- [x] Eliminar logica de politica 1:1 (movido a OneToOnePolicyService)
+- [x] Eliminar registro de penalizacion (PenaltyService removido)
+- [x] Mantener SOLO: verificar WebAuthn + derivar HKDF + guardar dispositivo
+- [x] Actualizar EnrollmentService para nueva firma del constructor
+- [x] Output simplificado: `{ deviceId, credentialId, aaguid, success }`
 
 **Responsabilidad final:** Solo verifica credential y persiste dispositivo.
 
