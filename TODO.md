@@ -113,14 +113,15 @@ EnrollmentStateMachine, SessionStateMachine, migracion DB `status` column, refac
 #### 17.4: Crear OneToOnePolicyService
 
 **Rama:** `fase-17.4-one-to-one-policy`
+**Estado:** COMPLETADO
 
-- [ ] Crear `domain/services/one-to-one-policy.service.ts`
-- [ ] Extraer logica de politica 1:1 de `FinishEnrollmentUseCase` (lineas 120-158)
-- [ ] Metodos: `validate(userId, credentialId)`, `revokeViolations(userId, newCredentialId)`
-- [ ] Crear `__tests__/one-to-one-policy.service.test.ts` con mocks
-- [ ] Verificar tests pasan
+- [x] Crear `domain/services/one-to-one-policy.service.ts`
+- [x] Extraer logica de politica 1:1 de `FinishEnrollmentUseCase` (lineas 120-158)
+- [x] Metodos: `validate(userId, credentialId)`, `revokeViolations(userId, newCredentialId)`, `isDuplicateEnrollment()`
+- [x] Crear `__tests__/one-to-one-policy.service.test.ts` con mocks (24 tests)
+- [x] Interface `IDeviceRepositoryForPolicy` para inyeccion de dependencias
 
-**Interfaz:**
+**Interfaz implementada:**
 
 ```typescript
 interface PolicyValidationResult {
