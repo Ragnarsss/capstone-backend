@@ -99,11 +99,12 @@ EnrollmentStateMachine, SessionStateMachine, migracion DB `status` column, refac
 #### 17.3: Eliminar canStartSession de DeviceStateMachine
 
 **Rama:** `fase-17.3-remove-can-start-session`
+**Estado:** COMPLETADO
 
-- [ ] Eliminar metodo `canStartSession()` de `DeviceStateMachine`
-- [ ] Eliminar tests de `canStartSession` en `device-state-machine.test.ts`
-- [ ] En `LoginEcdhUseCase`: usar `SessionStateMachine.isEnabled(device.status)` en lugar de `DeviceStateMachine.canStartSession()`
-- [ ] Verificar tests pasan
+- [x] Eliminar metodo `canStartSession()` de `DeviceStateMachine`
+- [x] Eliminar tests de `canStartSession` en `device-state-machine.test.ts`
+- [x] En `LoginEcdhUseCase`: usar `SessionStateMachine.isEnabled(device.status)` en lugar de `DeviceStateMachine.canStartSession()`
+- [x] Verificar tests pasan
 
 **Justificacion:** `canStartSession` viola SoC - DeviceStateMachine no debe saber sobre sesiones. SessionStateMachine ya tiene `isEnabled()`.
 
