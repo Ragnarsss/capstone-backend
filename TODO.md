@@ -143,14 +143,15 @@ interface RevokeResult {
 #### 17.5: Crear EnrollmentFlowOrchestrator
 
 **Rama:** `fase-17.5-enrollment-orchestrator`
+**Estado:** COMPLETADO
 
-- [ ] Crear `application/orchestrators/enrollment-flow.orchestrator.ts`
-- [ ] Implementar flujo de `flujo-automata-enrolamiento.md`:
+- [x] Crear `application/orchestrators/enrollment-flow.orchestrator.ts`
+- [x] Implementar flujo de `flujo-automata-enrolamiento.md`:
   - `attemptAccess(userId, deviceFingerprint)` -> CheckEnrolado + EvaluarUnoAUno
-  - `processEnrollment(userId, consent)` -> ProcesoEnrolamiento
-- [ ] Inyectar: DeviceRepository, OneToOnePolicyService, SessionKeyRepository
-- [ ] Crear `__tests__/enrollment-flow.orchestrator.test.ts`
-- [ ] Verificar tests pasan
+  - `processEnrollmentConsent(userId, consent)` -> ProcesoEnrolamiento
+- [x] Interfaces: `IDeviceRepositoryForOrchestrator`, `IPolicyServiceForOrchestrator`
+- [x] Crear `__tests__/enrollment-flow.orchestrator.test.ts` (18 tests)
+- [x] Enums: `AccessResult`, `ConsentResponse`
 
 **Flujo implementado:**
 
