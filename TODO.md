@@ -198,12 +198,12 @@ attemptAccess():
 #### 17.8: Refactorizar LoginEcdhUseCase
 
 **Rama:** `fase-17.8-slim-login-ecdh`
+**Estado:** COMPLETADO
 
-- [ ] Eliminar verificacion de fingerprint (mover a orchestrator o crear FingerprintService)
-- [ ] Usar `SessionStateMachine.isEnabled()` para verificar estado
-- [ ] Mantener SOLO: ECDH + derivar session_key + generar TOTP + guardar
-- [ ] Actualizar tests
-- [ ] Verificar tests pasan
+- [x] Eliminar verificacion/actualizacion de fingerprint (movido a orchestrator)
+- [x] Mantener `SessionStateMachine.isEnabled()` para verificar estado (ya estaba desde 17.3)
+- [x] Mantener SOLO: ECDH + derivar session_key + generar TOTP + guardar
+- [x] Input/Output simplificados: sin `deviceFingerprint` ni `fingerprintUpdated`
 
 **Responsabilidad final:** Solo realiza key exchange y crea session.
 
