@@ -212,13 +212,14 @@ attemptAccess():
 #### 17.9: Crear RestrictionService (Stub)
 
 **Rama:** `fase-17.9-restriction-service`
+**Estado:** COMPLETADO
 
-- [ ] Crear `domain/services/restriction.service.ts` (stub)
-- [ ] Interfaz: `checkRestrictions(userId): Promise<RestrictionResult>`
-- [ ] Stub retorna `{ blocked: false }` siempre
-- [ ] Documentar que sera implementado por servicio externo (PHP)
-- [ ] Integrar en EnrollmentFlowOrchestrator
-- [ ] Crear test basico
+- [x] Crear `domain/services/restriction.service.ts` (stub)
+- [x] Interfaz: `checkRestrictions(userId): Promise<RestrictionResult>`
+- [x] Stub retorna `{ blocked: false }` siempre
+- [x] Documentar que sera implementado por servicio externo (PHP)
+- [x] Interface `IRestrictionService` para dependency injection
+- [x] Crear test basico (4 tests)
 
 **Proposito:** Preparar integracion con modulo de restricciones temporales (horarios, suspensiones).
 

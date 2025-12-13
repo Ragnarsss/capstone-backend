@@ -9,3 +9,9 @@ export {
   type RevokeResult,
   type IDeviceRepositoryForPolicy,
 } from './one-to-one-policy.service';
+
+export {
+  RestrictionService,
+  type RestrictionResult,
+  type IRestrictionService,
+} from './restriction.service';
