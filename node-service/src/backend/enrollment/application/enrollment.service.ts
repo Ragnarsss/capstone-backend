@@ -48,11 +48,11 @@ export class EnrollmentService {
     const penalty = penaltyService ?? new PenaltyService(ValkeyClient.getInstance());
 
     // Crear Use Cases con dependencias
+    // Nota: PenaltyService se movio al orchestrator (SoC refactor fase 17.6)
     this.startEnrollmentUseCase = new StartEnrollmentUseCase(
       fido2,
       deviceRepo,
-      challengeRepo,
-      penalty
+      challengeRepo
     );
 
     this.finishEnrollmentUseCase = new FinishEnrollmentUseCase(

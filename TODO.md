@@ -168,12 +168,13 @@ attemptAccess():
 #### 17.6: Refactorizar StartEnrollmentUseCase
 
 **Rama:** `fase-17.6-slim-start-enrollment`
+**Estado:** COMPLETADO
 
-- [ ] Eliminar inferencia de estado (usar DeviceStateMachine.inferState externamente)
-- [ ] Eliminar verificacion de penalizacion (mover a orchestrator)
-- [ ] Mantener SOLO: generar challenge FIDO2 + guardar en Valkey
-- [ ] Actualizar tests
-- [ ] Verificar tests pasan
+- [x] Eliminar inferencia de estado (DeviceStateMachine.inferState removido)
+- [x] Eliminar verificacion de penalizacion (PenaltyService removido)
+- [x] Mantener SOLO: generar challenge FIDO2 + guardar en Valkey
+- [x] Actualizar EnrollmentService para nueva firma del constructor
+- [x] Output simplificado: solo `{ options }`
 
 **Responsabilidad final:** Solo genera opciones WebAuthn y guarda challenge.
 

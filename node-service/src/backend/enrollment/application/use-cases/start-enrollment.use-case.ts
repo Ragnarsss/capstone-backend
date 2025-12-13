@@ -1,9 +1,7 @@
 import type { PublicKeyCredentialCreationOptionsJSON } from '@simplewebauthn/types';
-import { Fido2Service, DeviceRepository, EnrollmentChallengeRepository, PenaltyService } from '../../infrastructure';
+import { Fido2Service, DeviceRepository, EnrollmentChallengeRepository } from '../../infrastructure';
 import type { RegistrationOptionsInput } from '../../infrastructure';
 import type { Device } from '../../domain/entities';
-import type { EnrollmentState } from '../../domain/models';
-import { DeviceStateMachine } from '../../domain/state-machines';
 
 /**
  * Input DTO para Start Enrollment
@@ -19,78 +17,40 @@ export interface StartEnrollmentInput {
  */
 export interface StartEnrollmentOutput {
   options: PublicKeyCredentialCreationOptionsJSON;
-  previousState: EnrollmentState;
-  penaltyInfo?: {
-    enrollmentCount: number;
-    nextDelayMinutes: number;
-  };
 }
 
 /**
  * Use Case: Iniciar proceso de enrollment FIDO2
- * 
- * Política 1:1 estricta:
- * - 1 usuario = máximo 1 dispositivo activo
- * - No bloqueamos el enrollment si ya tiene dispositivo (se revocará en finish)
- * - Penalizaciones aplican por cada re-enrollment
- * 
+ *
+ * Responsabilidad UNICA (SoC):
+ * - Generar challenge y opciones WebAuthn
+ * - Guardar challenge en Valkey con TTL 5 minutos
+ *
+ * NO hace (responsabilidad del Orchestrator):
+ * - Inferencia de estado (DeviceStateMachine.inferState)
+ * - Validacion de transiciones (DeviceStateMachine.assertTransition)
+ * - Verificacion de penalizaciones (PenaltyService)
+ * - Evaluacion de politica 1:1 (OneToOnePolicyService)
+ *
  * Flujo:
- * 1. Verificar penalización (delays exponenciales)
- * 2. Obtener dispositivos existentes (para excludeCredentials - evitar re-register del mismo)
- * 3. Generar challenge y opciones WebAuthn
- * 4. Guardar challenge en Valkey con TTL 5 minutos
- * 5. Retornar opciones para navigator.credentials.create()
+ * 1. Obtener credenciales existentes (para excludeCredentials)
+ * 2. Generar opciones WebAuthn con SimpleWebAuthn
+ * 3. Guardar challenge en Valkey con TTL 5 minutos
+ * 4. Retornar opciones para navigator.credentials.create()
  */
 export class StartEnrollmentUseCase {
   constructor(
     private readonly fido2Service: Fido2Service,
     private readonly deviceRepository: DeviceRepository,
-    private readonly challengeRepository: EnrollmentChallengeRepository,
-    private readonly penaltyService?: PenaltyService
+    private readonly challengeRepository: EnrollmentChallengeRepository
   ) {}
 
   async execute(input: StartEnrollmentInput): Promise<StartEnrollmentOutput> {
     const { userId, username, displayName } = input;
 
-    // 0. Inferir estado actual de enrollment
-    const existingDevices = await this.deviceRepository.findByUserId(userId);
-    const allDevices = await this.deviceRepository.findByUserIdIncludingInactive(userId);
-    const existingChallenge = await this.challengeRepository.findByUserId(userId);
-    
-    const hasActiveDevice = existingDevices.length > 0;
-    const hasRevokedDevice = allDevices.some((d: Device) => !d.isActive);
-    const hasPendingChallenge = existingChallenge !== null && Date.now() < existingChallenge.expiresAt;
-
-    const currentState = DeviceStateMachine.inferState({
-      hasActiveDevice,
-      hasRevokedDevice,
-      hasPendingChallenge,
-    });
-
-    // Validar transicion a 'pending'
-    DeviceStateMachine.assertTransition(currentState, 'pending');
-
-    // 1. Verificar penalizacion (si el servicio esta configurado)
-    let penaltyInfo: { enrollmentCount: number; nextDelayMinutes: number } | undefined;
-    
-    if (this.penaltyService) {
-      const eligibility = await this.penaltyService.checkEnrollmentEligibility(userId.toString());
-      
-      if (!eligibility.canEnroll) {
-        throw new Error(
-          `PENALTY_ACTIVE: Debe esperar ${eligibility.waitMinutes} minutos antes de enrolar otro dispositivo. ` +
-          `Proximo intento permitido: ${eligibility.nextEnrollmentAt?.toISOString()}`
-        );
-      }
-      
-      penaltyInfo = {
-        enrollmentCount: eligibility.enrollmentCount,
-        nextDelayMinutes: this.penaltyService.getDelayMinutes(eligibility.enrollmentCount + 1),
-      };
-    }
-
-    // 2. Obtener credenciales para excludeCredentials
+    // 1. Obtener credenciales para excludeCredentials
     // excludeCredentials evita que el MISMO dispositivo se re-registre (error WebAuthn)
+    const existingDevices = await this.deviceRepository.findByUserId(userId);
     const existingCredentials = existingDevices.map((device: Device) => ({
       credentialId: device.credentialId,
       publicKey: device.publicKey,
@@ -98,7 +58,7 @@ export class StartEnrollmentUseCase {
       transports: device.transports,
     }));
 
-    // 3. Generar opciones WebAuthn con SimpleWebAuthn
+    // 2. Generar opciones WebAuthn con SimpleWebAuthn
     const registrationInput: RegistrationOptionsInput = {
       userId,
       username,
@@ -108,7 +68,7 @@ export class StartEnrollmentUseCase {
 
     const options = await this.fido2Service.generateRegistrationOptions(registrationInput);
 
-    // 4. Guardar challenge en Valkey (TTL 5 minutos)
+    // 3. Guardar challenge en Valkey (TTL 5 minutos)
     const now = Date.now();
     await this.challengeRepository.save(
       {
@@ -120,7 +80,7 @@ export class StartEnrollmentUseCase {
       300 // TTL en segundos
     );
 
-    // 5. Retornar opciones para el cliente
-    return { options, previousState: currentState, penaltyInfo };
+    // 4. Retornar opciones para el cliente
+    return { options };
   }
 }
