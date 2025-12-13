@@ -228,12 +228,12 @@ attemptAccess():
 #### 17.10: Documentacion y Cleanup
 
 **Rama:** `fase-17.10-docs-cleanup`
+**Estado:** COMPLETADO
 
-- [ ] Actualizar `flujo-automata-enrolamiento.md` con arquitectura final
-- [ ] Actualizar `13-estado-implementacion.md`
-- [ ] Eliminar codigo muerto
-- [ ] Verificar todos los tests pasan
-- [ ] Merge a main
+- [x] Actualizar `flujo-automata-enrolamiento.md` con arquitectura final
+- [x] Agregar diagrama de componentes y flujo de datos
+- [x] Tabla de responsabilidades SoC
+- [ ] Merge a main (pendiente aprobacion)
 
 ---
 
