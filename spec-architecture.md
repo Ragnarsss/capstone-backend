@@ -1,15 +1,19 @@
-# Especificacion: Acceso y Enrollment FIDO2
+# Especificacion de Arquitectura: Dominios y Access Gateway
 
-## Precondiciones
-
-- Usuario autenticado en el sistema (JWT de PHP)
-- Usuario solicita registrar asistencia
+> Fuente de verdad para la arquitectura del sistema.
+> Ultima actualizacion: 2025-12-14
 
 ---
 
-## Objetivo
+## Vision General
 
-Garantizar que cada usuario registre asistencia desde **un unico dispositivo** mediante enrolamiento biometrico FIDO2.
+Sistema complementario (addon) que valida presencia fisica y unicidad de usuarios mediante FIDO2. Se integra via iframe a un servidor Apache/PHP existente.
+
+### Objetivos
+
+1. **Unicidad:** Garantizar relacion 1:1 usuario-dispositivo
+2. **Presencia:** Validar presencia fisica mediante QR criptografico
+3. **Seguridad:** Doble autenticacion (JWT de PHP + ECDH local)
 
 **Politica 1:1:** Un usuario por dispositivo; un dispositivo por usuario.
 
