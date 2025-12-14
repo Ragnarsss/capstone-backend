@@ -13,7 +13,9 @@
 | 17 | SoC Enrollment (automatas, policy) | COMPLETADA |
 | 18.0 | Access Gateway Backend | COMPLETADA |
 | 18.1 | Simplificar Frontend Enrollment | COMPLETADA |
-| **19** | **Separacion de Dominios** | PENDIENTE |
+| **19.1** | **shared/ports/ - Interfaces cross-domain** | COMPLETADA |
+| **19.2** | **session/ - Dominio Session** | COMPLETADA |
+| **19.3** | **restriction/ - Dominio Restriction** | COMPLETADA |
 | **20** | **Limpieza Legacy** | PENDIENTE |
 | **21** | **Unificar Frontend** | PENDIENTE |
 | **22** | **Hardening Criptografico** | PENDIENTE |
