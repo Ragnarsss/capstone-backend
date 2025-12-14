@@ -122,7 +122,7 @@ class EnrollmentApplication {
     // Mostrar info del usuario
     const userId = this.authClient.getUserId();
     const username = this.authClient.getUserName();
-    
+
     if (this.userNameSpan) {
       this.userNameSpan.textContent = username || `Usuario ${userId}`;
     }
@@ -137,18 +137,32 @@ class EnrollmentApplication {
       this.showEnrollmentMessage('Tu navegador no soporta autenticación biométrica', 'error');
       return;
     }
-    
+
     this.log('WebAuthn soportado ✓', 'success');
 
-    // Cargar estado de enrollment
-    await this.loadEnrollmentStatus();
+    // Cargar lista de dispositivos para mostrar
+    await this.loadDevicesList();
+
+    // Obtener estado agregado del backend y renderizar
+    try {
+      const state = await this.accessService.getState();
+      this.renderByState(state);
+    } catch (error) {
+      this.log('[handleAuthReady] Error obteniendo estado:', error);
+      this.updateStatus('Error al cargar estado');
+      this.showEnrollmentMessage('Error al conectar con el servidor', 'error');
+    }
   }
 
-  private async loadEnrollmentStatus(): Promise<void> {
+  /**
+   * Carga y muestra la lista de dispositivos del usuario
+   * Ya no contiene lógica de inferencia de estado (movida a renderByState)
+   */
+  private async loadDevicesList(): Promise<void> {
     try {
-      this.log('Cargando estado de enrollment...', 'info');
+      this.log('Cargando lista de dispositivos...', 'info');
       const status = await this.enrollmentService.getStatus();
-      
+
       this.log(`Dispositivos: ${status.deviceCount}/5`, 'success', status);
 
       // Actualizar conteo de dispositivos
@@ -161,38 +175,8 @@ class EnrollmentApplication {
         this.renderDevicesList(status.devices);
       }
 
-      // Verificar si tiene session_key almacenada
-      const hasSessionKey = this.sessionKeyStore.hasSessionKey();
-
-      if (hasSessionKey) {
-        // Ya tiene session key - puede usar el scanner
-        this.updateStatus('Dispositivo listo');
-        this.showEnrollmentMessage(
-          '✅ Tienes una sesión activa. Puedes ir al escáner de asistencia.',
-          'success'
-        );
-        this.showGoToScannerButton();
-      } else if (status.deviceCount > 0) {
-        // Tiene dispositivos pero no session key - necesita login
-        this.updateStatus('Inicia sesión para continuar');
-        this.showLoginSection();
-      } else {
-        // No tiene dispositivos - necesita enrollment
-        this.updateStatus('Registra tu dispositivo');
-        this.enableEnrollButton();
-      }
-
-      // Si puede enrolar más dispositivos
-      if (status.deviceCount < 5) {
-        this.enableEnrollButton();
-      } else {
-        this.showEnrollmentMessage('Has alcanzado el máximo de 5 dispositivos', 'info');
-      }
-
     } catch (error) {
-      this.logError('Error cargando status', error);
-      this.updateStatus('Error al cargar información');
-      this.showEnrollmentMessage('Error al conectar con el servidor', 'error');
+      this.logError('Error cargando dispositivos', error);
     }
   }
 
