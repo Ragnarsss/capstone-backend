@@ -228,12 +228,14 @@ attemptAccess():
 #### 17.10: Documentacion y Cleanup
 
 **Rama:** `fase-17.10-docs-cleanup`
-**Estado:** COMPLETADO
+**Estado:** EN PROGRESO
 
 - [x] Actualizar `flujo-automata-enrolamiento.md` con arquitectura final
 - [x] Agregar diagrama de componentes y flujo de datos
 - [x] Tabla de responsabilidades SoC
-- [ ] Merge a main (pendiente aprobacion)
+- [ ] Actualizar `13-estado-implementacion.md`
+- [ ] Eliminar codigo muerto (`penalty` en enrollment.service.ts)
+- [ ] Verificar todos los tests pasan
 
 ---
 
@@ -336,6 +338,7 @@ Fase 15: Puente PHP-Node (Produccion)
 
 - `daRulez.md` - Reglas del proyecto
 - `PROJECT-CONSTITUTION.md` - Principios arquitectonicos
-- `flujo-automata-enrolamiento.md` - Flujo de enrollment (fuente de verdad)
+- `spec-enrollment.md` - Flujo de enrollment (fuente de verdad)
+- `spec-qr-validation.md` - Flujo de validacion QR
 - `documents/03-especificaciones-tecnicas/13-estado-implementacion.md` - Estado detallado
 - `documents/03-especificaciones-tecnicas/14-decision-totp-session-key.md` - Decision TOTPu

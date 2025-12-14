@@ -1,15 +1,17 @@
 # Flujo de Validacion QR con Rounds e Intentos
 
-**Fecha:** 2025-11-28  
-**Actualizado:** 2025-11-29  
-**Estado:** Especificacion Tecnica  
-**Rama:** fase-6-1-frontend-crypto
+**Fecha:** 2025-11-28
+**Actualizado:** 2025-12-13
+**Estado:** Especificacion Tecnica
 
 ---
 
 ## Resumen
 
 Este documento describe el flujo completo de validacion de asistencia mediante QR, incluyendo el manejo de rounds (rondas de validacion) e intentos (oportunidades ante fallos).
+
+**Prerequisito:** El usuario debe estar en estado `READY` segun el automata de enrollment.
+Ver `spec-enrollment.md` para el flujo de enrollment y login.
 
 ---
 
@@ -19,7 +21,7 @@ Este documento describe el flujo completo de validacion de asistencia mediante Q
 |----------|------------|
 | **Round** | Ciclo de QR unico que el alumno debe completar exitosamente. Default: 3 rounds |
 | **Intento** | Oportunidad de reiniciar si falla un round. Default: 3 intentos |
-| **session_key** | Clave simetrica derivada de ECDH durante **login/sesion** (cada vez que participa) |
+| **session_key** | Clave simetrica derivada de ECDH durante **login ECDH** (POST `/api/enrollment/login`) |
 | **TOTPu** | TOTP del usuario, derivado de **session_key** (ver `14-decision-totp-session-key.md`) |
 | **expectedRound** | Round que el cliente debe buscar, indicado por servidor |
 | **Pool de Proyeccion** | Lista de QRs de estudiantes registrados + QRs falsos que el proyector cicla |
@@ -28,14 +30,34 @@ Este documento describe el flujo completo de validacion de asistencia mediante Q
 
 ## Flujo Completo
 
-### Fase 0: Registro en Sesion (PRERREQUISITO)
+### Fase 0: Verificacion de Estado (PRERREQUISITO)
 
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
-│ CLIENTE: Registro Previo                                        │
+│ CLIENTE: Verificar Estado de Enrollment                         │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│ ANTES de escanear QRs, el alumno debe registrarse:             │
+│ ANTES de escanear QRs, verificar estado:                       │
+│                                                                 │
+│ 1. POST /api/enrollment/flow/check                             │
+│                                                                 │
+│ 2. Si state !== "READY":                                        │
+│    → Redirigir a /features/enrollment/                         │
+│    → El usuario debe completar enrollment + login primero      │
+│                                                                 │
+│ 3. Si state === "READY":                                        │
+│    → session_key disponible en sessionStorage                  │
+│    → Puede proceder a escanear                                 │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Fase 0.5: Registro en Sesion de Clase
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│ CLIENTE: Registro en Sesion                                     │
+├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │ 1. Cliente envia POST /participation/register                  │
 │    {sessionId, studentId}                                       │
@@ -77,7 +99,8 @@ Este documento describe el flujo completo de validacion de asistencia mediante Q
 │ CLIENTE (Lector QR)                                             │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│ 1. Abre lector, obtiene session_key (de enrolamiento previo)   │
+│ 1. Abre lector, obtiene session_key de sessionStorage          │
+│    (derivada previamente en login ECDH)                        │
 │    Cliente inicializa: expectedRound = 1                        │
 │                                                                 │
 │ 2. Escanea QRs de la pantalla del proyector                    │
@@ -193,7 +216,7 @@ Servidor: OK → responde {success: true, expectedRound: 2}
 Cliente: expectedRound = 2, reanuda
 
 Escanea → encuentra QR con r=2 → envia
-Servidor: FALLA (ej: timeout) 
+Servidor: FALLA (ej: timeout)
          → consume intento 1 (quedan 2)
          → responde {success: true, expectedRound: 1}  ← REINICIA
 Cliente: expectedRound = 1, reanuda (no sabe que fallo)
@@ -254,29 +277,29 @@ Criterios:
 
 ## Notas de Implementacion
 
+### Origen de session_key
+
+La `session_key` se deriva durante el **login ECDH** (POST `/api/enrollment/login`):
+
+1. Usuario completa enrollment FIDO2 (una vez)
+2. Usuario hace login ECDH (cada sesion)
+3. Cliente y servidor derivan `session_key` via ECDH + HKDF
+4. Cliente almacena en sessionStorage (TTL: 2 horas)
+5. session_key se usa para cifrar/descifrar QRs
+
 ### Mock vs Produccion
 
-| Componente | Mock (Actual) | Produccion |
-|------------|---------------|------------|
-| session_key | MOCK_SESSION_KEY hardcodeada | Derivada de ECDH en login/sesion |
+| Componente | Mock (Desarrollo) | Produccion |
+|------------|-------------------|------------|
+| session_key | MOCK_SESSION_KEY hardcodeada | Derivada de ECDH en login |
 | TOTPu | Mock fijo o timestamp | TOTP real de **session_key** |
 | userId | Parametro en request | Extraido de JWT de PHP |
-
-### Fases de Implementacion
-
-1. **Fase 6 (completada):** Backend con rounds e intentos
-2. **Fase 6.1 (completada):** Infraestructura crypto frontend (mock keys)
-3. **Fase 6.2 (completada):** UI state machine lector QR
-4. **Fase 6.3:** Pool de proyeccion (QRs de estudiantes + falsos)
-5. **Fase 7:** Persistencia PostgreSQL
-6. **Fase 8:** QRs falsos adicionales
-7. **Fase 9:** Enrolamiento FIDO2 + ECDH real
-8. **Fase 10:** Integracion con login PHP real
 
 ---
 
 ## Referencias
 
+- `spec-enrollment.md` - Prerequisito: enrollment + login
 - `documents/03-especificaciones-tecnicas/04-flujo-asistencia.md`
-- `database/migrations/001-initial-schema.sql`
+- `documents/03-especificaciones-tecnicas/14-decision-totp-session-key.md`
 - `node-service/src/backend/attendance/`
