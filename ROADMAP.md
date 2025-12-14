@@ -9,15 +9,15 @@
 
 | Fase | Descripcion | Estado |
 |------|-------------|--------|
-| 1-16 | Fundamentos, FIDO2, QR, Pipeline | ✅ COMPLETADA |
-| 17 | SoC Enrollment (automatas, policy) | ✅ COMPLETADA |
-| 18.0 | Access Gateway Backend | ✅ COMPLETADA |
-| 18.1 | Simplificar Frontend Enrollment | ✅ COMPLETADA |
-| **19** | **Separacion de Dominios** | 🔴 PENDIENTE |
-| **20** | **Limpieza Legacy** | 🔴 PENDIENTE |
-| **21** | **Unificar Frontend** | 🔴 PENDIENTE |
-| **22** | **Hardening Criptografico** | 🔴 PENDIENTE |
-| **23** | **Puente PHP Produccion** | 🔴 PENDIENTE |
+| 1-16 | Fundamentos, FIDO2, QR, Pipeline | COMPLETADA |
+| 17 | SoC Enrollment (automatas, policy) | COMPLETADA |
+| 18.0 | Access Gateway Backend | COMPLETADA |
+| 18.1 | Simplificar Frontend Enrollment | COMPLETADA |
+| **19** | **Separacion de Dominios** | PENDIENTE |
+| **20** | **Limpieza Legacy** | PENDIENTE |
+| **21** | **Unificar Frontend** | PENDIENTE |
+| **22** | **Hardening Criptografico** | PENDIENTE |
+| **23** | **Puente PHP Produccion** | PENDIENTE |
 
 ---
 
@@ -86,17 +86,18 @@ shared/ports/
 
 **Tareas:**
 
-- [ ] Crear carpeta `node-service/src/backend/shared/ports/`
-- [ ] Mover `enrollment/domain/interfaces/device-query.interface.ts` a `shared/ports/`
-- [ ] Mover `enrollment/domain/interfaces/session-query.interface.ts` a `shared/ports/`
-- [ ] Mover `enrollment/domain/interfaces/restriction-query.interface.ts` a `shared/ports/`
-- [ ] Crear `shared/ports/index.ts` con exports
-- [ ] Actualizar imports en `access/` para usar `shared/ports/`
-- [ ] Actualizar imports en `enrollment/` para usar `shared/ports/`
-- [ ] Eliminar `enrollment/domain/interfaces/` (carpeta vacia)
-- [ ] Verificar compilacion: `npm run build`
+- [x] Crear carpeta `node-service/src/backend/shared/ports/`
+- [x] Mover `enrollment/domain/interfaces/device-query.interface.ts` a `shared/ports/`
+- [x] Mover `enrollment/domain/interfaces/session-query.interface.ts` a `shared/ports/`
+- [x] Mover `enrollment/domain/interfaces/restriction-query.interface.ts` a `shared/ports/`
+- [x] Crear `shared/ports/index.ts` con exports
+- [x] Actualizar imports en `access/` para usar `shared/ports/`
+- [x] Actualizar imports en `enrollment/` para usar `shared/ports/`
+- [x] Eliminar `enrollment/domain/interfaces/` (carpeta vacia)
+- [x] Verificar tests: `npm run test` (134/134 passed)
 
-**Criterio de exito:** Compilacion sin errores, imports apuntan a shared/ports.
+**Criterio de exito:** COMPLETADO - Tests pasando, imports apuntan a shared/ports.
+**Commit:** b208425
 
 ---
 
