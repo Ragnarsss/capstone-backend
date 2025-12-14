@@ -292,14 +292,15 @@ backend/restriction/
 **Modelo:** Sonnet
 **Dificultad:** Baja
 
-**Tareas:**
+**Estado:** N/A - Fase mal planteada, no hay codigo muerto
 
-- [ ] Eliminar referencias a `penalty` en enrollment.service.ts (codigo muerto)
-- [ ] Eliminar `EnrollmentStateMachine` si ya no se usa (reemplazado por DeviceStateMachine)
-- [ ] Eliminar imports no usados
-- [ ] Verificar tests: `npm run test`
+**Analisis realizado:**
 
-**Criterio de exito:** No hay codigo muerto en enrollment/.
+- [x] `PenaltyService` - SI se usa activamente (16 referencias en controllers, routes, use cases)
+- [x] `EnrollmentStateMachine` - NO existe como archivo, solo es nombre de bloque de test
+- [x] `enrollment.service.ts` - Ya eliminado en fase 20.1-20.3
+
+**Criterio de exito:** N/A - No hay codigo muerto que eliminar.
 
 ---
 
@@ -309,24 +310,27 @@ backend/restriction/
 **Modelo:** Sonnet
 **Dificultad:** Baja
 
+**Estado:** COMPLETADA en fase 20.1 (commit c372c2f)
+
 **Justificacion:** Access Gateway importa SessionQueryAdapter, SessionKeyRepository y RestrictionService desde enrollment/ cuando deben importarse desde session/ y restriction/ respectivamente. Esto viola SoC y mantiene acoplamiento innecesario.
 
-**Archivos a modificar:**
+**Archivos modificados:**
 
-- `backend/access/presentation/routes.ts` (lineas 4-6, 18-19)
+- `backend/access/presentation/routes.ts`
 
 **Tareas:**
 
-- [ ] Actualizar import de SessionQueryAdapter: desde session/infrastructure/adapters/
-- [ ] Actualizar import de SessionKeyRepository: desde session/infrastructure/repositories/
-- [ ] Actualizar import de RestrictionQueryAdapter: desde restriction/infrastructure/adapters/
-- [ ] Actualizar import de RestrictionService: desde restriction/application/services/
-- [ ] Verificar compilacion: `npm run build`
-- [ ] Verificar tests: `npm run test`
+- [x] Actualizar import de SessionQueryAdapter: desde session/infrastructure/adapters/
+- [x] Actualizar import de SessionKeyRepository: desde session/infrastructure/repositories/
+- [x] Actualizar import de RestrictionQueryAdapter: desde restriction/infrastructure/adapters/
+- [x] Actualizar import de RestrictionService: desde restriction/application/services/
+- [x] Verificar compilacion: `npm run build`
+- [x] Verificar tests: `npm run test` (134/134 passed)
 
 **Dependencias:** Requiere 19.2 y 19.3 completadas.
 
-**Criterio de exito:** Access Gateway importa directamente desde dominios session/ y restriction/, no desde enrollment/.
+**Criterio de exito:** COMPLETADO - Access Gateway importa directamente desde dominios session/ y restriction/.
+**Commit:** c372c2f (mismo que 20.1-20.3)
 
 ---
 
