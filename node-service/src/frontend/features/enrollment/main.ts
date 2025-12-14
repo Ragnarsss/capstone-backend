@@ -15,12 +15,14 @@ import { EnrollmentService } from './services/enrollment.service';
 import { LoginService } from './services/login.service';
 import { SessionKeyStore } from './services/session-key.store';
 import { getRemoteLogger, RemoteLoggerService } from './services/remote-logger.service';
+import { AccessService, type AccessState } from './services/access.service';
 
 class EnrollmentApplication {
   private authClient: AuthClient;
   private enrollmentService: EnrollmentService;
   private loginService: LoginService;
   private sessionKeyStore: SessionKeyStore;
+  private accessService: AccessService;
   private remoteLogger: RemoteLoggerService;
   
   // UI Elements
@@ -43,11 +45,12 @@ class EnrollmentApplication {
   constructor() {
     this.remoteLogger = getRemoteLogger();
     this.remoteLogger.info('EnrollmentApplication constructor');
-    
+
     this.authClient = new AuthClient();
     this.enrollmentService = new EnrollmentService();
     this.loginService = new LoginService();
     this.sessionKeyStore = new SessionKeyStore();
+    this.accessService = new AccessService();
   }
 
   async initialize(): Promise<void> {
@@ -477,6 +480,61 @@ class EnrollmentApplication {
     if (!this.loginMessage) return;
     this.loginMessage.textContent = text;
     this.loginMessage.className = `enrollment__message enrollment__message--${type}`;
+  }
+
+  private showBlockedMessage(message?: string): void {
+    if (this.enrollmentSection) {
+      this.enrollmentSection.style.display = 'none';
+    }
+    if (this.loginSection) {
+      this.loginSection.style.display = 'none';
+    }
+
+    this.showEnrollmentMessage(
+      message || '🚫 Acceso bloqueado. Contacta al administrador.',
+      'error'
+    );
+    this.updateStatus('Acceso bloqueado');
+  }
+
+  /**
+   * Renderiza la UI según el estado agregado del backend
+   * Método centralizado para eliminar lógica dispersa
+   */
+  private renderByState(state: AccessState): void {
+    this.log(`[renderByState] Estado: ${state.state}, Acción: ${state.action}`, 'info');
+
+    switch (state.state) {
+      case 'NOT_ENROLLED':
+        this.updateStatus('Registra tu dispositivo');
+        this.enableEnrollButton();
+        if (this.loginSection) {
+          this.loginSection.style.display = 'none';
+        }
+        break;
+
+      case 'ENROLLED_NO_SESSION':
+        this.updateStatus('Inicia sesión para continuar');
+        this.showLoginSection();
+        break;
+
+      case 'READY':
+        this.updateStatus('Dispositivo listo');
+        this.showEnrollmentMessage(
+          '✅ Tienes una sesión activa. Puedes ir al escáner de asistencia.',
+          'success'
+        );
+        this.showGoToScannerButton();
+        break;
+
+      case 'BLOCKED':
+        this.showBlockedMessage(state.message);
+        break;
+
+      default:
+        this.log(`[renderByState] Estado desconocido: ${state.state}`, 'error');
+        break;
+    }
   }
 
   private log(message: string, type: 'info' | 'success' | 'error' | 'warn' = 'info', data?: unknown): void {
