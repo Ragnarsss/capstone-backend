@@ -1,4 +1,4 @@
-import type { IRestrictionQuery } from '../../domain/interfaces';
+import type { IRestrictionQuery } from '../../../shared/ports';
 import type { IRestrictionService } from '../../domain/services/restriction.service';
 
 /**

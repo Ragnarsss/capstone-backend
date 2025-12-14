@@ -1,4 +1,4 @@
-import type { ISessionQuery } from '../../domain/interfaces';
+import type { ISessionQuery } from '../../../shared/ports';
 import type { SessionKeyRepository } from '../session-key.repository';
 
 /**

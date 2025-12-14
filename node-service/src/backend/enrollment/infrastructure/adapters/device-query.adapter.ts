@@ -1,4 +1,4 @@
-import type { IDeviceQuery } from '../../domain/interfaces';
+import type { IDeviceQuery } from '../../../shared/ports';
 import type { DeviceRepository } from '../repositories/device.repository';
 
 /**

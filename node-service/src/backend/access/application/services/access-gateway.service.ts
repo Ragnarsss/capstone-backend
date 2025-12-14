@@ -1,4 +1,4 @@
-import type { IDeviceQuery, ISessionQuery, IRestrictionQuery } from '../../../enrollment/domain/interfaces';
+import type { IDeviceQuery, ISessionQuery, IRestrictionQuery } from '../../../shared/ports';
 
 /**
  * Estado agregado del sistema de acceso

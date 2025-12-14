@@ -7,7 +7,7 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { AccessGatewayService } from '../application/services/access-gateway.service';
-import type { IDeviceQuery, ISessionQuery, IRestrictionQuery } from '../../enrollment/domain/interfaces';
+import type { IDeviceQuery, ISessionQuery, IRestrictionQuery } from '../../shared/ports';
 
 describe('AccessGatewayService', () => {
   let service: AccessGatewayService;
