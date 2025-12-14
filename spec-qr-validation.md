@@ -21,7 +21,7 @@ Ver `spec-enrollment.md` para el flujo de enrollment y login.
 |----------|------------|
 | **Round** | Ciclo de QR unico que el alumno debe completar exitosamente. Default: 3 rounds |
 | **Intento** | Oportunidad de reiniciar si falla un round. Default: 3 intentos |
-| **session_key** | Clave simetrica derivada de ECDH durante **login ECDH** (POST `/api/enrollment/login`) |
+| **session_key** | Clave simetrica derivada de ECDH durante **login ECDH** (POST `/api/session/login`) |
 | **TOTPu** | TOTP del usuario, derivado de **session_key** (ver `14-decision-totp-session-key.md`) |
 | **expectedRound** | Round que el cliente debe buscar, indicado por servidor |
 | **Pool de Proyeccion** | Lista de QRs de estudiantes registrados + QRs falsos que el proyector cicla |
@@ -39,7 +39,7 @@ Ver `spec-enrollment.md` para el flujo de enrollment y login.
 │                                                                 │
 │ ANTES de escanear QRs, verificar estado:                       │
 │                                                                 │
-│ 1. POST /api/enrollment/flow/check                             │
+│ 1. GET /api/access/state                                       │
 │                                                                 │
 │ 2. Si state !== "READY":                                        │
 │    → Redirigir a /features/enrollment/                         │
@@ -59,7 +59,7 @@ Ver `spec-enrollment.md` para el flujo de enrollment y login.
 │ CLIENTE: Registro en Sesion                                     │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│ 1. Cliente envia POST /participation/register                  │
+│ 1. Cliente envia POST /asistencia/api/attendance/register      │
 │    {sessionId, studentId}                                       │
 │                                                                 │
 │ 2. Servidor:                                                    │
@@ -123,7 +123,7 @@ Ver `spec-enrollment.md` para el flujo de enrollment y login.
 │        ts_client: Date.now(),                                   │
 │      }                                                          │
 │    - Cifra respuesta con session_key                           │
-│    - Envia POST /validate                                       │
+│    - Envia POST /api/attendance/validate                       │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -238,7 +238,7 @@ Cliente: Muestra "Acercate al profesor/oficina", cierra
 
 ## Generacion y Vigencia de QR
 
-- El QR del alumno se genera al momento de **registrar participacion** (POST `/participation/register`)
+- El QR del alumno se genera al momento de **registrar participacion** (POST `/asistencia/api/attendance/register`)
 - El servidor agrega el QR encriptado al **pool de proyeccion** en Valkey
 - Cada QR tiene un TTL controlado por backend (default: 30 segundos)
 - Si el QR expira antes de usarse, el servidor genera uno nuevo automaticamente y lo agrega al pool
@@ -279,7 +279,7 @@ Criterios:
 
 ### Origen de session_key
 
-La `session_key` se deriva durante el **login ECDH** (POST `/api/enrollment/login`):
+La `session_key` se deriva durante el **login ECDH** (POST `/api/session/login`):
 
 1. Usuario completa enrollment FIDO2 (una vez)
 2. Usuario hace login ECDH (cada sesion)
