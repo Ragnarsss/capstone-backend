@@ -14,6 +14,7 @@ import {
 } from './middleware';
 import { WebSocketController } from './backend/qr-projection/presentation/websocket-controller';
 import { registerEnrollmentRoutes } from './backend/enrollment/presentation/routes';
+import { registerAccessRoutes } from './backend/access/presentation/routes';
 import { registerAttendanceRoutes } from './backend/attendance/presentation/routes';
 import { frontendPlugin } from './plugins/frontend-plugin';
 import { JWTUtils } from './backend/auth/domain/jwt-utils';
@@ -88,6 +89,9 @@ export async function createApp() {
 
   // Enrollment module - nuevas rutas con arquitectura limpia
   await registerEnrollmentRoutes(fastify);
+
+  // Access module - estado agregado de acceso
+  await registerAccessRoutes(fastify);
 
   // Attendance module - validación de payloads QR
   await registerAttendanceRoutes(fastify);
