@@ -316,9 +316,12 @@ class EnrollmentApplication {
       );
       this.updateStatus('Dispositivo registrado');
 
-      // Recargar lista de dispositivos y mostrar login
-      await this.loadEnrollmentStatus();
-      this.showLoginSection();
+      // Recargar lista de dispositivos
+      await this.loadDevicesList();
+
+      // Auto-continuacion: consultar estado y renderizar
+      const state = await this.accessService.getState();
+      this.renderByState(state);
 
     } catch (error) {
       const errorInfo = error instanceof Error 
@@ -379,10 +382,10 @@ class EnrollmentApplication {
       this.sessionKeyStore.storeSessionKey(loginResult.sessionKey!, loginResult.totpu!);
 
       this.showLoginMessage('✅ Sesión iniciada correctamente', 'success');
-      this.updateStatus('Listo para marcar asistencia');
 
-      // Mostrar botón para ir al scanner
-      this.showGoToScannerButton();
+      // Auto-continuacion: consultar estado y renderizar
+      const state = await this.accessService.getState();
+      this.renderByState(state);
 
     } catch (error) {
       this.log('[Login] Error:', error);

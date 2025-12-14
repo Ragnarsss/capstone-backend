@@ -242,9 +242,9 @@ class AccessService {
 
 **Tareas:**
 
-- [ ] Crear `access.service.ts`
-- [ ] Implementar `getState()` con fetch
-- [ ] Manejar errores de red
+- [x] Crear `access.service.ts`
+- [x] Implementar `getState()` con fetch
+- [x] Manejar errores de red
 
 ---
 
@@ -275,9 +275,9 @@ private renderByState(state: AccessState): void {
 
 **Tareas:**
 
-- [ ] Crear metodo `renderByState()`
-- [ ] Implementar casos para los 4 estados
-- [ ] Agregar `showBlockedMessage()` si no existe
+- [x] Crear metodo `renderByState()`
+- [x] Implementar casos para los 4 estados
+- [x] Agregar `showBlockedMessage()` si no existe
 
 ---
 
@@ -305,9 +305,9 @@ private async handleAuthReady(): Promise<void> {
 
 **Tareas:**
 
-- [ ] Inyectar `AccessService`
-- [ ] Reemplazar `loadEnrollmentStatus()` con `accessService.getState()`
-- [ ] Usar `renderByState()` en lugar de condicionales
+- [x] Inyectar `AccessService`
+- [x] Reemplazar `loadEnrollmentStatus()` con `accessService.getState()`
+- [x] Usar `renderByState()` en lugar de condicionales
 
 ---
 
@@ -334,9 +334,9 @@ if (loginResult.success) {
 
 **Tareas:**
 
-- [ ] Agregar `getState()` despues de `finishEnrollment()` exitoso
-- [ ] Agregar `getState()` despues de `performLogin()` exitoso
-- [ ] Remover llamadas manuales a `showLoginSection()`, `showGoToScannerButton()`
+- [x] Agregar `getState()` despues de `finishEnrollment()` exitoso
+- [x] Agregar `getState()` despues de `performLogin()` exitoso
+- [x] Remover llamadas manuales a `showLoginSection()`, `showGoToScannerButton()`
 
 ---
 
