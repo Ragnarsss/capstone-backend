@@ -215,10 +215,11 @@ class AccessGatewayService {
 
 ---
 
-## Fase 18.1: Simplificar Frontend
+## Fase 18.1: Simplificar Frontend [COMPLETADA]
 
 **Rama:** `fase-18.1-frontend-simplification`
 **Objetivo:** Frontend renderiza unicamente segun respuesta del backend.
+**Estado:** COMPLETADA - 2 commits
 
 **Modelo recomendado:** Sonnet (Opus si hay bloqueos en 18.1.3-5)
 
