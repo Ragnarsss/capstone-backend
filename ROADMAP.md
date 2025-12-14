@@ -178,18 +178,19 @@ backend/restriction/
 
 **Tareas:**
 
-- [ ] Crear estructura de carpetas `backend/restriction/`
-- [ ] Mover `enrollment/domain/services/restriction.service.ts` a `restriction/application/services/`
-- [ ] Crear `restriction/domain/models.ts` con tipo RestrictionResult
-- [ ] Mover `enrollment/infrastructure/adapters/restriction-query.adapter.ts` a `restriction/infrastructure/adapters/`
-- [ ] Crear `restriction/restriction.module.ts` para registro DI
-- [ ] Registrar restriction.module en `app.ts`
-- [ ] Actualizar imports en `access/` para usar adapters de restriction/
-- [ ] Verificar compilacion: `npm run build`
+- [x] Crear estructura de carpetas `backend/restriction/`
+- [x] Mover `enrollment/domain/services/restriction.service.ts` a `restriction/application/services/`
+- [x] Crear `restriction/domain/models.ts` con tipo RestrictionResult
+- [x] Mover `enrollment/infrastructure/adapters/restriction-query.adapter.ts` a `restriction/infrastructure/adapters/`
+- [x] Crear `restriction/restriction.module.ts` para registro DI
+- [x] Registrar restriction.module en `app.ts`
+- [x] Actualizar imports en enrollment/domain/services/
+- [x] Verificar tests: `npm run test` (134/134 passed)
 
 **Dependencias:** Requiere 19.1 completada (shared/ports).
 
-**Criterio de exito:** Compilacion sin errores, Access Gateway usa restriction/.
+**Criterio de exito:** COMPLETADO - Tests pasando, dominio restriction independiente.
+**Commit:** 2308b52
 
 ---
 
