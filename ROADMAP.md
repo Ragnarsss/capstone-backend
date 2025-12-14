@@ -1,7 +1,7 @@
 # ROADMAP - Plan de Implementacion
 
 > Fuente de verdad para tareas pendientes.
-> Ultima actualizacion: 2025-12-14
+> Ultima actualizacion: 2025-12-14 (tareas de limpieza de indices agregadas a 19.2/19.3)
 
 ---
 
@@ -16,7 +16,7 @@
 | **19.1** | **shared/ports/ - Interfaces cross-domain** | COMPLETADA |
 | **19.2** | **session/ - Dominio Session** | COMPLETADA |
 | **19.3** | **restriction/ - Dominio Restriction** | COMPLETADA |
-| **20** | **Limpieza Legacy** | PENDIENTE |
+| **20** | **Limpieza Legacy (7 subfases)** | PENDIENTE |
 | **21** | **Unificar Frontend** | PENDIENTE |
 | **22** | **Hardening Criptografico** | PENDIENTE |
 | **23** | **Puente PHP Produccion** | PENDIENTE |
@@ -146,12 +146,16 @@ backend/session/
 - [x] Actualizar `enrollment/presentation/routes.ts` para NO registrar /login
 - [x] Registrar session.module en `app.ts`
 - [x] Actualizar imports en attendance/ y tests
+- [x] Actualizar enrollment/infrastructure/adapters/index.ts (eliminar export de SessionQueryAdapter)
+- [x] Actualizar enrollment/infrastructure/index.ts (eliminar export de SessionKeyRepository)
+- [x] Actualizar enrollment/domain/state-machines/index.ts (eliminar export de SessionStateMachine)
+- [x] Actualizar enrollment/application/use-cases/index.ts (eliminar export de LoginEcdhUseCase)
 - [x] Verificar tests: `npm run test` (134/134 passed)
 
 **Dependencias:** Requiere 19.1 completada (shared/ports).
 
-**Criterio de exito:** COMPLETADO - Endpoint `POST /api/session/login` registrado, tests pasando.
-**Commit:** 0391c98
+**Criterio de exito:** COMPLETADO - Endpoint `POST /api/session/login` registrado, tests pasando, indices de enrollment limpios.
+**Commits:** 0391c98, e9dc8e1, f21adc0
 
 ---
 
@@ -187,12 +191,14 @@ backend/restriction/
 - [x] Crear `restriction/restriction.module.ts` para registro DI
 - [x] Registrar restriction.module en `app.ts`
 - [x] Actualizar imports en enrollment/domain/services/
+- [x] Actualizar enrollment/infrastructure/adapters/index.ts (eliminar export de RestrictionQueryAdapter)
+- [x] Actualizar enrollment/domain/services/index.ts (eliminar re-export de RestrictionService)
 - [x] Verificar tests: `npm run test` (134/134 passed)
 
 **Dependencias:** Requiere 19.1 completada (shared/ports).
 
-**Criterio de exito:** COMPLETADO - Tests pasando, dominio restriction independiente.
-**Commit:** 2308b52
+**Criterio de exito:** COMPLETADO - Tests pasando, dominio restriction independiente, indices de enrollment limpios.
+**Commits:** 2308b52, 7ce6b8f, f21adc0
 
 ---
 
@@ -282,6 +288,91 @@ backend/restriction/
 - [ ] Verificar tests: `npm run test`
 
 **Criterio de exito:** No hay codigo muerto en enrollment/.
+
+---
+
+### 20.5: Actualizar imports en Access Gateway
+
+**Rama:** `fase-20.5-fix-access-imports`
+**Modelo:** Sonnet
+**Dificultad:** Baja
+
+**Justificacion:** Access Gateway importa SessionQueryAdapter, SessionKeyRepository y RestrictionService desde enrollment/ cuando deben importarse desde session/ y restriction/ respectivamente. Esto viola SoC y mantiene acoplamiento innecesario.
+
+**Archivos a modificar:**
+
+- `backend/access/presentation/routes.ts` (lineas 4-6, 18-19)
+
+**Tareas:**
+
+- [ ] Actualizar import de SessionQueryAdapter: desde session/infrastructure/adapters/
+- [ ] Actualizar import de SessionKeyRepository: desde session/infrastructure/repositories/
+- [ ] Actualizar import de RestrictionQueryAdapter: desde restriction/infrastructure/adapters/
+- [ ] Actualizar import de RestrictionService: desde restriction/application/services/
+- [ ] Verificar compilacion: `npm run build`
+- [ ] Verificar tests: `npm run test`
+
+**Dependencias:** Requiere 19.2 y 19.3 completadas.
+
+**Criterio de exito:** Access Gateway importa directamente desde dominios session/ y restriction/, no desde enrollment/.
+
+---
+
+### 20.6: Actualizar spec-qr-validation.md
+
+**Rama:** `fase-20.6-update-spec-qr`
+**Modelo:** Sonnet
+**Dificultad:** Trivial
+
+**Justificacion:** spec-qr-validation.md menciona endpoints que no existen o tienen rutas incorrectas, causando confusion al consultar la documentacion.
+
+**Archivos a modificar:**
+
+- `spec-qr-validation.md`
+- `spec-architecture.md`
+
+**Tareas:**
+
+- [ ] Linea 42: Reemplazar `POST /api/enrollment/flow/check` con `GET /api/access/state`
+- [ ] Linea 24: Actualizar referencia `/api/enrollment/login` a `/api/session/login`
+- [ ] Linea 62: Actualizar a `POST /asistencia/api/attendance/register`
+- [ ] Linea 149: Actualizar a `POST /asistencia/api/attendance/validate`
+- [ ] Linea 282-283: Actualizar referencia de login ECDH a `/api/session/login`
+- [ ] Revisar todo el documento para consistencia de rutas
+- [ ] spec-architecture.md lineas 55-57: Agregar prefijo /api/ a endpoints de session
+
+**Criterio de exito:** spec-qr-validation.md y spec-architecture.md reflejan endpoints reales implementados.
+
+---
+
+### 20.7: Eliminar re-exports legacy en enrollment
+
+**Rama:** `fase-20.7-remove-reexports`
+**Modelo:** Sonnet
+**Dificultad:** Baja
+
+**Justificacion:** Enrollment todavia re-exporta componentes de session/ y restriction/ para backward compatibility temporal. Con 20.5 completada, estos re-exports causan confusion y deben eliminarse.
+
+**Archivos a modificar:**
+
+- `enrollment/infrastructure/index.ts`
+- `enrollment/domain/services/index.ts`
+- `enrollment/infrastructure/adapters/index.ts`
+- `enrollment/presentation/controllers/` (LoginEcdhController - codigo muerto)
+
+**Tareas:**
+
+- [ ] Eliminar re-export de SessionKeyRepository en enrollment/infrastructure/index.ts
+- [ ] Eliminar re-export de RestrictionService en enrollment/domain/services/index.ts
+- [ ] Eliminar re-export de RestrictionQueryAdapter en enrollment/infrastructure/adapters/index.ts
+- [ ] Eliminar enrollment/presentation/controllers/login-ecdh.controller.ts (codigo muerto, no usado en routes)
+- [ ] Limpiar enrollment/application/use-cases/index.ts (exports incorrectos de LoginEcdhUseCase)
+- [ ] Verificar compilacion: `npm run build`
+- [ ] Verificar tests: `npm run test`
+
+**Dependencias:** Requiere 20.5 completada (imports actualizados).
+
+**Criterio de exito:** Enrollment solo exporta sus propios componentes, no proxies de otros dominios.
 
 ---
 
@@ -570,13 +661,18 @@ Fase 19.1 (shared/ports)
     │
     ├──► Fase 19.2 (session domain)
     │         │
+    │         ├──► Fase 20.5 (fix access imports)
+    │         │
     │         └──► Fase 22.2 (session binding)
     │
     └──► Fase 19.3 (restriction domain)
+              │
+              └──► Fase 20.5 (fix access imports)
 
-Fase 20.1-20.4 (cleanup) ──► Fase 21 (unify frontend)
-                                    │
-                                    └──► Fase 21.3 (remove guest)
+Fase 20.1-20.4 (cleanup) ──┐
+Fase 20.5 (fix imports)    ├──► Fase 20.7 (remove reexports) ──► Fase 21 (unify frontend)
+Fase 20.6 (update spec)    ┘                                           │
+                                                                        └──► Fase 21.3 (remove guest)
 
 Fase 22.1 (TOTP) ──┐
 Fase 22.2 (binding)├──► Fase 23 (PHP bridge)
