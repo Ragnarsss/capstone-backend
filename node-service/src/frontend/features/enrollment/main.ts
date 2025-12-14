@@ -407,7 +407,11 @@ class EnrollmentApplication {
       
       if (result.success) {
         this.showEnrollmentMessage(`Dispositivo #${deviceId} revocado`, 'success');
-        await this.loadEnrollmentStatus();
+        
+        // Recargar lista y consultar nuevo estado
+        await this.loadDevicesList();
+        const state = await this.accessService.getState();
+        this.renderByState(state);
       } else {
         throw new Error(result.error || 'Error al revocar');
       }

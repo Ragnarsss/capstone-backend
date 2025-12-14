@@ -346,9 +346,11 @@ if (loginResult.success) {
 
 **Tareas:**
 
-- [ ] Remover variable `hasSessionKey` como condicion de estado
-- [ ] Remover uso de `status.deviceCount` para inferir estado
-- [ ] Remover `loadEnrollmentStatus()` si ya no se usa
+- [x] Remover variable `hasSessionKey` como condicion de estado
+- [x] Remover uso de `status.deviceCount` para inferir estado
+- [x] Remover `loadEnrollmentStatus()` si ya no se usa
+
+**Nota:** `deviceCount` se mantiene para mostrar el contador en UI (informativo), pero no para inferir estado. El estado se obtiene exclusivamente via `GET /api/access/state`.
 
 ---
 
