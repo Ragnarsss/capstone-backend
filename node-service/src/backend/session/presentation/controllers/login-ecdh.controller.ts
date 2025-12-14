@@ -1,6 +1,6 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
-import { LoginEcdhUseCase } from '../../application/use-cases';
-import type { LoginEcdhInput } from '../../application/use-cases';
+import { LoginEcdhUseCase } from '../../application/use-cases/login-ecdh.use-case';
+import type { LoginEcdhInput } from '../../application/use-cases/login-ecdh.use-case';
 import { logger } from '../../../../shared/infrastructure/logger';
 
 /**
@@ -32,7 +32,7 @@ export class LoginEcdhController {
       }
 
       // Validar body
-      const { credentialId, clientPublicKey, deviceFingerprint } = request.body;
+      const { credentialId, clientPublicKey } = request.body;
       if (!credentialId || !clientPublicKey) {
         reply.code(400).send({
           error: 'INVALID_REQUEST',
@@ -46,7 +46,6 @@ export class LoginEcdhController {
         userId: user.userId.toNumber(),
         credentialId,
         clientPublicKey,
-        deviceFingerprint,
       };
 
       // Ejecutar use case
@@ -59,11 +58,8 @@ export class LoginEcdhController {
           serverPublicKey: output.serverPublicKey,
           totpu: output.totpu,
           deviceId: output.deviceId,
-          fingerprintUpdated: output.fingerprintUpdated,
         },
-        message: output.fingerprintUpdated 
-          ? 'Sesion establecida. Fingerprint actualizado (probable OS update).'
-          : 'Sesion establecida exitosamente',
+        message: 'Sesion establecida exitosamente',
       });
     } catch (error) {
       // Manejo de errores específicos

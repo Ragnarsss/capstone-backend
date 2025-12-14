@@ -9,16 +9,17 @@ import type {
 import { startRegistration } from '@simplewebauthn/browser';
 import { AuthClient } from '../../../shared/auth/auth-client';
 
-export interface EnrollmentStatus {
-  hasDevices: boolean;
+export interface DeviceInfo {
+  deviceId: number;
+  credentialId: string;
+  aaguid: string;
+  enrolledAt: string;
+  lastUsedAt?: string;
+}
+
+export interface GetDevicesResult {
   deviceCount: number;
-  devices?: Array<{
-    deviceId: number;
-    credentialId: string;
-    aaguid: string;
-    enrolledAt: string;
-    lastUsedAt?: string;
-  }>;
+  devices: DeviceInfo[];
 }
 
 export interface StartEnrollmentResult {
@@ -91,10 +92,10 @@ export class EnrollmentService {
   }
 
   /**
-   * Obtiene el estado de enrollment del usuario
+   * Obtiene la lista de dispositivos del usuario
    */
-  async getStatus(): Promise<EnrollmentStatus> {
-    const response = await fetch(`${this.baseUrl}/status`, {
+  async getDevices(): Promise<GetDevicesResult> {
+    const response = await fetch(`${this.baseUrl}/devices`, {
       method: 'GET',
       headers: this.getAuthHeaders(),
     });

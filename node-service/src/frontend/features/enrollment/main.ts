@@ -161,18 +161,18 @@ class EnrollmentApplication {
   private async loadDevicesList(): Promise<void> {
     try {
       this.log('Cargando lista de dispositivos...', 'info');
-      const status = await this.enrollmentService.getStatus();
+      const result = await this.enrollmentService.getDevices();
 
-      this.log(`Dispositivos: ${status.deviceCount}/5`, 'success', status);
+      this.log(`Dispositivos: ${result.deviceCount}/5`, 'success', result);
 
       // Actualizar conteo de dispositivos
       if (this.deviceCountSpan) {
-        this.deviceCountSpan.textContent = String(status.deviceCount);
+        this.deviceCountSpan.textContent = String(result.deviceCount);
       }
 
       // Mostrar lista de dispositivos
-      if (status.devices && status.devices.length > 0) {
-        this.renderDevicesList(status.devices);
+      if (result.devices && result.devices.length > 0) {
+        this.renderDevicesList(result.devices);
       }
 
     } catch (error) {
@@ -362,14 +362,14 @@ class EnrollmentApplication {
       this.showLoginMessage('Iniciando sesión segura...', 'info');
 
       // Obtener credencial disponible
-      const status = await this.enrollmentService.getStatus();
+      const result = await this.enrollmentService.getDevices();
       
-      if (!status.devices || status.devices.length === 0) {
+      if (!result.devices || result.devices.length === 0) {
         throw new Error('No hay dispositivos registrados');
       }
 
       // Usar el primer dispositivo
-      const device = status.devices[0];
+      const device = result.devices[0];
       
       this.log('[Login] Realizando ECDH key exchange...');
       const loginResult = await this.loginService.performLogin(device.credentialId);

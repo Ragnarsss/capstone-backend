@@ -1,9 +1,9 @@
 import type { FastifyInstance } from 'fastify';
+import { LoginEcdhController } from './controllers/login-ecdh.controller';
 import { LoginEcdhUseCase } from '../application/use-cases/login-ecdh.use-case';
 import { SessionKeyRepository } from '../infrastructure/repositories/session-key.repository';
 import { DeviceRepository } from '../../enrollment/infrastructure/repositories/device.repository';
-import { EcdhService } from '../../enrollment/infrastructure/ecdh.service';
-import { HkdfService } from '../../enrollment/infrastructure/hkdf.service';
+import { EcdhService, HkdfService } from '../../enrollment/infrastructure/crypto';
 import { AuthMiddleware } from '../../auth/presentation/auth-middleware';
 import { AuthService } from '../../auth/application/auth.service';
 import { JWTUtils } from '../../auth/domain/jwt-utils';

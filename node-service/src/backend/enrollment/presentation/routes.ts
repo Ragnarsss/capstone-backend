@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
-import { StartEnrollmentController, FinishEnrollmentController, EnrollmentStatusController, RevokeDeviceController } from './controllers';
-import { StartEnrollmentUseCase, FinishEnrollmentUseCase, GetEnrollmentStatusUseCase, RevokeDeviceUseCase } from '../application/use-cases';
+import { StartEnrollmentController, FinishEnrollmentController, RevokeDeviceController } from './controllers';
+import { StartEnrollmentUseCase, FinishEnrollmentUseCase, GetDevicesUseCase, RevokeDeviceUseCase } from '../application/use-cases';
 import { Fido2Service, DeviceRepository, EnrollmentChallengeRepository, HkdfService, PenaltyService } from '../infrastructure';
 import { AuthMiddleware } from '../../auth/presentation/auth-middleware';
 import { AuthService } from '../../auth/application/auth.service';
@@ -31,26 +31,23 @@ export async function registerEnrollmentRoutes(fastify: FastifyInstance): Promis
   const startEnrollmentUseCase = new StartEnrollmentUseCase(
     fido2Service,
     deviceRepository,
-    challengeRepository,
-    penaltyService
+    challengeRepository
   );
 
   const finishEnrollmentUseCase = new FinishEnrollmentUseCase(
     fido2Service,
     deviceRepository,
     challengeRepository,
-    hkdfService,
-    penaltyService
+    hkdfService
   );
 
-  const getEnrollmentStatusUseCase = new GetEnrollmentStatusUseCase(deviceRepository);
+  const getDevicesUseCase = new GetDevicesUseCase(deviceRepository);
 
   const revokeDeviceUseCase = new RevokeDeviceUseCase(deviceRepository);
 
   // Instanciar controllers
   const startEnrollmentController = new StartEnrollmentController(startEnrollmentUseCase);
   const finishEnrollmentController = new FinishEnrollmentController(finishEnrollmentUseCase);
-  const enrollmentStatusController = new EnrollmentStatusController(getEnrollmentStatusUseCase);
   const revokeDeviceController = new RevokeDeviceController(revokeDeviceUseCase);
 
   // Middleware de autenticación
@@ -88,9 +85,17 @@ export async function registerEnrollmentRoutes(fastify: FastifyInstance): Promis
       handler: finishEnrollmentController.handle.bind(finishEnrollmentController),
     });
 
-    // GET /api/enrollment/status
-    enrollmentRoutes.get('/api/enrollment/status', {
-      handler: enrollmentStatusController.handle.bind(enrollmentStatusController),
+    // GET /api/enrollment/devices - Listar dispositivos
+    enrollmentRoutes.get('/api/enrollment/devices', {
+      handler: async (request, reply) => {
+        const userId = request.user?.userId;
+        if (!userId) {
+          return reply.code(401).send({ error: 'Unauthorized' });
+        }
+
+        const result = await getDevicesUseCase.execute({ userId: userId.toNumber() });
+        return reply.code(200).send(result);
+      },
     });
 
     // DELETE /api/enrollment/devices/:deviceId - Revocar dispositivo

@@ -3,7 +3,7 @@ import type { QRPayloadV1 } from '../../domain/models';
 import { AesGcmService } from '../../../../shared/infrastructure/crypto';
 import { ProjectionPoolRepository, type PoolEntry } from '../../../../shared/infrastructure/valkey';
 import { QRPayloadRepository } from '../../infrastructure/qr-payload.repository';
-import { SessionKeyRepository } from '../../../enrollment/infrastructure/session-key.repository';
+import { SessionKeyRepository } from '../../../session/infrastructure/repositories/session-key.repository';
 import { logger } from '../../../../shared/infrastructure/logger';
 
 /**

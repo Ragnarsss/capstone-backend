@@ -1,9 +1,12 @@
 import type { FastifyInstance } from 'fastify';
 import { AccessStateController } from './controllers';
 import { AccessGatewayService } from '../application/services';
-import { DeviceQueryAdapter, SessionQueryAdapter, RestrictionQueryAdapter } from '../../enrollment/infrastructure/adapters';
-import { DeviceRepository, SessionKeyRepository } from '../../enrollment/infrastructure';
-import { RestrictionService } from '../../enrollment/domain/services/restriction.service';
+import { DeviceQueryAdapter } from '../../enrollment/infrastructure/adapters';
+import { DeviceRepository } from '../../enrollment/infrastructure';
+import { SessionQueryAdapter } from '../../session/infrastructure/adapters';
+import { SessionKeyRepository } from '../../session/infrastructure/repositories';
+import { RestrictionQueryAdapter } from '../../restriction/infrastructure/adapters';
+import { RestrictionService } from '../../restriction/application/services/restriction.service';
 import { AuthMiddleware } from '../../auth/presentation/auth-middleware';
 import { AuthService } from '../../auth/application/auth.service';
 import { JWTUtils } from '../../auth/domain/jwt-utils';

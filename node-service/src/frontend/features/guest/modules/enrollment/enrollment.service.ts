@@ -3,11 +3,17 @@
  * Responsabilidad: Comunicación con API de enrollment + WebAuthn
  */
 
-export interface EnrollmentStatus {
-  isEnrolled: boolean;
+export interface DeviceInfo {
+  deviceId: number;
+  credentialId: string;
+  aaguid: string;
+  enrolledAt: string;
+  lastUsedAt?: string;
+}
+
+export interface GetDevicesResult {
   deviceCount: number;
-  maxDevices: number;
-  canEnrollMore: boolean;
+  devices: DeviceInfo[];
 }
 
 export interface EnrollmentStartResponse {
@@ -40,10 +46,10 @@ export class EnrollmentService {
   }
 
   /**
-   * Obtiene el estado de enrollment del usuario
+   * Obtiene la lista de dispositivos del usuario
    */
-  async getStatus(token: string): Promise<EnrollmentStatus> {
-    const response = await fetch(`${this.baseUrl}/enrollment/status`, {
+  async getDevices(token: string): Promise<GetDevicesResult> {
+    const response = await fetch(`${this.baseUrl}/enrollment/devices`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -52,11 +58,10 @@ export class EnrollmentService {
     });
 
     if (!response.ok) {
-      throw new Error(`Error al obtener estado: ${response.status}`);
+      throw new Error(`Error al obtener dispositivos: ${response.status}`);
     }
 
-    const data = await response.json();
-    return data.enrollment;
+    return await response.json();
   }
 
   /**
