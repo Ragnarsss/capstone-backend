@@ -18,7 +18,7 @@
 import type { Stage } from '../stage.interface';
 import type { ValidationContext, StudentResponse } from '../context';
 import { AesGcmService } from '../../../../../shared/infrastructure/crypto';
-import { SessionKeyRepository } from '../../../../enrollment/infrastructure/session-key.repository';
+import { SessionKeyRepository } from '../../../../session/infrastructure/repositories/session-key.repository';
 import type { QRPayloadV1 } from '../../../../../shared/types';
 
 const STUB_MODE = process.env.ENROLLMENT_STUB_MODE === 'true';

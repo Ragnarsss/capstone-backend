@@ -1,5 +1,5 @@
-import { ValkeyClient } from '../../../shared/infrastructure/valkey/valkey-client';
-import type { SessionKey } from '../domain/models';
+import { ValkeyClient } from '../../../../shared/infrastructure/valkey/valkey-client';
+import type { SessionKey } from '../../domain/models';
 
 /**
  * Repository para Session Keys

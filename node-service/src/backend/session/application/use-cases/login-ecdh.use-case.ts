@@ -1,11 +1,9 @@
-import {
-  DeviceRepository,
-  SessionKeyRepository,
-  EcdhService,
-  HkdfService
-} from '../../infrastructure';
 import type { SessionKey } from '../../domain/models';
 import { SessionStateMachine } from '../../domain/state-machines';
+import { SessionKeyRepository } from '../../infrastructure/repositories/session-key.repository';
+import { DeviceRepository } from '../../../enrollment/infrastructure/repositories/device.repository';
+import { EcdhService } from '../../../enrollment/infrastructure/ecdh.service';
+import { HkdfService } from '../../../enrollment/infrastructure/hkdf.service';
 
 /**
  * Input DTO para Login ECDH

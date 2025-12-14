@@ -1,5 +1,5 @@
-import type { ISessionQuery } from '../../../shared/ports';
-import type { SessionKeyRepository } from '../session-key.repository';
+import type { ISessionQuery } from '../../../../shared/ports';
+import type { SessionKeyRepository } from '../repositories/session-key.repository';
 
 /**
  * Adapter para SessionQuery

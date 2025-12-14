@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
-import { StartEnrollmentController, FinishEnrollmentController, EnrollmentStatusController, LoginEcdhController, RevokeDeviceController } from './controllers';
-import { StartEnrollmentUseCase, FinishEnrollmentUseCase, GetEnrollmentStatusUseCase, LoginEcdhUseCase, RevokeDeviceUseCase } from '../application/use-cases';
-import { Fido2Service, DeviceRepository, EnrollmentChallengeRepository, HkdfService, SessionKeyRepository, EcdhService, PenaltyService } from '../infrastructure';
+import { StartEnrollmentController, FinishEnrollmentController, EnrollmentStatusController, RevokeDeviceController } from './controllers';
+import { StartEnrollmentUseCase, FinishEnrollmentUseCase, GetEnrollmentStatusUseCase, RevokeDeviceUseCase } from '../application/use-cases';
+import { Fido2Service, DeviceRepository, EnrollmentChallengeRepository, HkdfService, PenaltyService } from '../infrastructure';
 import { AuthMiddleware } from '../../auth/presentation/auth-middleware';
 import { AuthService } from '../../auth/application/auth.service';
 import { JWTUtils } from '../../auth/domain/jwt-utils';
@@ -21,9 +21,7 @@ export async function registerEnrollmentRoutes(fastify: FastifyInstance): Promis
   const fido2Service = new Fido2Service();
   const deviceRepository = new DeviceRepository();
   const challengeRepository = new EnrollmentChallengeRepository();
-  const sessionKeyRepository = new SessionKeyRepository();
   const hkdfService = new HkdfService();
-  const ecdhService = new EcdhService();
   
   // Servicio de penalizaciones (usa Valkey para contadores)
   const valkeyClient = ValkeyClient.getInstance();
@@ -47,20 +45,12 @@ export async function registerEnrollmentRoutes(fastify: FastifyInstance): Promis
 
   const getEnrollmentStatusUseCase = new GetEnrollmentStatusUseCase(deviceRepository);
 
-  const loginEcdhUseCase = new LoginEcdhUseCase(
-    deviceRepository,
-    sessionKeyRepository,
-    ecdhService,
-    hkdfService
-  );
-
   const revokeDeviceUseCase = new RevokeDeviceUseCase(deviceRepository);
 
   // Instanciar controllers
   const startEnrollmentController = new StartEnrollmentController(startEnrollmentUseCase);
   const finishEnrollmentController = new FinishEnrollmentController(finishEnrollmentUseCase);
   const enrollmentStatusController = new EnrollmentStatusController(getEnrollmentStatusUseCase);
-  const loginEcdhController = new LoginEcdhController(loginEcdhUseCase);
   const revokeDeviceController = new RevokeDeviceController(revokeDeviceUseCase);
 
   // Middleware de autenticación
@@ -73,20 +63,12 @@ export async function registerEnrollmentRoutes(fastify: FastifyInstance): Promis
   const authService = new AuthService(jwtUtils);
   const authMiddleware = new AuthMiddleware(authService);
 
-  // Rate limiter para enrollment (más restrictivo)
+  // Rate limiter para enrollment
   const enrollmentRateLimit = createEndpointRateLimiter({
-    max: 100, // 100 intentos por minuto (desarrollo)
+    max: 100,
     windowSeconds: 60,
     keyGenerator: userIdKeyGenerator,
     message: 'Too many enrollment attempts, please try again later',
-  });
-
-  // Rate limiter para login (más permisivo)
-  const loginRateLimit = createEndpointRateLimiter({
-    max: 10, // 10 intentos por minuto
-    windowSeconds: 60,
-    keyGenerator: userIdKeyGenerator,
-    message: 'Too many login attempts, please try again later',
   });
 
   // Registrar rutas
@@ -109,12 +91,6 @@ export async function registerEnrollmentRoutes(fastify: FastifyInstance): Promis
     // GET /api/enrollment/status
     enrollmentRoutes.get('/api/enrollment/status', {
       handler: enrollmentStatusController.handle.bind(enrollmentStatusController),
-    });
-
-    // POST /api/enrollment/login - ECDH key exchange
-    enrollmentRoutes.post('/api/enrollment/login', {
-      preHandler: [jsonOnly, loginRateLimit],
-      handler: loginEcdhController.handle.bind(loginEcdhController),
     });
 
     // DELETE /api/enrollment/devices/:deviceId - Revocar dispositivo

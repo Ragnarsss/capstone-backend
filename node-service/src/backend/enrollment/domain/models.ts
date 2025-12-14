@@ -20,17 +20,6 @@
 export type EnrollmentState = 'not_enrolled' | 'pending' | 'enrolled' | 'revoked';
 
 /**
- * Estados del automata de Session
- * Subordinado a Enrollment: solo permite transiciones si enrollment === 'enrolled'
- * 
- * Transiciones validas:
- * - no_session -> session_active (loginEcdh)
- * - session_active -> session_expired (TTL 2h)
- * - session_expired -> no_session (auto-cleanup)
- */
-export type SessionState = 'no_session' | 'session_active' | 'session_expired';
-
-/**
  * Constantes de estados para uso en comparaciones
  */
 export const ENROLLMENT_STATES = {
@@ -38,12 +27,6 @@ export const ENROLLMENT_STATES = {
   PENDING: 'pending' as const,
   ENROLLED: 'enrolled' as const,
   REVOKED: 'revoked' as const,
-};
-
-export const SESSION_STATES = {
-  NO_SESSION: 'no_session' as const,
-  SESSION_ACTIVE: 'session_active' as const,
-  SESSION_EXPIRED: 'session_expired' as const,
 };
 
 // ============================================================================
@@ -88,13 +71,6 @@ export interface EnrollmentChallenge {
   readonly userId: number;
   readonly createdAt: number;
   readonly expiresAt: number;
-}
-
-export interface SessionKey {
-  readonly sessionKey: Buffer;
-  readonly userId: number;
-  readonly deviceId: number;
-  readonly createdAt: number;
 }
 
 export interface ECDHKeyPair {

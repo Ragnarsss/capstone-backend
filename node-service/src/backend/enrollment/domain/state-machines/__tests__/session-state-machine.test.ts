@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { SessionStateMachine } from '../session-state-machine';
+import { SessionStateMachine } from '../../../../session/domain/state-machines/session-state-machine';
 
 describe('SessionStateMachine', () => {
   describe('isEnabled', () => {

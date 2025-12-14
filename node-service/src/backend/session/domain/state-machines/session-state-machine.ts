@@ -15,7 +15,9 @@
  * - session_expired -> no_session (auto-cleanup)
  */
 
-import { SessionState, EnrollmentState, SESSION_STATES, ENROLLMENT_STATES } from '../models';
+import { SessionState, SESSION_STATES } from '../models';
+import type { EnrollmentState } from '../../../enrollment/domain/models';
+import { ENROLLMENT_STATES } from '../../../enrollment/domain/models';
 
 /**
  * Tabla de transiciones validas
