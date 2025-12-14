@@ -132,23 +132,24 @@ backend/session/
 
 **Tareas:**
 
-- [ ] Crear estructura de carpetas `backend/session/`
-- [ ] Mover `enrollment/application/use-cases/login-ecdh.use-case.ts` a `session/application/use-cases/`
-- [ ] Mover `enrollment/domain/state-machines/session-state-machine.ts` a `session/domain/state-machines/`
-- [ ] Extraer `SessionState` y `SESSION_STATES` de `enrollment/domain/models.ts` a `session/domain/models.ts`
-- [ ] Mover `enrollment/infrastructure/session-key.repository.ts` a `session/infrastructure/repositories/`
-- [ ] Mover `enrollment/infrastructure/adapters/session-query.adapter.ts` a `session/infrastructure/adapters/`
-- [ ] Crear `session/presentation/routes.ts` con `POST /api/session/login`
-- [ ] Crear `session/session.module.ts` para registro DI
-- [ ] Actualizar `enrollment/domain/models.ts` para NO exportar SessionState
-- [ ] Actualizar `enrollment/presentation/routes.ts` para NO registrar /login
-- [ ] Registrar session.module en `app.ts`
-- [ ] Actualizar imports en `access/` para usar adapters de session/
-- [ ] Verificar tests: `npm run test`
+- [x] Crear estructura de carpetas `backend/session/`
+- [x] Mover `enrollment/application/use-cases/login-ecdh.use-case.ts` a `session/application/use-cases/`
+- [x] Mover `enrollment/domain/state-machines/session-state-machine.ts` a `session/domain/state-machines/`
+- [x] Extraer `SessionState` y `SESSION_STATES` de `enrollment/domain/models.ts` a `session/domain/models.ts`
+- [x] Mover `enrollment/infrastructure/session-key.repository.ts` a `session/infrastructure/repositories/`
+- [x] Mover `enrollment/infrastructure/adapters/session-query.adapter.ts` a `session/infrastructure/adapters/`
+- [x] Crear `session/presentation/routes.ts` con `POST /api/session/login`
+- [x] Crear `session/session.module.ts` para registro DI
+- [x] Actualizar `enrollment/domain/models.ts` para NO exportar SessionState
+- [x] Actualizar `enrollment/presentation/routes.ts` para NO registrar /login
+- [x] Registrar session.module en `app.ts`
+- [x] Actualizar imports en attendance/ y tests
+- [x] Verificar tests: `npm run test` (134/134 passed)
 
 **Dependencias:** Requiere 19.1 completada (shared/ports).
 
-**Criterio de exito:** Endpoint `POST /api/session/login` responde, tests pasan.
+**Criterio de exito:** COMPLETADO - Endpoint `POST /api/session/login` registrado, tests pasando.
+**Commit:** 0391c98
 
 ---
 
