@@ -34,10 +34,11 @@ Cada fase indica el modelo recomendado. El usuario debe cambiar al modelo corres
 
 ---
 
-## Fase 18.0: Access Gateway (Backend)
+## Fase 18.0: Access Gateway (Backend) [COMPLETADA]
 
 **Rama:** `fase-18.0-access-gateway`
 **Objetivo:** Crear endpoint `GET /api/access/state` que retorna estado agregado.
+**Estado:** COMPLETADA - 8 commits, 7 tests pasando
 
 **Modelo recomendado:** Sonnet
 
@@ -64,9 +65,9 @@ interface IDeviceQuery {
 
 **Tareas:**
 
-- [ ] Crear archivo `device-query.interface.ts`
-- [ ] Definir interface `IDeviceQuery`
-- [ ] Exportar desde `domain/interfaces/index.ts`
+- [x] Crear archivo `device-query.interface.ts`
+- [x] Definir interface `IDeviceQuery`
+- [x] Exportar desde `domain/interfaces/index.ts`
 
 ---
 
@@ -84,9 +85,9 @@ interface ISessionQuery {
 
 **Tareas:**
 
-- [ ] Crear archivo `session-query.interface.ts`
-- [ ] Definir interface `ISessionQuery`
-- [ ] Exportar desde `domain/interfaces/index.ts`
+- [x] Crear archivo `session-query.interface.ts`
+- [x] Definir interface `ISessionQuery`
+- [x] Exportar desde `domain/interfaces/index.ts`
 
 ---
 
@@ -107,9 +108,9 @@ interface IRestrictionQuery {
 
 **Tareas:**
 
-- [ ] Crear archivo `restriction-query.interface.ts`
-- [ ] Definir interface `IRestrictionQuery`
-- [ ] Exportar desde `domain/interfaces/index.ts`
+- [x] Crear archivo `restriction-query.interface.ts`
+- [x] Definir interface `IRestrictionQuery`
+- [x] Exportar desde `domain/interfaces/index.ts`
 
 ---
 
@@ -125,10 +126,10 @@ interface IRestrictionQuery {
 
 **Tareas:**
 
-- [ ] `DeviceQueryAdapter`: wrapper sobre `DeviceRepository.findActiveByUserId()`
-- [ ] `SessionQueryAdapter`: wrapper sobre `SessionKeyRepository.exists()`
-- [ ] `RestrictionQueryAdapter`: wrapper sobre `RestrictionService.checkRestrictions()`
-- [ ] Exportar desde `infrastructure/adapters/index.ts`
+- [x] `DeviceQueryAdapter`: wrapper sobre `DeviceRepository.findActiveByUserId()`
+- [x] `SessionQueryAdapter`: wrapper sobre `SessionKeyRepository.exists()`
+- [x] `RestrictionQueryAdapter`: wrapper sobre `RestrictionService.checkRestrictions()`
+- [x] Exportar desde `infrastructure/adapters/index.ts`
 
 ---
 
@@ -159,10 +160,10 @@ class AccessGatewayService {
 
 **Tareas:**
 
-- [ ] Crear directorio `backend/access/`
-- [ ] Crear `access-gateway.service.ts`
-- [ ] Implementar logica de `spec-enrollment.md` seccion "Access Gateway"
-- [ ] Inyectar dependencias via constructor
+- [x] Crear directorio `backend/access/`
+- [x] Crear `access-gateway.service.ts`
+- [x] Implementar logica de `spec-enrollment.md` seccion "Access Gateway"
+- [x] Inyectar dependencias via constructor
 
 ---
 
@@ -174,10 +175,10 @@ class AccessGatewayService {
 
 **Tareas:**
 
-- [ ] Crear `access-state.controller.ts`
-- [ ] Extraer `userId` del JWT
-- [ ] Llamar `accessGatewayService.getState(userId)`
-- [ ] Retornar respuesta sin wrappers
+- [x] Crear `access-state.controller.ts`
+- [x] Extraer `userId` del JWT
+- [x] Llamar `accessGatewayService.getState(userId)`
+- [x] Retornar respuesta sin wrappers
 
 ---
 
@@ -190,9 +191,9 @@ class AccessGatewayService {
 
 **Tareas:**
 
-- [ ] Crear `routes.ts` con `GET /api/access/state`
-- [ ] Crear `access.module.ts` para DI
-- [ ] Registrar modulo en `app.ts`
+- [x] Crear `routes.ts` con `GET /api/access/state`
+- [x] Crear `access.module.ts` para DI
+- [x] Registrar modulo en `app.ts`
 
 ---
 
@@ -202,14 +203,15 @@ class AccessGatewayService {
 
 **Tareas:**
 
-- [ ] Test: Usuario bloqueado retorna BLOCKED
-- [ ] Test: Usuario sin dispositivo retorna NOT_ENROLLED
-- [ ] Test: Usuario con dispositivo sin sesion retorna ENROLLED_NO_SESSION
-- [ ] Test: Usuario con sesion activa retorna READY
-- [ ] Test: Respuesta incluye device cuando aplica
-- [ ] Test: Respuesta incluye message solo cuando BLOCKED
+- [x] Test: Usuario bloqueado retorna BLOCKED
+- [x] Test: Usuario sin dispositivo retorna NOT_ENROLLED
+- [x] Test: Usuario con dispositivo sin sesion retorna ENROLLED_NO_SESSION
+- [x] Test: Usuario con sesion activa retorna READY
+- [x] Test: Respuesta incluye device cuando aplica
+- [x] Test: Respuesta incluye message solo cuando BLOCKED
+- [x] Test: Idempotencia
 
-**Minimo:** 6 tests
+**Resultado:** 7 tests pasando
 
 ---
 
