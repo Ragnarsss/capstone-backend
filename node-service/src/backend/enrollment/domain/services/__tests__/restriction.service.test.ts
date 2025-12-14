@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { RestrictionService } from '../restriction.service';
+import { RestrictionService } from '../../../../restriction/application/services/restriction.service';
 
 describe('RestrictionService (Stub)', () => {
   let service: RestrictionService;

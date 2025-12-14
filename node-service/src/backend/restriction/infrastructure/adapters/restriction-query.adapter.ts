@@ -1,5 +1,5 @@
-import type { IRestrictionQuery } from '../../../shared/ports';
-import type { IRestrictionService } from '../../domain/services/restriction.service';
+import type { IRestrictionQuery } from '../../../../shared/ports';
+import type { IRestrictionService } from '../../application/services/restriction.service';
 
 /**
  * Adapter para RestrictionQuery

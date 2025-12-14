@@ -12,6 +12,6 @@ export {
 
 export {
   RestrictionService,
-  type RestrictionResult,
   type IRestrictionService,
-} from './restriction.service';
+} from '../../../restriction/application/services/restriction.service';
+export type { RestrictionResult } from '../../../restriction/domain/models';

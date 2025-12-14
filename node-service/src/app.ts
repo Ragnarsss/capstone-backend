@@ -15,6 +15,7 @@ import {
 import { WebSocketController } from './backend/qr-projection/presentation/websocket-controller';
 import { registerEnrollmentRoutes } from './backend/enrollment/presentation/routes';
 import { registerSessionModule } from './backend/session/session.module';
+import { registerRestrictionModule } from './backend/restriction/restriction.module';
 import { registerAccessRoutes } from './backend/access/presentation/routes';
 import { registerAttendanceRoutes } from './backend/attendance/presentation/routes';
 import { frontendPlugin } from './plugins/frontend-plugin';
@@ -93,6 +94,9 @@ export async function createApp() {
 
   // Session module - ECDH key exchange y login
   await registerSessionModule(fastify);
+
+  // Restriction module - verificación de restricciones (stub)
+  await registerRestrictionModule(fastify);
 
   // Access module - estado agregado de acceso
   await registerAccessRoutes(fastify);
