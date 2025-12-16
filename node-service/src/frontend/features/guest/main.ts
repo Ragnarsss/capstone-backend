@@ -15,9 +15,11 @@ console.log('[Guest] Location:', window.location.href);
 console.log('[Guest] Parent:', window.parent !== window ? 'in iframe' : 'top window');
 
 import { AuthClient } from '../../shared/auth/auth-client';
-import { EnrollmentService } from './modules/enrollment/enrollment.service';
-import { LoginService, getLoginService } from './modules/enrollment/login.service';
-import { getSessionKeyStore } from './modules/enrollment/session-key.store';
+import {
+  EnrollmentService,
+  getLoginService,
+  getSessionKeyStore,
+} from '../../shared/services/enrollment';
 import { ScannerService, getScannerService } from './modules/scanner/scanner.service';
 import { AttendanceService, getAttendanceService } from './modules/attendance/attendance.service';
 import { ParentMessenger, getParentMessenger } from './modules/communication/parent-messenger';
@@ -173,16 +175,16 @@ class GuestApplication {
     }
 
     try {
-      const status = await this.enrollmentService.getStatus(token);
-      console.log('[Guest] Estado enrollment:', status);
+      const devices = await this.enrollmentService.getDevices(token);
+      console.log('[Guest] Dispositivos:', devices);
 
       // Actualizar contador de dispositivos
       const deviceCountEl = document.getElementById('device-count');
       if (deviceCountEl) {
-        deviceCountEl.textContent = status.deviceCount.toString();
+        deviceCountEl.textContent = devices.deviceCount.toString();
       }
 
-      if (status.isEnrolled) {
+      if (devices.deviceCount > 0) {
         // Tiene dispositivos, verificar si tiene session_key
         const sessionKeyStore = getSessionKeyStore();
         
@@ -336,16 +338,16 @@ class GuestApplication {
     }
 
     try {
-      // Obtener status para conseguir credentialId
-      const status = await this.enrollmentService.getStatus(token);
+      // Obtener dispositivos para conseguir credentialId
+      const devices = await this.enrollmentService.getDevices(token);
       
-      if (!status.devices || status.devices.length === 0) {
+      if (!devices.devices || devices.devices.length === 0) {
         this.transitionTo('NO_ENROLLED');
         return;
       }
 
       // Usar el primer dispositivo disponible
-      const device = status.devices[0];
+      const device = devices.devices[0];
       console.log('[Guest] Realizando login ECDH con dispositivo:', device.deviceId);
 
       const loginResult = await this.loginService.performLogin(token, device.credentialId);

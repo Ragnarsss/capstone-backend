@@ -1,4 +1,5 @@
 import { DeviceRepository } from '../../infrastructure';
+import { DeviceStateMachine } from '../../domain/state-machines';
 
 /**
  * Input DTO para Revoke Device
@@ -24,8 +25,9 @@ export interface RevokeDeviceOutput {
  * Flujo:
  * 1. Verificar que el dispositivo existe
  * 2. Verificar que pertenece al usuario
- * 3. Revocar el dispositivo (soft delete)
- * 4. Registrar en enrollment_history
+ * 3. Validar transicion de estado (enrolled -> revoked)
+ * 4. Revocar el dispositivo (soft delete)
+ * 5. Registrar en enrollment_history
  */
 export class RevokeDeviceUseCase {
   constructor(private readonly deviceRepository: DeviceRepository) {}
@@ -44,10 +46,8 @@ export class RevokeDeviceUseCase {
       throw new Error('DEVICE_NOT_OWNED: No tienes permiso para revocar este dispositivo');
     }
 
-    // 3. Verificar que no esté ya revocado
-    if (!device.isActive) {
-      throw new Error('DEVICE_ALREADY_REVOKED: El dispositivo ya está revocado');
-    }
+    // 3. Validar transicion de estado (enrolled -> revoked)
+    DeviceStateMachine.assertTransition(device.status, 'revoked');
 
     // 4. Revocar el dispositivo (el repository registra en enrollment_history)
     await this.deviceRepository.revoke(deviceId, reason || 'Revocado por el usuario');

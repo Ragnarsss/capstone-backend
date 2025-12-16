@@ -22,9 +22,12 @@ import { AttendanceApiClient } from './services/attendance-api.client';
 import { decryptQR, encryptPayload, MOCK_SESSION_KEY } from '../../shared/crypto';
 import { LegacyBridge } from '../../shared/services/legacy-bridge.service';
 import { LegacyContextStore } from '../../shared/stores/legacy-context.store';
-import { EnrollmentService, type EnrollmentStatus } from '../enrollment/services/enrollment.service';
-import { LoginService } from '../enrollment/services/login.service';
-import { SessionKeyStore } from '../enrollment/services/session-key.store';
+import {
+  EnrollmentService,
+  type GetDevicesResult,
+  LoginService,
+  SessionKeyStore,
+} from '../../shared/services/enrollment';
 
 // Exponer helpers de debug en desarrollo
 declare global {
@@ -159,9 +162,9 @@ class QRReaderApplication {
         return;
       }
 
-      // Consultar estado de enrollment
-      const status = await this.enrollmentService.getStatus();
-      console.log('[QRReader] Enrollment status:', status);
+      // Consultar dispositivos
+      const devices = await this.enrollmentService.getDevices();
+      console.log('[QRReader] Devices:', devices);
 
       // Verificar si tiene session_key almacenada
       const hasSessionKey = this.sessionKeyStore.hasSessionKey();
@@ -170,9 +173,9 @@ class QRReaderApplication {
       if (hasSessionKey) {
         // Tiene session_key → puede registrar asistencia
         this.showReadyState();
-      } else if (status.deviceCount > 0) {
+      } else if (devices.deviceCount > 0) {
         // Tiene dispositivos pero no session_key → necesita login ECDH
-        this.showLoginSection(status);
+        this.showLoginSection(devices);
       } else {
         // No tiene dispositivos → necesita enrollment
         this.showEnrollmentSection();
@@ -202,7 +205,7 @@ class QRReaderApplication {
   /**
    * Muestra seccion de login ECDH
    */
-  private showLoginSection(status?: EnrollmentStatus): void {
+  private showLoginSection(result?: GetDevicesResult): void {
     this.hideAllSections();
     if (this.loginSection) {
       this.loginSection.style.display = 'block';
@@ -210,8 +213,8 @@ class QRReaderApplication {
     if (this.loginBtn) {
       this.loginBtn.disabled = false;
       // Guardar credentialId para login
-      if (status?.devices && status.devices.length > 0) {
-        this.loginBtn.dataset.credentialId = status.devices[0].credentialId;
+      if (result?.devices && result.devices.length > 0) {
+        this.loginBtn.dataset.credentialId = result.devices[0].credentialId;
       }
     }
     this.updateStatus('Inicia sesion para continuar');
@@ -251,7 +254,8 @@ class QRReaderApplication {
     this.showEnrollmentMessage('Iniciando vinculacion...', 'info');
 
     try {
-      // Iniciar enrollment
+      // Paso 1: Iniciar enrollment - obtener opciones WebAuthn
+      console.log('[QRReader] Iniciando enrollment...');
       const startResult = await this.enrollmentService.startEnrollment();
       
       if (!startResult.success || !startResult.options) {
@@ -259,9 +263,17 @@ class QRReaderApplication {
         this.enrollBtn.disabled = false;
         return;
       }
+      console.log('[QRReader] Opciones recibidas, challenge:', startResult.options.challenge?.substring(0, 20));
 
-      // Completar enrollment con WebAuthn
-      const finishResult = await this.enrollmentService.finishEnrollment(startResult.options);
+      // Paso 2: Crear credencial con WebAuthn (biometría/PIN)
+      this.showEnrollmentMessage('Esperando biometría o PIN...', 'info');
+      console.log('[QRReader] Creando credencial WebAuthn...');
+      const credential = await this.enrollmentService.createCredential(startResult.options);
+      console.log('[QRReader] Credencial creada, id:', credential?.id?.substring(0, 20));
+
+      // Paso 3: Completar enrollment enviando credencial al servidor
+      this.showEnrollmentMessage('Verificando credencial...', 'info');
+      const finishResult = await this.enrollmentService.finishEnrollment(credential);
       
       if (!finishResult.success) {
         this.showEnrollmentMessage(finishResult.error || 'Error al completar enrollment', 'error');

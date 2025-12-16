@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
-import { StartEnrollmentController, FinishEnrollmentController, EnrollmentStatusController, LoginEcdhController, RevokeDeviceController } from './controllers';
-import { StartEnrollmentUseCase, FinishEnrollmentUseCase, GetEnrollmentStatusUseCase, LoginEcdhUseCase, RevokeDeviceUseCase } from '../application/use-cases';
-import { Fido2Service, DeviceRepository, EnrollmentChallengeRepository, HkdfService, SessionKeyRepository, EcdhService, PenaltyService } from '../infrastructure';
+import { StartEnrollmentController, FinishEnrollmentController, RevokeDeviceController } from './controllers';
+import { StartEnrollmentUseCase, FinishEnrollmentUseCase, GetDevicesUseCase, RevokeDeviceUseCase } from '../application/use-cases';
+import { Fido2Service, DeviceRepository, EnrollmentChallengeRepository, HkdfService, PenaltyService } from '../infrastructure';
 import { AuthMiddleware } from '../../auth/presentation/auth-middleware';
 import { AuthService } from '../../auth/application/auth.service';
 import { JWTUtils } from '../../auth/domain/jwt-utils';
@@ -21,9 +21,7 @@ export async function registerEnrollmentRoutes(fastify: FastifyInstance): Promis
   const fido2Service = new Fido2Service();
   const deviceRepository = new DeviceRepository();
   const challengeRepository = new EnrollmentChallengeRepository();
-  const sessionKeyRepository = new SessionKeyRepository();
   const hkdfService = new HkdfService();
-  const ecdhService = new EcdhService();
   
   // Servicio de penalizaciones (usa Valkey para contadores)
   const valkeyClient = ValkeyClient.getInstance();
@@ -33,34 +31,23 @@ export async function registerEnrollmentRoutes(fastify: FastifyInstance): Promis
   const startEnrollmentUseCase = new StartEnrollmentUseCase(
     fido2Service,
     deviceRepository,
-    challengeRepository,
-    penaltyService
+    challengeRepository
   );
 
   const finishEnrollmentUseCase = new FinishEnrollmentUseCase(
     fido2Service,
     deviceRepository,
     challengeRepository,
-    hkdfService,
-    penaltyService
-  );
-
-  const getEnrollmentStatusUseCase = new GetEnrollmentStatusUseCase(deviceRepository);
-
-  const loginEcdhUseCase = new LoginEcdhUseCase(
-    deviceRepository,
-    sessionKeyRepository,
-    ecdhService,
     hkdfService
   );
+
+  const getDevicesUseCase = new GetDevicesUseCase(deviceRepository);
 
   const revokeDeviceUseCase = new RevokeDeviceUseCase(deviceRepository);
 
   // Instanciar controllers
   const startEnrollmentController = new StartEnrollmentController(startEnrollmentUseCase);
   const finishEnrollmentController = new FinishEnrollmentController(finishEnrollmentUseCase);
-  const enrollmentStatusController = new EnrollmentStatusController(getEnrollmentStatusUseCase);
-  const loginEcdhController = new LoginEcdhController(loginEcdhUseCase);
   const revokeDeviceController = new RevokeDeviceController(revokeDeviceUseCase);
 
   // Middleware de autenticación
@@ -73,20 +60,12 @@ export async function registerEnrollmentRoutes(fastify: FastifyInstance): Promis
   const authService = new AuthService(jwtUtils);
   const authMiddleware = new AuthMiddleware(authService);
 
-  // Rate limiter para enrollment (más restrictivo)
+  // Rate limiter para enrollment
   const enrollmentRateLimit = createEndpointRateLimiter({
-    max: 5, // 5 intentos por minuto
+    max: 100,
     windowSeconds: 60,
     keyGenerator: userIdKeyGenerator,
     message: 'Too many enrollment attempts, please try again later',
-  });
-
-  // Rate limiter para login (más permisivo)
-  const loginRateLimit = createEndpointRateLimiter({
-    max: 10, // 10 intentos por minuto
-    windowSeconds: 60,
-    keyGenerator: userIdKeyGenerator,
-    message: 'Too many login attempts, please try again later',
   });
 
   // Registrar rutas
@@ -106,20 +85,48 @@ export async function registerEnrollmentRoutes(fastify: FastifyInstance): Promis
       handler: finishEnrollmentController.handle.bind(finishEnrollmentController),
     });
 
-    // GET /api/enrollment/status
-    enrollmentRoutes.get('/api/enrollment/status', {
-      handler: enrollmentStatusController.handle.bind(enrollmentStatusController),
-    });
+    // GET /api/enrollment/devices - Listar dispositivos
+    enrollmentRoutes.get('/api/enrollment/devices', {
+      handler: async (request, reply) => {
+        const userId = request.user?.userId;
+        if (!userId) {
+          return reply.code(401).send({ error: 'Unauthorized' });
+        }
 
-    // POST /api/enrollment/login - ECDH key exchange
-    enrollmentRoutes.post('/api/enrollment/login', {
-      preHandler: [jsonOnly, loginRateLimit],
-      handler: loginEcdhController.handle.bind(loginEcdhController),
+        const result = await getDevicesUseCase.execute({ userId: userId.toNumber() });
+        return reply.code(200).send(result);
+      },
     });
 
     // DELETE /api/enrollment/devices/:deviceId - Revocar dispositivo
     enrollmentRoutes.delete('/api/enrollment/devices/:deviceId', {
       handler: revokeDeviceController.handle.bind(revokeDeviceController),
+    });
+
+    // POST /api/enrollment/client-log - Recibir logs del frontend
+    enrollmentRoutes.post('/api/enrollment/client-log', {
+      preHandler: [jsonOnly],
+      handler: async (request, reply) => {
+        const body = request.body as { logs?: Array<{ level: string; message: string; data?: unknown; timestamp: string }> };
+        const userId = (request as unknown as { userId?: number }).userId ?? 'unknown';
+        const userAgent = request.headers['user-agent'] ?? 'unknown';
+        
+        console.log('\n========== CLIENT LOGS ==========');
+        console.log(`User: ${userId} | UA: ${userAgent.substring(0, 50)}...`);
+        
+        if (body.logs && Array.isArray(body.logs)) {
+          for (const log of body.logs) {
+            const prefix = log.level === 'error' ? '❌' : log.level === 'warn' ? '⚠️' : log.level === 'success' ? '✅' : 'ℹ️';
+            console.log(`${prefix} [${log.timestamp}] ${log.message}`);
+            if (log.data) {
+              console.log('   Data:', JSON.stringify(log.data, null, 2));
+            }
+          }
+        }
+        console.log('=================================\n');
+        
+        return reply.send({ received: true });
+      },
     });
   });
 }

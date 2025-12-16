@@ -2,83 +2,114 @@
 
 ## Overview
 
-This directory contains all database-related resources for the Asistencia system, including migration scripts, initialization scripts, and seed data for development and testing.
+Este directorio contiene todos los recursos de base de datos para el sistema de Asistencia Criptografica, incluyendo schema consolidado, scripts de inicializacion y datos de prueba.
 
 ## Structure
 
 ```
 database/
-├── README.md                         # This file
-├── init.sh                           # Automatic initialization script
-├── migrations/                       # SQL migration scripts
-│   ├── 001-initial-schema.sql        # Initial schema (enrollment + attendance)
-│   └── 001-rollback.sql              # Rollback for initial schema (TODO)
-└── seeds/                            # Test data (TODO)
-    └── test-data.sql                 # Sample data for development
+├── README.md                    # Esta documentacion
+├── init.sh                      # Script de inicializacion automatica
+├── migrations/
+│   └── 001-schema.sql          # Schema consolidado (v2.0.0)
+└── seeds/                       # Datos de prueba (TODO)
+    └── test-data.sql
 ```
+
+## Migraciones Consolidadas
+
+**Version actual**: 2.0.0 (2025-12-16)
+
+El archivo `001-schema.sql` consolida todas las migraciones previas:
+
+- **v1.0.0**: Schema inicial con tablas enrollment y attendance
+- **v1.0.1**: Agregada columna `transports` a `enrollment.devices`
+- **v1.0.2**: Agregada columna `status` a `enrollment.devices`
+- **v2.0.0**: Consolidacion completa en un solo archivo
+
+**Archivos obsoletos eliminados:**
+- `001-initial-schema.sql`
+- `002-add-transports.sql`
+- `003-add-enrollment-status.sql`
 
 ## Database Schema
 
-The database consists of two main schemas:
+La base de datos consiste en dos schemas principales:
 
 ### enrollment Schema
 
-Manages FIDO2 device enrollment and registration.
+Gestion de dispositivos FIDO2/WebAuthn:
 
 **Tables:**
-- `enrollment.devices` - FIDO2 enrolled devices with credentials
-- `enrollment.enrollment_history` - Audit log for enrollment actions
+- `enrollment.devices` - Credenciales y metadata de dispositivos enrolados
+- `enrollment.enrollment_history` - Auditoria de eventos de enrollment
+
+**Columnas criticas en devices:**
+- `status`: Estado del enrollment (pending, enrolled, revoked)
+- `transports`: Array JSON de transports WebAuthn (internal, hybrid, usb, nfc, ble)
 
 ### attendance Schema
 
-Manages attendance sessions and validation processes.
+Gestion de sesiones de asistencia y validaciones:
 
 **Tables:**
-- `attendance.sessions` - Professor-created attendance sessions
-- `attendance.registrations` - Student participation announcements
-- `attendance.validations` - Individual validation rounds (FN3 protocol)
-- `attendance.results` - Final consolidated attendance results
+- `attendance.sessions` - Sesiones creadas por profesores
+- `attendance.registrations` - Registro de estudiantes en sesiones
+- `attendance.validations` - Rondas individuales de validacion (FN3)
+- `attendance.results` - Resultados consolidados finales
 
 ## Automatic Initialization
 
-The database is automatically initialized when the PostgreSQL container starts for the first time.
+La base de datos se inicializa automaticamente cuando el contenedor PostgreSQL arranca por primera vez.
 
-### How it works
+### Como funciona
 
-1. Docker/Podman mounts `./database` to `/docker-entrypoint-initdb.d/` in the container
-2. PostgreSQL automatically executes all `.sql` and `.sh` files in alphabetical order
-3. `init.sh` orchestrates the execution of migration scripts
-4. Scripts are idempotent and can be run multiple times safely
+1. Podman monta `./database` a `/docker-entrypoint-initdb.d/` en el contenedor
+2. PostgreSQL ejecuta automaticamente archivos `.sql` y `.sh` en orden alfabetico
+3. `init.sh` orquesta la ejecucion del schema consolidado
+4. Los scripts son idempotentes y pueden ejecutarse multiples veces de forma segura
 
-### First Run
+## Ejecucion de Migraciones
+
+### Desarrollo (Primera vez o Reset)
 
 ```bash
-# Start the stack
-podman-compose -f compose.yaml -f compose.dev.yaml up
+# Detener contenedores
+podman compose -f compose.dev.yaml down
 
-# PostgreSQL will automatically:
-# 1. Create the database specified in POSTGRES_DB
-# 2. Execute init.sh
-# 3. Run all migrations in order
-# 4. Load seed data (if available)
+# Eliminar volumen (CUIDADO: borra todos los datos)
+podman volume rm asistencia_postgres-data
+
+# Recrear contenedores (ejecuta init.sh automaticamente)
+podman compose -f compose.dev.yaml up -d
+
+# Verificar tablas
+podman exec asistencia-db psql -U postgres -d asistencia -c '\dt enrollment.*'
+podman exec asistencia-db psql -U postgres -d asistencia -c '\dt attendance.*'
 ```
 
-## Manual Migration Management
+### Produccion (Migracion desde version anterior)
 
-### Apply Migrations Manually
+Si ya existen datos en produccion:
 
 ```bash
-# Connect to the database container
-podman exec -it asistencia-postgres psql -U asistencia -d asistencia_db
+# 1. Backup de BD
+podman exec asistencia-db pg_dump -U postgres asistencia > backup-$(date +%Y%m%d).sql
 
-# Execute a specific migration
-\i /docker-entrypoint-initdb.d/migrations/001-initial-schema.sql
+# 2. Verificar version actual
+podman exec asistencia-db psql -U postgres -d asistencia -c '\d enrollment.devices'
+
+# 3. Si faltan columnas (transports, status), aplicar migraciones manualmente
+# (Solo si no se puede recrear el volumen)
 ```
 
-### Verify Schema
+## Verificacion de Estado
+
+### Verificar schemas
 
 ```bash
-# List all schemas
+podman exec asistencia-db psql -U postgres -d asistencia -c \
+  "SELECT schema_name FROM information_schema.schemata WHERE schema_name IN ('enrollment', 'attendance');"
 \dn
 
 # List tables in enrollment schema

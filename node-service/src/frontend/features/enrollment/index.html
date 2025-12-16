@@ -52,11 +52,12 @@
       <p id="login-message" class="enrollment__message"></p>
     </div>
 
-    <!-- Debug info (solo en desarrollo) -->
-    <div id="debug-section" class="enrollment__debug" style="display: none;">
-      <details>
-        <summary>🔧 Debug Info</summary>
-        <pre id="debug-output"></pre>
+    <!-- Log panel visible siempre para debugging -->
+    <div id="debug-section" class="enrollment__debug">
+      <details id="debug-details" open>
+        <summary>📋 Estado del Proceso</summary>
+        <div id="debug-output" class="debug-log"></div>
+        <button id="clear-log-btn" class="btn btn--small" style="margin-top: 8px;">Limpiar log</button>
       </details>
     </div>
   </div>

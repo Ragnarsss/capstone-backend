@@ -1,5 +1,7 @@
 import { PostgresPool } from '../../../../shared/infrastructure/database';
 import type { Device, CreateDeviceDto, UpdateCounterDto } from '../../domain/entities';
+import type { EnrollmentState } from '../../domain/models';
+import { ENROLLMENT_STATES } from '../../domain/models';
 
 /**
  * Row type para mapeo de PostgreSQL
@@ -17,6 +19,7 @@ interface DeviceRow {
   enrolled_at: Date;
   last_used_at: Date | null;
   is_active: boolean;
+  status: string; // EnrollmentState
   transports: string | null; // JSON string
 }
 
@@ -41,8 +44,9 @@ export class DeviceRepository {
         device_fingerprint,
         attestation_format,
         sign_count,
-        transports
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        transports,
+        status
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       RETURNING *
     `;
 
@@ -56,6 +60,7 @@ export class DeviceRepository {
       dto.attestationFormat || null,
       dto.signCount || 0,
       dto.transports ? JSON.stringify(dto.transports) : null,
+      dto.status || ENROLLMENT_STATES.ENROLLED,
     ];
 
     const result = await this.pool.query<DeviceRow>(query, values);
@@ -134,7 +139,22 @@ export class DeviceRepository {
   }
 
   /**
-   * Actualiza el contador de firmas (anti-clonación)
+   * Busca todos los dispositivos de un usuario (incluyendo revocados)
+   * Usado para inferir estado de enrollment
+   */
+  async findByUserIdIncludingInactive(userId: number): Promise<Device[]> {
+    const query = `
+      SELECT * FROM enrollment.devices
+      WHERE user_id = $1
+      ORDER BY is_active DESC, enrolled_at DESC
+    `;
+
+    const result = await this.pool.query<DeviceRow>(query, [userId]);
+    return result.rows.map((row: DeviceRow) => this.mapRowToDevice(row));
+  }
+
+  /**
+   * Actualiza el contador de firmas (anti-clonacion)
    */
   async updateCounter(dto: UpdateCounterDto): Promise<void> {
     const query = `
@@ -147,7 +167,7 @@ export class DeviceRepository {
   }
 
   /**
-   * Actualiza timestamp de último uso
+   * Actualiza timestamp de ultimo uso
    */
   async updateLastUsed(deviceId: number): Promise<void> {
     const query = `
@@ -157,6 +177,20 @@ export class DeviceRepository {
     `;
 
     await this.pool.query(query, [deviceId]);
+  }
+
+  /**
+   * Actualiza el deviceFingerprint de un dispositivo
+   * Usado cuando el fingerprint cambia pero credentialId coincide (probable OS update)
+   */
+  async updateDeviceFingerprint(deviceId: number, newFingerprint: string): Promise<void> {
+    const query = `
+      UPDATE enrollment.devices
+      SET device_fingerprint = $1, last_used_at = NOW()
+      WHERE device_id = $2
+    `;
+
+    await this.pool.query(query, [newFingerprint, deviceId]);
   }
 
   /**
@@ -261,6 +295,7 @@ export class DeviceRepository {
       enrolledAt: row.enrolled_at,
       lastUsedAt: row.last_used_at,
       isActive: row.is_active,
+      status: (row.status as EnrollmentState) || ENROLLMENT_STATES.ENROLLED,
       transports: row.transports ? JSON.parse(row.transports) : undefined,
     };
   }

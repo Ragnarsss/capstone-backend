@@ -62,6 +62,13 @@ export class FinishEnrollmentController {
         message: 'Dispositivo enrolado exitosamente',
       });
     } catch (error) {
+      // Log del error para debugging
+      logger.error('[FinishEnrollmentController] Error en finish:', { 
+        error: error instanceof Error ? error.message : error,
+        stack: error instanceof Error ? error.stack : undefined,
+        userId: request.user?.userId?.toNumber()
+      });
+
       // Manejo de errores específicos
       if (error instanceof Error) {
         // Challenge no encontrado o expirado

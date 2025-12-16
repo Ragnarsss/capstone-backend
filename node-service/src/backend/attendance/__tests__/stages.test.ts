@@ -1,11 +1,10 @@
 /**
- * Tests unitarios para stages puros del pipeline de validación
+ * Tests unitarios para stages puros del pipeline de validacion
  * 
- * Ejecutar con: npx tsx --test src/backend/attendance/__tests__/stages.test.ts
+ * Ejecutar con: npm run test
  */
 
-import { describe, it } from 'node:test';
-import assert from 'node:assert/strict';
+import { describe, it, expect } from 'vitest';
 
 import { createContext, type ValidationContext } from '../domain/validation-pipeline/context';
 import {
@@ -20,7 +19,7 @@ import {
 } from '../domain/validation-pipeline/stages';
 
 /**
- * Helper para crear contexto con response válida
+ * Helper para crear contexto con response valida
  */
 function createValidContext(overrides?: Partial<ValidationContext>): ValidationContext {
   const ctx = createContext('encrypted-test', 42);
@@ -58,33 +57,33 @@ function createValidContext(overrides?: Partial<ValidationContext>): ValidationC
 }
 
 describe('validateStructureStage', () => {
-  it('debe pasar con estructura válida', () => {
+  it('debe pasar con estructura valida', () => {
     const ctx = createValidContext();
     const result = validateStructureStage.execute(ctx);
-    assert.equal(result, true);
-    assert.equal(ctx.error, undefined);
+    expect(result).toBe(true);
+    expect(ctx.error).toBeUndefined();
   });
 
   it('debe fallar sin response', () => {
     const ctx = createContext('test', 42);
     const result = validateStructureStage.execute(ctx);
-    assert.equal(result, false);
-    assert.equal(ctx.error?.code, 'INTERNAL_ERROR');
+    expect(result).toBe(false);
+    expect(ctx.error?.code).toBe('INTERNAL_ERROR');
   });
 
   it('debe fallar con version incorrecta', () => {
     const ctx = createValidContext();
     (ctx.response!.original as any).v = 2;
     const result = validateStructureStage.execute(ctx);
-    assert.equal(result, false);
-    assert.equal(ctx.error?.code, 'INVALID_FORMAT');
+    expect(result).toBe(false);
+    expect(ctx.error?.code).toBe('INVALID_FORMAT');
   });
 
   it('debe fallar con nonce de longitud incorrecta', () => {
     const ctx = createValidContext();
     (ctx.response!.original as any).n = 'short';
     const result = validateStructureStage.execute(ctx);
-    assert.equal(result, false);
+    expect(result).toBe(false);
   });
 });
 
@@ -92,15 +91,15 @@ describe('validateOwnershipStage', () => {
   it('debe pasar cuando studentId coincide', () => {
     const ctx = createValidContext();
     const result = validateOwnershipStage.execute(ctx);
-    assert.equal(result, true);
+    expect(result).toBe(true);
   });
 
   it('debe fallar cuando studentId no coincide', () => {
     const ctx = createValidContext();
     ctx.response!.studentId = 99;
     const result = validateOwnershipStage.execute(ctx);
-    assert.equal(result, false);
-    assert.equal(ctx.error?.code, 'USER_MISMATCH');
+    expect(result).toBe(false);
+    expect(ctx.error?.code).toBe('USER_MISMATCH');
   });
 });
 
@@ -108,15 +107,15 @@ describe('validateQRNotExpiredStage', () => {
   it('debe pasar con QR existente', () => {
     const ctx = createValidContext();
     const result = validateQRNotExpiredStage.execute(ctx);
-    assert.equal(result, true);
+    expect(result).toBe(true);
   });
 
   it('debe fallar con QR inexistente', () => {
     const ctx = createValidContext();
     ctx.qrState!.exists = false;
     const result = validateQRNotExpiredStage.execute(ctx);
-    assert.equal(result, false);
-    assert.equal(ctx.error?.code, 'PAYLOAD_EXPIRED');
+    expect(result).toBe(false);
+    expect(ctx.error?.code).toBe('PAYLOAD_EXPIRED');
   });
 });
 
@@ -124,15 +123,15 @@ describe('validateQRNotConsumedStage', () => {
   it('debe pasar con QR no consumido', () => {
     const ctx = createValidContext();
     const result = validateQRNotConsumedStage.execute(ctx);
-    assert.equal(result, true);
+    expect(result).toBe(true);
   });
 
   it('debe fallar con QR consumido', () => {
     const ctx = createValidContext();
     ctx.qrState!.consumed = true;
     const result = validateQRNotConsumedStage.execute(ctx);
-    assert.equal(result, false);
-    assert.equal(ctx.error?.code, 'PAYLOAD_ALREADY_CONSUMED');
+    expect(result).toBe(false);
+    expect(ctx.error?.code).toBe('PAYLOAD_ALREADY_CONSUMED');
   });
 });
 
@@ -140,15 +139,15 @@ describe('validateStudentRegisteredStage', () => {
   it('debe pasar con estudiante registrado', () => {
     const ctx = createValidContext();
     const result = validateStudentRegisteredStage.execute(ctx);
-    assert.equal(result, true);
+    expect(result).toBe(true);
   });
 
   it('debe fallar con estudiante no registrado', () => {
     const ctx = createValidContext();
     ctx.studentState!.registered = false;
     const result = validateStudentRegisteredStage.execute(ctx);
-    assert.equal(result, false);
-    assert.equal(ctx.error?.code, 'STUDENT_NOT_REGISTERED');
+    expect(result).toBe(false);
+    expect(ctx.error?.code).toBe('STUDENT_NOT_REGISTERED');
   });
 });
 
@@ -156,23 +155,23 @@ describe('validateStudentActiveStage', () => {
   it('debe pasar con status active', () => {
     const ctx = createValidContext();
     const result = validateStudentActiveStage.execute(ctx);
-    assert.equal(result, true);
+    expect(result).toBe(true);
   });
 
   it('debe fallar con status completed', () => {
     const ctx = createValidContext();
     ctx.studentState!.status = 'completed';
     const result = validateStudentActiveStage.execute(ctx);
-    assert.equal(result, false);
-    assert.equal(ctx.error?.code, 'ALREADY_COMPLETED');
+    expect(result).toBe(false);
+    expect(ctx.error?.code).toBe('ALREADY_COMPLETED');
   });
 
   it('debe fallar con status failed', () => {
     const ctx = createValidContext();
     ctx.studentState!.status = 'failed';
     const result = validateStudentActiveStage.execute(ctx);
-    assert.equal(result, false);
-    assert.equal(ctx.error?.code, 'NO_ATTEMPTS_LEFT');
+    expect(result).toBe(false);
+    expect(ctx.error?.code).toBe('NO_ATTEMPTS_LEFT');
   });
 });
 
@@ -180,15 +179,15 @@ describe('validateStudentOwnsQRStage', () => {
   it('debe pasar cuando nonce coincide', () => {
     const ctx = createValidContext();
     const result = validateStudentOwnsQRStage.execute(ctx);
-    assert.equal(result, true);
+    expect(result).toBe(true);
   });
 
   it('debe fallar cuando nonce no coincide', () => {
     const ctx = createValidContext();
     ctx.studentState!.activeNonce = 'b'.repeat(32);
     const result = validateStudentOwnsQRStage.execute(ctx);
-    assert.equal(result, false);
-    assert.equal(ctx.error?.code, 'WRONG_QR');
+    expect(result).toBe(false);
+    expect(ctx.error?.code).toBe('WRONG_QR');
   });
 });
 
@@ -196,7 +195,7 @@ describe('validateRoundMatchStage', () => {
   it('debe pasar cuando round coincide', () => {
     const ctx = createValidContext();
     const result = validateRoundMatchStage.execute(ctx);
-    assert.equal(result, true);
+    expect(result).toBe(true);
   });
 
   it('debe fallar cuando round ya fue completado', () => {
@@ -204,8 +203,8 @@ describe('validateRoundMatchStage', () => {
     ctx.studentState!.currentRound = 2;
     (ctx.response!.original as any).r = 1;
     const result = validateRoundMatchStage.execute(ctx);
-    assert.equal(result, false);
-    assert.equal(ctx.error?.code, 'ROUND_ALREADY_COMPLETED');
+    expect(result).toBe(false);
+    expect(ctx.error?.code).toBe('ROUND_ALREADY_COMPLETED');
   });
 
   it('debe fallar cuando round no ha sido alcanzado', () => {
@@ -213,7 +212,7 @@ describe('validateRoundMatchStage', () => {
     ctx.studentState!.currentRound = 1;
     (ctx.response!.original as any).r = 3;
     const result = validateRoundMatchStage.execute(ctx);
-    assert.equal(result, false);
-    assert.equal(ctx.error?.code, 'ROUND_NOT_REACHED');
+    expect(result).toBe(false);
+    expect(ctx.error?.code).toBe('ROUND_NOT_REACHED');
   });
 });

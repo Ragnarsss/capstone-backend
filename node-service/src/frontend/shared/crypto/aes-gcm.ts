@@ -20,20 +20,20 @@ let cachedKey: CryptoKey | null = null;
 let cachedKeySource: 'ecdh' | 'mock' | null = null;
 
 // Referencia al SessionKeyStore (lazy load para evitar import circular)
-let sessionKeyStorePromise: Promise<typeof import('../../features/enrollment/services/session-key.store')> | null = null;
+let sessionKeyStorePromise: Promise<typeof import('../services/enrollment')> | null = null;
 
 /**
  * Obtiene la clave de sesion con prioridad:
  * 1. session_key derivada de ECDH (produccion)
  * 2. MOCK_SESSION_KEY (SOLO en desarrollo)
- * 
+ *
  * @throws Error si no hay session_key y no es modo desarrollo
  */
 async function getSessionKey(): Promise<CryptoKey> {
   // Intentar obtener session_key real de ECDH
   try {
     if (!sessionKeyStorePromise) {
-      sessionKeyStorePromise = import('../../features/enrollment/services/session-key.store');
+      sessionKeyStorePromise = import('../services/enrollment');
     }
     const { SessionKeyStore } = await sessionKeyStorePromise;
     const store = new SessionKeyStore();
