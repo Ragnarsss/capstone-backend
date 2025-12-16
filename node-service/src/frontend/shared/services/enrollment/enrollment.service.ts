@@ -1,8 +1,10 @@
 /**
  * Enrollment Service
  * Responsabilidad: Comunicación con API de enrollment + WebAuthn
+ *
+ * NOTA: Servicio compartido usado por enrollment, guest y qr-reader features
  */
-import type { 
+import type {
   PublicKeyCredentialCreationOptionsJSON,
   RegistrationResponseJSON,
 } from '@simplewebauthn/types';
@@ -45,16 +47,27 @@ export interface RevokeResult {
 }
 
 export class EnrollmentService {
-  private authClient = new AuthClient();
+  private authClient: AuthClient;
   private baseUrl: string;
 
-  constructor() {
-    // Detectar si estamos embebidos en PHP (puerto 9500/9505) o acceso directo a Node (9503)
-    // PHP proxea /minodo-api/* -> Node /api/*
-    const isEmbeddedInPhp = window.location.port === '9500' || 
-                            window.location.port === '9505' ||
-                            window.location.port === '';  // Puerto default (80/443)
-    this.baseUrl = isEmbeddedInPhp ? '/minodo-api/enrollment' : '/api/enrollment';
+  /**
+   * Constructor con inyección de dependencias
+   * @param authClient - Cliente de autenticación (opcional, crea instancia por defecto)
+   * @param baseUrl - URL base del API (opcional, auto-detecta si no se provee)
+   */
+  constructor(authClient?: AuthClient, baseUrl?: string) {
+    this.authClient = authClient || new AuthClient();
+
+    if (baseUrl) {
+      this.baseUrl = baseUrl;
+    } else {
+      // Auto-detectar si estamos embebidos en PHP o acceso directo a Node
+      const isEmbeddedInPhp =
+        window.location.port === '9500' ||
+        window.location.port === '9505' ||
+        window.location.port === '';
+      this.baseUrl = isEmbeddedInPhp ? '/minodo-api/enrollment' : '/api/enrollment';
+    }
   }
 
   /**
@@ -62,15 +75,16 @@ export class EnrollmentService {
    */
   private sendLog(level: string, message: string, data?: unknown): void {
     const logEntry = {
-      logs: [{
-        level,
-        message,
-        data,
-        timestamp: new Date().toISOString(),
-      }]
+      logs: [
+        {
+          level,
+          message,
+          data,
+          timestamp: new Date().toISOString(),
+        },
+      ],
     };
-    
-    // Fire and forget - no await
+
     fetch(`${this.baseUrl}/client-log`, {
       method: 'POST',
       headers: {
@@ -78,7 +92,7 @@ export class EnrollmentService {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(logEntry),
-    }).catch(() => { /* ignore */ });
+    }).catch(() => {});
   }
 
   /**
@@ -113,7 +127,7 @@ export class EnrollmentService {
    */
   async startEnrollment(): Promise<StartEnrollmentResult> {
     this.sendLog('info', 'startEnrollment: INICIO', { url: `${this.baseUrl}/start` });
-    
+
     try {
       const response = await fetch(`${this.baseUrl}/start`, {
         method: 'POST',
@@ -129,7 +143,10 @@ export class EnrollmentService {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        this.sendLog('error', 'startEnrollment: Error HTTP', { status: response.status, error: errorData });
+        this.sendLog('error', 'startEnrollment: Error HTTP', {
+          status: response.status,
+          error: errorData,
+        });
         return {
           success: false,
           error: errorData.message || `Error ${response.status}`,
@@ -137,10 +154,10 @@ export class EnrollmentService {
       }
 
       const data = await response.json();
-      this.sendLog('success', 'startEnrollment: ÉXITO', { 
-        hasOptions: !!data.options, 
+      this.sendLog('success', 'startEnrollment: ÉXITO', {
+        hasOptions: !!data.options,
         hasPenalty: !!data.penaltyInfo,
-        challengeLength: data.options?.challenge?.length 
+        challengeLength: data.options?.challenge?.length,
       });
       return {
         success: true,
@@ -148,7 +165,9 @@ export class EnrollmentService {
         penaltyInfo: data.penaltyInfo,
       };
     } catch (error) {
-      this.sendLog('error', 'startEnrollment: Error de red', { error: error instanceof Error ? error.message : String(error) });
+      this.sendLog('error', 'startEnrollment: Error de red', {
+        error: error instanceof Error ? error.message : String(error),
+      });
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Error de red',
@@ -170,34 +189,35 @@ export class EnrollmentService {
       rpName: options?.rp?.name,
       userAgent: navigator.userAgent,
     });
-    
+
     console.log('[EnrollmentService] createCredential options:', JSON.stringify(options, null, 2));
-    
+
     if (!options || !options.challenge) {
       this.sendLog('error', 'createCredential: Opciones inválidas', { options });
       console.error('[EnrollmentService] Invalid options:', options);
       throw new Error('Opciones de registro inválidas');
     }
-    
+
     try {
       this.sendLog('info', 'createCredential: Llamando startRegistration...');
       const result = await startRegistration({ optionsJSON: options });
-      
+
       this.sendLog('success', 'createCredential: ÉXITO', {
         credentialId: result?.id?.substring(0, 30),
         type: result?.type,
         hasResponse: !!result?.response,
       });
-      
+
       console.log('[EnrollmentService] createCredential result id:', result?.id);
       console.log('[EnrollmentService] createCredential result rawId:', result?.rawId);
       console.log('[EnrollmentService] createCredential result type:', result?.type);
       console.log('[EnrollmentService] createCredential has response:', !!result?.response);
       return result;
     } catch (error) {
-      const errorInfo = error instanceof Error 
-        ? { name: error.name, message: error.message, stack: error.stack?.substring(0, 200) }
-        : String(error);
+      const errorInfo =
+        error instanceof Error
+          ? { name: error.name, message: error.message, stack: error.stack?.substring(0, 200) }
+          : String(error);
       this.sendLog('error', 'createCredential: ERROR en startRegistration', errorInfo);
       console.error('[EnrollmentService] createCredential error:', error);
       throw error;
@@ -207,18 +227,15 @@ export class EnrollmentService {
   /**
    * Completa el enrollment enviando la credencial al servidor
    */
-  async finishEnrollment(
-    credential: RegistrationResponseJSON
-  ): Promise<FinishEnrollmentResult> {
+  async finishEnrollment(credential: RegistrationResponseJSON): Promise<FinishEnrollmentResult> {
     console.log('[EnrollmentService] finishEnrollment credential:', {
       id: credential?.id,
       rawId: credential?.rawId,
       type: credential?.type,
       hasResponse: !!credential?.response,
     });
-    
+
     try {
-      // Generar fingerprint del dispositivo
       const deviceFingerprint = await this.generateDeviceFingerprint();
 
       const response = await fetch(`${this.baseUrl}/finish`, {
@@ -299,16 +316,16 @@ export class EnrollmentService {
     const text = components.join('|');
     const encoder = new TextEncoder();
     const data = encoder.encode(text);
-    
+
     const hashBuffer = await crypto.subtle.digest('SHA-256', data);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-    
+    const hashHex = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+
     return hashHex.substring(0, 32);
   }
 
   private getAuthHeaders(): Record<string, string> {
     const token = this.authClient.getToken();
-    return token ? { 'Authorization': `Bearer ${token}` } : {};
+    return token ? { Authorization: `Bearer ${token}` } : {};
   }
 }

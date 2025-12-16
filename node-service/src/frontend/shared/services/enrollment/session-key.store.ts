@@ -1,12 +1,12 @@
 /**
  * Session Key Store
  * Responsabilidad: Almacenar y gestionar session_key derivada de ECDH
- * 
+ *
  * Almacenamiento:
  * - sessionStorage: Clave exportada en formato JWK (JSON Web Key)
  * - No usar localStorage por seguridad (persiste entre sesiones)
- * 
- * NOTA: Este módulo es reutilizado en guest y enrollment features
+ *
+ * NOTA: Servicio compartido usado por enrollment, guest y qr-reader features
  */
 
 export interface StoredSession {
@@ -28,7 +28,7 @@ export class SessionKeyStore {
     try {
       // Exportar clave a formato JWK
       const keyData = await crypto.subtle.exportKey('jwk', sessionKey);
-      
+
       const session: StoredSession = {
         sessionKey: keyData,
         totpu,
@@ -58,7 +58,7 @@ export class SessionKeyStore {
    */
   async getSessionKey(): Promise<CryptoKey | null> {
     const session = this.getStoredSession();
-    
+
     if (!session || this.isExpired(session)) {
       this.clear();
       return null;
@@ -113,7 +113,7 @@ export class SessionKeyStore {
   getTimeRemainingMinutes(): number {
     const session = this.getStoredSession();
     if (!session) return 0;
-    
+
     const remaining = session.expiresAt - Date.now();
     return Math.max(0, Math.floor(remaining / 60000));
   }
@@ -124,7 +124,7 @@ export class SessionKeyStore {
   getSessionInfo(): { deviceId: number; createdAt: Date; expiresAt: Date } | null {
     const session = this.getStoredSession();
     if (!session || this.isExpired(session)) return null;
-    
+
     return {
       deviceId: session.deviceId,
       createdAt: new Date(session.createdAt),

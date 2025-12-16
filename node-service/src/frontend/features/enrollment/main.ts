@@ -11,11 +11,14 @@
  * 6. Post-enrollment → Login ECDH para obtener session_key
  */
 import { AuthClient } from '../../shared/auth/auth-client';
-import { EnrollmentService } from './services/enrollment.service';
-import { LoginService } from './services/login.service';
-import { SessionKeyStore } from './services/session-key.store';
+import {
+  EnrollmentService,
+  LoginService,
+  SessionKeyStore,
+  AccessService,
+  type AccessState,
+} from '../../shared/services/enrollment';
 import { getRemoteLogger, RemoteLoggerService } from './services/remote-logger.service';
-import { AccessService, type AccessState } from './services/access.service';
 
 class EnrollmentApplication {
   private authClient: AuthClient;

@@ -22,9 +22,12 @@ import { AttendanceApiClient } from './services/attendance-api.client';
 import { decryptQR, encryptPayload, MOCK_SESSION_KEY } from '../../shared/crypto';
 import { LegacyBridge } from '../../shared/services/legacy-bridge.service';
 import { LegacyContextStore } from '../../shared/stores/legacy-context.store';
-import { EnrollmentService, type GetDevicesResult } from '../enrollment/services/enrollment.service';
-import { LoginService } from '../enrollment/services/login.service';
-import { SessionKeyStore } from '../enrollment/services/session-key.store';
+import {
+  EnrollmentService,
+  type GetDevicesResult,
+  LoginService,
+  SessionKeyStore,
+} from '../../shared/services/enrollment';
 
 // Exponer helpers de debug en desarrollo
 declare global {

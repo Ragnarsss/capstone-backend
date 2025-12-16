@@ -1,8 +1,20 @@
 /**
  * Login Service
  * Responsabilidad: ECDH key exchange para obtener session_key
+ *
+ * Flujo:
+ * 1. Cliente genera par ECDH efímero
+ * 2. Envía clave pública al servidor
+ * 3. Servidor responde con su clave pública + TOTPu
+ * 4. Cliente deriva shared secret
+ * 5. Cliente deriva session_key con HKDF
+ * 6. Session key se almacena automáticamente en SessionKeyStore
+ *
+ * NOTA: Servicio compartido usado por enrollment, guest y qr-reader features
  */
-import { AuthClient } from '../../../shared/auth/auth-client';
+
+import { SessionKeyStore, getSessionKeyStore } from './session-key.store';
+import type { AuthClient } from '../../../shared/auth/auth-client';
 
 export interface LoginResult {
   success: boolean;
@@ -13,38 +25,61 @@ export interface LoginResult {
 }
 
 export class LoginService {
-  private authClient = new AuthClient();
   private baseUrl: string;
+  private sessionKeyStore: SessionKeyStore;
+  private authClient?: AuthClient;
 
-  constructor() {
-    // Detectar si estamos embebidos en PHP (puerto 9500/9505) o acceso directo a Node (9503)
-    const isEmbeddedInPhp = window.location.port === '9500' || 
-                            window.location.port === '9505' ||
-                            window.location.port === '';
-    this.baseUrl = isEmbeddedInPhp ? '/minodo-api/enrollment' : '/api/enrollment';
+  /**
+   * Constructor con inyección de dependencias
+   * @param authClient - Cliente de autenticación (opcional, para obtener JWT)
+   * @param baseUrl - URL base del API (opcional, auto-detecta si no se provee)
+   * @param sessionKeyStore - Store de session keys (opcional, usa singleton por defecto)
+   */
+  constructor(
+    authClient?: AuthClient,
+    baseUrl?: string,
+    sessionKeyStore?: SessionKeyStore
+  ) {
+    this.authClient = authClient;
+    this.sessionKeyStore = sessionKeyStore || getSessionKeyStore();
+
+    if (baseUrl) {
+      this.baseUrl = baseUrl;
+    } else {
+      // Auto-detectar si estamos embebidos en PHP o acceso directo a Node
+      const isEmbeddedInPhp =
+        window.location.port === '9500' ||
+        window.location.port === '9505' ||
+        window.location.port === '';
+      this.baseUrl = isEmbeddedInPhp ? '/minodo-api/enrollment' : '/api/enrollment';
+    }
   }
 
   /**
    * Realiza login ECDH para obtener session_key
-   * 
-   * Flujo:
-   * 1. Genera par de claves ECDH efímeras (cliente)
-   * 2. Envía clave pública al servidor
-   * 3. Servidor responde con su clave pública
-   * 4. Cliente deriva shared secret
-   * 5. Cliente deriva session_key con HKDF
+   * @param credentialId - ID del credential FIDO2
+   * @param token - JWT token (opcional, usa authClient si no se provee)
    */
-  async performLogin(credentialId: string): Promise<LoginResult> {
+  async performLogin(credentialId: string, token?: string): Promise<LoginResult> {
     try {
       // 1. Generar par de claves ECDH efímeras
       const keyPair = await this.generateEcdhKeyPair();
       const clientPublicKeyBase64 = await this.exportPublicKey(keyPair.publicKey);
 
-      // 2. Enviar al servidor
+      // 2. Obtener token de autenticación
+      const authToken = token || this.getAuthToken();
+      if (!authToken) {
+        return {
+          success: false,
+          error: 'No se encontró token de autenticación',
+        };
+      }
+
+      // 3. Enviar al servidor
       const response = await fetch(`${this.baseUrl}/login`, {
         method: 'POST',
         headers: {
-          ...this.getAuthHeaders(),
+          'Authorization': `Bearer ${authToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -57,23 +92,23 @@ export class LoginService {
         const errorData = await response.json().catch(() => ({}));
         return {
           success: false,
-          error: errorData.message || `Error ${response.status}`,
+          error: errorData.message || errorData.error || `Error ${response.status}`,
         };
       }
 
       const data = await response.json();
-      
-      // 3. Importar clave pública del servidor
+
+      // 4. Importar clave pública del servidor
       const serverPublicKey = await this.importPublicKey(data.serverPublicKey);
 
-      // 4. Derivar shared secret usando ECDH
-      const sharedSecret = await this.deriveSharedSecret(
-        keyPair.privateKey,
-        serverPublicKey
-      );
+      // 5. Derivar shared secret usando ECDH
+      const sharedSecret = await this.deriveSharedSecret(keyPair.privateKey, serverPublicKey);
 
-      // 5. Derivar session_key usando HKDF
+      // 6. Derivar session_key usando HKDF
       const sessionKey = await this.deriveSessionKey(sharedSecret);
+
+      // 7. Almacenar automáticamente en SessionKeyStore
+      await this.sessionKeyStore.storeSessionKey(sessionKey, data.totpu, data.deviceId);
 
       return {
         success: true,
@@ -91,6 +126,20 @@ export class LoginService {
   }
 
   /**
+   * Verifica si ya tiene una sesión válida
+   */
+  hasValidSession(): boolean {
+    return this.sessionKeyStore.hasSessionKey();
+  }
+
+  /**
+   * Obtiene la session key almacenada
+   */
+  async getStoredSessionKey(): Promise<CryptoKey | null> {
+    return this.sessionKeyStore.getSessionKey();
+  }
+
+  /**
    * Genera par de claves ECDH usando P-256
    */
   private async generateEcdhKeyPair(): Promise<CryptoKeyPair> {
@@ -99,7 +148,7 @@ export class LoginService {
         name: 'ECDH',
         namedCurve: 'P-256',
       },
-      true, // extractable
+      true,
       ['deriveBits']
     );
   }
@@ -142,7 +191,7 @@ export class LoginService {
         public: publicKey,
       },
       privateKey,
-      256 // 32 bytes
+      256
     );
   }
 
@@ -150,7 +199,6 @@ export class LoginService {
    * Deriva session_key desde shared secret usando HKDF
    */
   private async deriveSessionKey(sharedSecret: ArrayBuffer): Promise<CryptoKey> {
-    // Importar shared secret como clave para HKDF
     const baseKey = await crypto.subtle.importKey(
       'raw',
       sharedSecret,
@@ -159,14 +207,13 @@ export class LoginService {
       ['deriveKey']
     );
 
-    // Derivar session_key con contexto específico
     const info = new TextEncoder().encode('attendance-session-key-v1');
-    
+
     return await crypto.subtle.deriveKey(
       {
         name: 'HKDF',
         hash: 'SHA-256',
-        salt: new Uint8Array(0), // Salt vacío
+        salt: new Uint8Array(0),
         info,
       },
       baseKey,
@@ -174,9 +221,13 @@ export class LoginService {
         name: 'AES-GCM',
         length: 256,
       },
-      true, // extractable para poder exportar
+      true,
       ['encrypt', 'decrypt']
     );
+  }
+
+  private getAuthToken(): string | null {
+    return this.authClient?.getToken() ?? null;
   }
 
   private arrayBufferToBase64(buffer: ArrayBuffer): string {
@@ -196,9 +247,16 @@ export class LoginService {
     }
     return bytes.buffer;
   }
+}
 
-  private getAuthHeaders(): Record<string, string> {
-    const token = this.authClient.getToken();
-    return token ? { 'Authorization': `Bearer ${token}` } : {};
+/**
+ * Singleton para uso global
+ */
+let instance: LoginService | null = null;
+
+export function getLoginService(): LoginService {
+  if (!instance) {
+    instance = new LoginService();
   }
+  return instance;
 }

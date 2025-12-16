@@ -15,9 +15,11 @@ console.log('[Guest] Location:', window.location.href);
 console.log('[Guest] Parent:', window.parent !== window ? 'in iframe' : 'top window');
 
 import { AuthClient } from '../../shared/auth/auth-client';
-import { EnrollmentService } from './modules/enrollment/enrollment.service';
-import { LoginService, getLoginService } from './modules/enrollment/login.service';
-import { getSessionKeyStore } from './modules/enrollment/session-key.store';
+import {
+  EnrollmentService,
+  getLoginService,
+  getSessionKeyStore,
+} from '../../shared/services/enrollment';
 import { ScannerService, getScannerService } from './modules/scanner/scanner.service';
 import { AttendanceService, getAttendanceService } from './modules/attendance/attendance.service';
 import { ParentMessenger, getParentMessenger } from './modules/communication/parent-messenger';

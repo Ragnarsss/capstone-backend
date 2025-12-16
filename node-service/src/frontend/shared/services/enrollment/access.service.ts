@@ -2,6 +2,8 @@
  * AccessService (Frontend)
  * Cliente HTTP para GET /api/access/state
  * Responsabilidad: Obtener estado agregado de acceso del usuario
+ *
+ * NOTA: Servicio compartido usado por enrollment, guest y qr-reader features
  */
 
 /**
