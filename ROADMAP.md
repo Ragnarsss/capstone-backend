@@ -442,9 +442,40 @@ qr-reader.checkEnrollmentStatus()
 ### 21.3: Eliminar feature guest/
 
 **Rama:** `fase-21.3-remove-guest`
-**Modelo:** Opus
+**Modelo recomendado ROADMAP:** Opus
+**Modelo sugerido por Copilot:** Sonnet con supervisión
 **Dificultad:** Alta
 **Recordatorio:** Comandos npm DEBEN ejecutarse dentro del contenedor Node (PROJECT-CONSTITUTION.md Art. 3.2)
+
+**Análisis de IA (Copilot - 2025-12-16):**
+
+El ROADMAP recomienda Opus por la complejidad potencial, pero tras completar las fases 21.1-21.2:
+- Los servicios ya están unificados en `shared/services/enrollment/`
+- Access Gateway valida política 1:1 correctamente
+- qr-reader ya usa Access Gateway con detección de cambio de usuario
+- guest/ NO está en vite.config.ts (no se compila actualmente)
+
+**Estrategia sugerida - Enfoque en 2 pasos:**
+
+1. **Paso 1 (Sonnet):** Análisis de diferencias
+   - Diff entre `guest/main.ts` y `enrollment/main.ts`
+   - Identificar funcionalidad única de guest/ (postMessage, ParentMessenger, estados)
+   - Si NO hay funcionalidad crítica no migrada → proceder a eliminar
+   - Si SÍ hay funcionalidad crítica → escalar a Opus para migración
+
+2. **Paso 2 (Sonnet o Opus según resultado):**
+   - Si simple: `rm -rf frontend/features/guest/` + limpiar imports
+   - Si complejo: Migrar funcionalidad a enrollment/ primero
+
+**Justificación de Sonnet:**
+- El trabajo pesado ya está hecho (servicios compartidos, Access Gateway)
+- La tarea es mayormente eliminar código obsoleto
+- guest/ ya no se compila, solo existe en el árbol de archivos
+
+**Cuándo escalar a Opus:**
+- Si guest/ tiene manejo especial de iframe que enrollment/ no tiene
+- Si hay edge cases de postMessage no documentados
+- Si el análisis revela state machine diferente
 
 **Justificacion:** guest/ reimplementa la state machine completa. Con Access Gateway, enrollment/ puede hacer todo.
 
