@@ -51,7 +51,7 @@ class EnrollmentApplication {
 
     this.authClient = new AuthClient();
     this.enrollmentService = new EnrollmentService();
-    this.loginService = new LoginService();
+    this.loginService = new LoginService(this.authClient);
     this.sessionKeyStore = new SessionKeyStore();
     this.accessService = new AccessService();
   }

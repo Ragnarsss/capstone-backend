@@ -73,7 +73,7 @@ class QRReaderApplication {
     this.legacyBridge = new LegacyBridge(this.authClient, this.contextStore);
     this.attendanceApi = new AttendanceApiClient();
     this.enrollmentService = new EnrollmentService();
-    this.loginService = new LoginService();
+    this.loginService = new LoginService(this.authClient);
     this.sessionKeyStore = new SessionKeyStore();
     const component = new CameraViewComponent();
     const cameraManager = new CameraManager('camera-feed');
