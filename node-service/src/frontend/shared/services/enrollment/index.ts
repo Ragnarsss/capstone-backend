@@ -18,5 +18,5 @@ export type { LoginResult } from './login.service';
 export { SessionKeyStore, getSessionKeyStore } from './session-key.store';
 export type { StoredSession } from './session-key.store';
 
-export { AccessService } from './access.service';
+export { AccessService, DeviceFingerprintGenerator } from './access.service';
 export type { AccessState } from './access.service';

@@ -43,6 +43,7 @@ function createMockDevice(overrides: Partial<Device> = {}): Device {
 function createMockRepository(): IDeviceRepositoryForPolicy {
   return {
     findByCredentialIdIncludingInactive: vi.fn().mockResolvedValue(null),
+    findActiveByDeviceFingerprint: vi.fn().mockResolvedValue([]),
     findByUserId: vi.fn().mockResolvedValue([]),
     revoke: vi.fn().mockResolvedValue(undefined),
     revokeAllByUserId: vi.fn().mockResolvedValue(0),
@@ -176,25 +177,26 @@ describe('OneToOnePolicyService', () => {
 
   describe('revokeViolations', () => {
     it('returns empty result when no violations exist', async () => {
+      vi.mocked(mockRepo.findActiveByDeviceFingerprint).mockResolvedValue([]);
       vi.mocked(mockRepo.revokeAllByUserId).mockResolvedValue(0);
 
-      const result = await service.revokeViolations(100, 'new-credential');
+      const result = await service.revokeViolations(100, 'new-fingerprint');
 
       expect(result.previousUserUnlinked).toBeUndefined();
       expect(result.ownDevicesRevoked).toBe(0);
     });
 
-    it('revokes device from other user (device conflict)', async () => {
+    it('revokes device from other user (device conflict by fingerprint)', async () => {
       const otherUserDevice = createMockDevice({
         deviceId: 10,
         userId: 200,
         isActive: true,
-        credentialId: 'shared-device',
+        deviceFingerprint: 'shared-fingerprint',
       });
-      vi.mocked(mockRepo.findByCredentialIdIncludingInactive).mockResolvedValue(otherUserDevice);
+      vi.mocked(mockRepo.findActiveByDeviceFingerprint).mockResolvedValue([otherUserDevice]);
       vi.mocked(mockRepo.revokeAllByUserId).mockResolvedValue(0);
 
-      const result = await service.revokeViolations(100, 'shared-device');
+      const result = await service.revokeViolations(100, 'shared-fingerprint');
 
       expect(mockRepo.revoke).toHaveBeenCalledWith(
         10,
@@ -206,24 +208,27 @@ describe('OneToOnePolicyService', () => {
       });
     });
 
-    it('does not revoke inactive device from other user', async () => {
-      const inactiveDevice = createMockDevice({
-        userId: 200,
-        isActive: false,
+    it('does not revoke when no other user has same fingerprint', async () => {
+      // Same user has a device with same fingerprint - not a conflict
+      const sameUserDevice = createMockDevice({
+        userId: 100,
+        isActive: true,
+        deviceFingerprint: 'same-fingerprint',
       });
-      vi.mocked(mockRepo.findByCredentialIdIncludingInactive).mockResolvedValue(inactiveDevice);
+      vi.mocked(mockRepo.findActiveByDeviceFingerprint).mockResolvedValue([sameUserDevice]);
       vi.mocked(mockRepo.revokeAllByUserId).mockResolvedValue(0);
 
-      const result = await service.revokeViolations(100, 'some-credential');
+      const result = await service.revokeViolations(100, 'same-fingerprint');
 
       expect(mockRepo.revoke).not.toHaveBeenCalled();
       expect(result.previousUserUnlinked).toBeUndefined();
     });
 
     it('revokes all user existing devices (user conflict)', async () => {
+      vi.mocked(mockRepo.findActiveByDeviceFingerprint).mockResolvedValue([]);
       vi.mocked(mockRepo.revokeAllByUserId).mockResolvedValue(3);
 
-      const result = await service.revokeViolations(100, 'new-credential');
+      const result = await service.revokeViolations(100, 'new-fingerprint');
 
       expect(mockRepo.revokeAllByUserId).toHaveBeenCalledWith(
         100,
@@ -237,12 +242,12 @@ describe('OneToOnePolicyService', () => {
         deviceId: 10,
         userId: 200,
         isActive: true,
-        credentialId: 'shared-device',
+        deviceFingerprint: 'shared-fingerprint',
       });
-      vi.mocked(mockRepo.findByCredentialIdIncludingInactive).mockResolvedValue(otherUserDevice);
+      vi.mocked(mockRepo.findActiveByDeviceFingerprint).mockResolvedValue([otherUserDevice]);
       vi.mocked(mockRepo.revokeAllByUserId).mockResolvedValue(2);
 
-      const result = await service.revokeViolations(100, 'shared-device');
+      const result = await service.revokeViolations(100, 'shared-fingerprint');
 
       // Both operations should execute
       expect(mockRepo.revoke).toHaveBeenCalled();
@@ -305,38 +310,36 @@ describe('OneToOnePolicyService', () => {
         deviceId: 1,
         userId: 100,
         credentialId: 'old-device',
+        deviceFingerprint: 'old-fingerprint',
       });
       vi.mocked(mockRepo.findByUserId).mockResolvedValue([oldDevice]);
+      vi.mocked(mockRepo.findActiveByDeviceFingerprint).mockResolvedValue([]);
       vi.mocked(mockRepo.revokeAllByUserId).mockResolvedValue(1);
 
-      // Step 1: Validate
+      // Step 1: Validate (uses credentialId)
       const validation = await service.validate(100, 'new-device');
       expect(validation.compliant).toBe(false);
       expect(validation.violations?.userConflict?.deviceIds).toContain(1);
 
-      // Step 2: Revoke violations
-      const revoke = await service.revokeViolations(100, 'new-device');
+      // Step 2: Revoke violations (uses deviceFingerprint)
+      const revoke = await service.revokeViolations(100, 'new-fingerprint');
       expect(revoke.ownDevicesRevoked).toBe(1);
     });
 
-    it('workflow: device takeover from another user', async () => {
+    it('workflow: device takeover from another user by fingerprint', async () => {
       // Device currently enrolled by user 200, user 100 wants to take it
+      // Now detected by deviceFingerprint instead of credentialId
       const existingDevice = createMockDevice({
         deviceId: 10,
         userId: 200,
         isActive: true,
-        credentialId: 'shared-device',
+        deviceFingerprint: 'shared-fingerprint',
       });
-      vi.mocked(mockRepo.findByCredentialIdIncludingInactive).mockResolvedValue(existingDevice);
+      vi.mocked(mockRepo.findActiveByDeviceFingerprint).mockResolvedValue([existingDevice]);
       vi.mocked(mockRepo.revokeAllByUserId).mockResolvedValue(0);
 
-      // Step 1: Validate
-      const validation = await service.validate(100, 'shared-device');
-      expect(validation.compliant).toBe(false);
-      expect(validation.violations?.deviceConflict?.userId).toBe(200);
-
-      // Step 2: Revoke violations
-      const revoke = await service.revokeViolations(100, 'shared-device');
+      // Revoke violations - detects same physical device by fingerprint
+      const revoke = await service.revokeViolations(100, 'shared-fingerprint');
       expect(revoke.previousUserUnlinked?.userId).toBe(200);
     });
   });

@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { StartEnrollmentController, FinishEnrollmentController, RevokeDeviceController } from './controllers';
 import { StartEnrollmentUseCase, FinishEnrollmentUseCase, GetDevicesUseCase, RevokeDeviceUseCase } from '../application/use-cases';
 import { Fido2Service, DeviceRepository, EnrollmentChallengeRepository, HkdfService, PenaltyService } from '../infrastructure';
+import { OneToOnePolicyService } from '../domain/services';
 import { AuthMiddleware } from '../../auth/presentation/auth-middleware';
 import { AuthService } from '../../auth/application/auth.service';
 import { JWTUtils } from '../../auth/domain/jwt-utils';
@@ -45,9 +46,12 @@ export async function registerEnrollmentRoutes(fastify: FastifyInstance): Promis
 
   const revokeDeviceUseCase = new RevokeDeviceUseCase(deviceRepository);
 
+  // Servicio de política 1:1 para revocación automática
+  const policyService = new OneToOnePolicyService(deviceRepository);
+
   // Instanciar controllers
   const startEnrollmentController = new StartEnrollmentController(startEnrollmentUseCase);
-  const finishEnrollmentController = new FinishEnrollmentController(finishEnrollmentUseCase);
+  const finishEnrollmentController = new FinishEnrollmentController(finishEnrollmentUseCase, policyService);
   const revokeDeviceController = new RevokeDeviceController(revokeDeviceUseCase);
 
   // Middleware de autenticación
