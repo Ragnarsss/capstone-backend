@@ -39,14 +39,17 @@ Ver `spec-enrollment.md` para el flujo de enrollment y login.
 │                                                                 │
 │ ANTES de escanear QRs, verificar estado:                       │
 │                                                                 │
-│ 1. GET /api/access/state                                       │
+│ 1. Generar deviceFingerprint (hash de navigator properties)    │
 │                                                                 │
-│ 2. Si state !== "READY":                                        │
+│ 2. GET /api/access/state?deviceFingerprint={fingerprint}       │
+│                                                                 │
+│ 3. Si state !== "READY":                                        │
 │    → Redirigir a /features/enrollment/                         │
 │    → El usuario debe completar enrollment + login primero      │
 │                                                                 │
-│ 3. Si state === "READY":                                        │
+│ 4. Si state === "READY":                                        │
 │    → session_key disponible en sessionStorage                  │
+│    → deviceFingerprint validado por Access Gateway             │
 │    → Puede proceder a escanear                                 │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘

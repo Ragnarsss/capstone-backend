@@ -85,6 +85,42 @@ El sistema se divide en **tres dominios** mas un **gateway de lectura**.
 | `DeviceStateMachine` | Transiciones: not_enrolled → pending → enrolled → revoked |
 | `DeviceRepository` | CRUD en PostgreSQL |
 
+### Flujo de Revocación Automática (Política 1:1)
+
+Cuando un usuario intenta enrollar un dispositivo, el sistema **automáticamente** revoca dispositivos conflictivos para mantener la política 1:1.
+
+**Responsabilidad:** `FinishEnrollmentController` DEBE invocar `OneToOnePolicyService.revokeViolations()` ANTES de persistir el nuevo dispositivo.
+
+**Flujo:**
+
+```text
+1. Cliente → POST /api/enrollment/start
+   → Backend genera challenge FIDO2
+
+2. Cliente completa autenticación biométrica
+
+3. Cliente → POST /api/enrollment/finish {credential, deviceFingerprint}
+   → Backend:
+      a. Valida respuesta WebAuthn
+      b. ANTES de persistir: OneToOnePolicyService.revokeViolations(userId, deviceFingerprint)
+         → Revoca dispositivos anteriores del mismo usuario
+         → Revoca dispositivos de otros usuarios con mismo deviceFingerprint
+      c. Persiste nuevo dispositivo
+      d. Retorna éxito
+
+4. Usuario queda enrolado con un solo dispositivo activo
+```
+
+**Responsabilidad de cada capa:**
+
+| Capa | Responsabilidad |
+|------|----------------|
+| `FinishEnrollmentController` | Orquestar: revocar conflictos → persistir → retornar |
+| `OneToOnePolicyService` | Ejecutar lógica de revocación en BD |
+| `FinishEnrollmentUseCase` | Solo: verificar WebAuthn + derivar HKDF + persistir (NO revocación) |
+
+**IMPORTANTE:** No se solicita consentimiento explícito. La revocación es **automática y silenciosa** para mantener la seguridad 1:1.
+
 ### Estados del Dispositivo
 
 ```text
@@ -179,18 +215,28 @@ Response (sin wrappers):
 ### Logica (solo lectura)
 
 ```typescript
-async getState(userId: number): Promise<AccessState> {
+async getState(userId: number, deviceFingerprint: string): Promise<AccessState> {
   // 1. Verificar restricciones
   const restriction = await this.restrictionQuery.isBlocked(userId);
   if (restriction.blocked) {
     return { state: 'BLOCKED', action: null, message: restriction.reason };
   }
 
-  // 2. Verificar enrollment
-  const device = await this.deviceQuery.getActiveDevice(userId);
-  if (!device) {
+  // 2. Verificar enrollment + política 1:1 via EnrollmentFlowOrchestrator
+  const enrollmentResult = await this.orchestrator.attemptAccess(userId, deviceFingerprint);
+  
+  if (enrollmentResult.result === 'REQUIRES_ENROLLMENT') {
     return { state: 'NOT_ENROLLED', action: 'enroll' };
   }
+  
+  if (enrollmentResult.result === 'REQUIRES_REENROLLMENT') {
+    // deviceFingerprint no coincide con dispositivo enrolado
+    return { state: 'NOT_ENROLLED', action: 'enroll', 
+             message: 'Re-enrollment required' };
+  }
+
+  // ACCESS_GRANTED: Usuario enrolado y deviceFingerprint válido
+  const device = enrollmentResult.device;
 
   // 3. Verificar sesion
   const hasSession = await this.sessionQuery.hasActiveSession(userId);
@@ -215,13 +261,23 @@ async getState(userId: number): Promise<AccessState> {
 
 ---
 
-## Frontend: Renderizado por Estado
+## Frontend: Responsabilidades por Feature
 
-El frontend solo consulta el AccessGateway y renderiza segun la respuesta.
+Cada feature frontend tiene una responsabilidad específica y DEBE consultar Access Gateway antes de operar.
+
+| Feature | Responsabilidad | Verifica Access Gateway |
+|---------|-----------------|-------------------------|
+| `enrollment/` | UI de enrollment + login ECDH. Punto de entrada para nuevos usuarios | ✓ Sí (en mount) |
+| `qr-reader/` | UI de escaneo QR. Requiere estado `READY` para operar | ✓ **SÍ (OBLIGATORIO antes de escanear)** |
+| `qr-host/` | Proyector de QRs. No requiere enrollment (solo sesión activa) | ✗ No (solo verifica clase activa) |
+
+### enrollment/: Flujo de Estado
+
+Renderiza UI según respuesta de Access Gateway:
 
 ```typescript
 async function checkAndRender(): Promise<void> {
-  const state = await accessService.getState();
+  const state = await accessService.getState(deviceFingerprint);
 
   switch (state.state) {
     case 'NOT_ENROLLED':
@@ -239,6 +295,34 @@ async function checkAndRender(): Promise<void> {
   }
 }
 ```
+
+### qr-reader/: Flujo de Verificación (OBLIGATORIO)
+
+**ANTES de permitir escaneo**, qr-reader DEBE verificar Access Gateway:
+
+```typescript
+async function checkEnrollmentStatus(): Promise<void> {
+  const deviceFingerprint = DeviceFingerprintGenerator.generate();
+  const state = await accessService.getState(deviceFingerprint);
+
+  switch (state.state) {
+    case 'NOT_ENROLLED':
+    case 'ENROLLED_NO_SESSION':
+      // Redirigir a /features/enrollment/
+      window.location.href = '/features/enrollment/';
+      break;
+    case 'READY':
+      // Permitir escaneo
+      showScannerUI();
+      break;
+    case 'BLOCKED':
+      showBlockedMessage(state.message);
+      break;
+  }
+}
+```
+
+**IMPORTANTE:** qr-reader NO debe tener lógica de enrollment propia. Solo verifica estado y redirige si necesario.
 
 ---
 

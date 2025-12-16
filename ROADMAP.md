@@ -21,7 +21,8 @@
 | 19-20 | Separacion Dominios y Limpieza Legacy | COMPLETADA |
 | **21.1** | **Servicios compartidos enrollment** | COMPLETADA |
 | **21.1.1** | **Fix: LoginService sin authClient** | COMPLETADA |
-| **21.1.2** | **Access Gateway con Orchestrator** | PENDIENTE |
+| **21.1.2** | **Access Gateway con Orchestrator** | COMPLETADA |
+| **21.1.3** | **Revocación automática 1:1** | PENDIENTE |
 | **21.2** | **qr-reader usa Access Gateway** | PENDIENTE |
 | **21.3** | **Eliminar feature guest/** | PENDIENTE |
 | **22** | **Hardening Criptografico** | PENDIENTE |
@@ -230,16 +231,18 @@ this.loginService = new LoginService(this.authClient);  // CORRECTO: Con authCli
 **Modelo:** Opus
 **Dificultad:** Alta
 **Recordatorio:** Comandos npm DEBEN ejecutarse dentro del contenedor Node (PROJECT-CONSTITUTION.md Art. 3.2)
+**Estado:** COMPLETADA
+**Commit:** 04a8df6
 
 **Justificacion:** Access Gateway tiene validacion manual que duplica logica del automata EnrollmentFlowOrchestrator. Esto causa bug critico donde multiples usuarios en el mismo dispositivo NO son detectados porque Access Gateway no valida deviceFingerprint (politica 1:1). El orchestrator YA implementa el automata completo con validacion de deviceFingerprint pero NO se esta usando.
 
-**Problema actual:**
+**Problema actual (RESUELTO):**
 
 - Access Gateway hace queries directas sin validar deviceFingerprint
 - EnrollmentFlowOrchestrator.attemptAccess() existe pero no se llama
 - Bug: Multiples usuarios en mismo dispositivo bypasean enrollment
 
-**Arquitectura objetivo:**
+**Arquitectura lograda:**
 
 ```
 Access Gateway → EnrollmentFlowOrchestrator.attemptAccess(userId, deviceFingerprint)
@@ -247,40 +250,102 @@ Access Gateway → EnrollmentFlowOrchestrator.attemptAccess(userId, deviceFinger
                  ACCESS_GRANTED | REQUIRES_ENROLLMENT | REQUIRES_REENROLLMENT
 ```
 
+**Cambios realizados:**
+
+- [x] Refactorizado `AccessGatewayService` para recibir `EnrollmentFlowOrchestrator`
+- [x] Agregado parámetro `deviceFingerprint` a `getState()`
+- [x] Mapeado resultados del orchestrator a estados del Gateway:
+  - `ACCESS_GRANTED` → verificar sesion → `READY` o `ENROLLED_NO_SESSION`
+  - `REQUIRES_ENROLLMENT` → `NOT_ENROLLED`
+  - `REQUIRES_REENROLLMENT` → `NOT_ENROLLED` (forzar reenrolamiento)
+- [x] Actualizado `routes.ts` para inyectar orchestrator
+- [x] Actualizado `AccessStateController` para recibir deviceFingerprint desde query params
+- [x] Implementado `DeviceFingerprintGenerator` en frontend
+- [x] Actualizado `AccessService` para generar y enviar deviceFingerprint
+- [x] Reescrito todos los tests de Access Gateway
+- [x] Verificado: `podman exec asistencia-node npm run build` (exitoso)
+- [x] Verificado: `podman exec asistencia-node npm run test` (136/136 passed)
+- [x] Commit atomico: `04a8df6` con mensaje descriptivo
+
+**Dependencias:** Requiere 21.1.1 completada (LoginService fix).
+
+**Criterio de exito:** COMPLETADO ✅
+- Access Gateway usa orchestrator para toda validacion de enrollment
+- Multiples usuarios en mismo dispositivo son detectados y bloqueados correctamente
+- deviceFingerprint fluye correctamente frontend → backend
+- Tests comprueban mapeo correcto de AccessResult → AccessState
+- Build y tests exitosos
+
+---
+
+### 21.1.3: Implementar revocación automática 1:1 en enrollment
+
+**Rama:** `fase-21.1.3-auto-revoke-enrollment`
+**Modelo:** Opus
+**Dificultad:** Alta
+**Recordatorio:** Comandos npm DEBEN ejecutarse dentro del contenedor Node (PROJECT-CONSTITUTION.md Art. 3.2)
+
+**Justificacion:** Actualmente `FinishEnrollmentController` NO ejecuta `OneToOnePolicyService.revokeViolations()`. Esto causa que múltiples usuarios puedan enrollarse en el mismo dispositivo sin desenrolamiento automático, violando la política 1:1. El comentario en `FinishEnrollmentUseCase` (línea 37) indica que "el orchestrator DEBE llamar a revokeViolations() ANTES", pero nadie lo hace.
+
+**Problema actual:**
+
+- `POST /api/enrollment/finish` persiste nuevo dispositivo sin revocar conflictos
+- `processEnrollmentConsent()` solo retorna información, no ejecuta revocación
+- Base de datos queda con múltiples deviceId activos para mismo deviceFingerprint
+- Política 1:1 se viola silenciosamente
+
+**Arquitectura objetivo (según spec-architecture.md):**
+
+```
+POST /api/enrollment/finish
+  ↓
+FinishEnrollmentController:
+  1. Validar WebAuthn ✓
+  2. OneToOnePolicyService.revokeViolations(userId, deviceFingerprint) ← AGREGAR
+  3. FinishEnrollmentUseCase.execute() (persiste)
+  4. Retornar éxito
+```
+
 **Archivos afectados:**
 
-- `backend/access/application/services/access-gateway.service.ts`
-- `backend/access/presentation/routes.ts` (agregar deviceFingerprint a request)
-- `frontend/shared/services/access.service.ts` (enviar deviceFingerprint)
+- `backend/enrollment/presentation/controllers/finish-enrollment.controller.ts`
+- `backend/enrollment/presentation/routes.ts` (inyectar OneToOnePolicyService)
+- Tests de FinishEnrollmentController
 
 **Flujo Git:**
 
 1. Verificar estado: `git status`
-2. Crear rama: `git checkout -b fase-21.1.2-access-gateway-orchestrator`
+2. Crear rama: `git checkout -b fase-21.1.3-auto-revoke-enrollment`
 3. Realizar cambios atomicos
-4. Commit: `git commit -m "refactor(access): integrar EnrollmentFlowOrchestrator para validacion 1:1"`
+4. Commit: `git commit -m "feat(enrollment): ejecutar revocacion automatica 1:1 en finish"`
 5. Merge a main preservando ultimos 4 commits sin mergear (daRulez.md regla 35)
 
 **Tareas:**
 
-- [ ] Agregar EnrollmentFlowOrchestrator como dependencia de Access Gateway
-- [ ] Modificar `getState()` para recibir deviceFingerprint como parametro
-- [ ] Reemplazar query manual `deviceQuery.getActiveDevice()` con `orchestrator.attemptAccess()`
-- [ ] Mapear resultados del orchestrator a estados del Gateway:
-  - `ACCESS_GRANTED` → verificar sesion → `READY` o `ENROLLED_NO_SESSION`
-  - `REQUIRES_ENROLLMENT` → `NOT_ENROLLED`
-  - `REQUIRES_REENROLLMENT` → `NOT_ENROLLED` (forzar reenrolamiento)
-- [ ] Actualizar ruta `GET /api/access/state` para recibir deviceFingerprint en query params
-- [ ] Actualizar AccessService frontend para generar y enviar deviceFingerprint
-- [ ] Actualizar tests de Access Gateway para verificar integracion con orchestrator
-- [ ] Verificar tests: `podman exec asistencia-node npm run test`
+- [ ] Verificar estado del repositorio: `git status`
+- [ ] Crear rama: `git checkout -b fase-21.1.3-auto-revoke-enrollment`
+- [ ] Modificar `routes.ts`: instanciar `OneToOnePolicyService` y pasarlo a `FinishEnrollmentController`
+- [ ] Modificar `FinishEnrollmentController`:
+  - [ ] Agregar `OneToOnePolicyService` como dependencia del constructor
+  - [ ] ANTES de llamar a `useCase.execute()`: ejecutar `policyService.revokeViolations(userId, deviceFingerprint)`
+  - [ ] Capturar y loggear información de revocación (previousUserUnlinked, ownDevicesRevoked)
+- [ ] Actualizar tests de `FinishEnrollmentController`:
+  - [ ] Mockear `OneToOnePolicyService.revokeViolations()`
+  - [ ] Verificar que se llama ANTES de persistir
+  - [ ] Test: revocación de dispositivos del mismo usuario
+  - [ ] Test: revocación de dispositivos de otros usuarios (mismo fingerprint)
 - [ ] Verificar compilacion: `podman exec asistencia-node npm run build`
-- [ ] Probar flujo completo: mismo usuario en dos dispositivos debe requerir reenrolamiento
+- [ ] Verificar tests: `podman exec asistencia-node npm run test`
+- [ ] Probar flujo manualmente: Usuario A enrolla → Usuario B enrolla en mismo dispositivo → Usuario A queda desenrolado
 - [ ] Commit atomico con mensaje descriptivo
 
-**Dependencias:** Requiere 21.1.1 completada (LoginService fix).
+**Dependencias:** Requiere 21.1.2 completada (Access Gateway con orchestrator).
 
-**Criterio de exito:** Access Gateway usa orchestrator, multiples usuarios en mismo dispositivo son detectados y bloqueados correctamente.
+**Criterio de exito:** 
+- `FinishEnrollmentController` ejecuta `revokeViolations()` automáticamente
+- Base de datos mantiene política 1:1 (un deviceFingerprint por usuario activo)
+- Tests verifican revocación automática
+- Flujo manual confirma desenrolamiento: Usuario B enrolla → Usuario A desenrolado
 
 ---
 
@@ -291,13 +356,33 @@ Access Gateway → EnrollmentFlowOrchestrator.attemptAccess(userId, deviceFinger
 **Dificultad:** Media
 **Recordatorio:** Comandos npm DEBEN ejecutarse dentro del contenedor Node (PROJECT-CONSTITUTION.md Art. 3.2)
 
-**Justificacion:** qr-reader importa directamente de enrollment/ (cross-feature) y tiene logica de inferencia legacy que bypasea Access Gateway. Debe delegarse completamente al Gateway.
+**Justificacion:** qr-reader hace verificación local con `sessionKeyStore.hasSessionKey()` y **NO consulta Access Gateway** como requiere `spec-qr-validation.md` Fase 0. Esto permite que múltiples usuarios usen el mismo dispositivo sin revalidación, violando la política 1:1.
 
-**Problema actual:**
+**Problema actual (según DIAGNOSTICO-BUG-1-1.md):**
 
-- qr-reader hace verificacion local con `enrollmentService.getDevices()` y `hasSessionKey()`
-- Bypasea Access Gateway creando path de validacion paralelo
-- Contribuye al bug de multiples usuarios en mismo dispositivo
+- `checkEnrollmentStatus()` revisa sessionStorage **localmente**
+- NO consulta `/api/access/state` con `deviceFingerprint`
+- NO valida que el dispositivo actual pertenece al usuario logueado
+- Usuario B puede reutilizar session_key de usuario A sin revalidación
+
+**Arquitectura objetivo (según spec-architecture.md y spec-qr-validation.md):**
+
+```
+qr-reader.checkEnrollmentStatus()
+  ↓
+1. Generar deviceFingerprint (DeviceFingerprintGenerator)
+2. GET /api/access/state?deviceFingerprint={fingerprint}
+3. Switch según state:
+   - NOT_ENROLLED → window.location.href = '/features/enrollment/'
+   - ENROLLED_NO_SESSION → window.location.href = '/features/enrollment/'
+   - READY → showScannerUI()
+   - BLOCKED → showBlockedMessage()
+```
+
+**Archivos afectados:**
+
+- `frontend/features/qr-reader/main.ts` (método `checkEnrollmentStatus()`)
+- `frontend/features/qr-reader/index.html` (eliminar secciones enrollment/login inline si existen)
 
 **Flujo Git:**
 
@@ -310,21 +395,41 @@ Access Gateway → EnrollmentFlowOrchestrator.attemptAccess(userId, deviceFinger
 **Tareas:**
 
 - [ ] Verificar estado del repositorio: `git status`
-
-- [ ] Copiar `AccessService` de enrollment/ a shared/services/
-- [ ] Reemplazar logica de inferencia con `accessService.getState()`
-- [ ] Si `state !== READY`: redirigir a enrollment feature
-- [ ] Eliminar imports de EnrollmentService, LoginService
-- [ ] Eliminar variable hasSessionKey como condicion
-- [ ] Verificar que deviceFingerprint se envia correctamente a Access Gateway
+- [ ] Crear rama: `git checkout -b fase-21.2-qr-reader-access-gateway`
+- [ ] Verificar que `AccessService` ya existe en `shared/services/enrollment/` (creado en 21.1)
+- [ ] Modificar `qr-reader/main.ts`:
+  - [ ] Importar `AccessService` desde `shared/services/enrollment/`
+  - [ ] En `checkEnrollmentStatus()`: eliminar lógica local de `hasSessionKey()`
+  - [ ] Generar `deviceFingerprint` con `DeviceFingerprintGenerator.generate()`
+  - [ ] Llamar a `accessService.getState(deviceFingerprint)`
+  - [ ] Switch según `state`:
+    * `NOT_ENROLLED` o `ENROLLED_NO_SESSION` → `window.location.href = '/features/enrollment/'`
+    * `READY` → `showReadyState()` (permitir registro)
+    * `BLOCKED` → `showBlockedMessage(state.message)`
+  - [ ] Eliminar métodos `showEnrollmentSection()`, `showLoginSection()` (ya no necesarios)
+  - [ ] Eliminar imports de `EnrollmentService`, `LoginService` (ya no usados)
+- [ ] Modificar `qr-reader/index.html` (si aplica):
+  - [ ] Eliminar `<div id="enrollment-section">` si existe
+  - [ ] Eliminar `<div id="login-section">` si existe
+  - [ ] Simplificar UI: solo sección de registro/escaneo
 - [ ] Verificar compilacion: `podman exec asistencia-node npm run build`
 - [ ] Verificar tests: `podman exec asistencia-node npm run test`
-- [ ] Probar flujo completo manualmente
+- [ ] Probar flujo completo manualmente:
+  - [ ] Usuario A enrolla y registra asistencia (OK)
+  - [ ] Usuario B abre qr-reader en mismo dispositivo → redirige a enrollment (OK)
+  - [ ] Usuario B enrolla → desenrola a usuario A automáticamente (verificar con 21.2.1)
+  - [ ] Usuario B registra asistencia exitosamente (OK)
 - [ ] Commit atomico con mensaje descriptivo
 
-**Dependencias:** Requiere 21.1.2 completada (Access Gateway con orchestrator).
+**Dependencias:** 
+- Requiere 21.1.2 completada (Access Gateway con orchestrator)
+- Requiere 21.1.3 completada (revocación automática en backend)
 
-**Criterio de exito:** qr-reader no importa de enrollment/, delega toda validacion a Access Gateway, no tiene logica local de estado.
+**Criterio de exito:** 
+- qr-reader **NO tiene lógica de enrollment propia**
+- qr-reader **SIEMPRE** consulta Access Gateway antes de permitir escaneo
+- qr-reader redirige a `/features/enrollment/` si estado no es `READY`
+- Flujo manual: Usuario B en dispositivo de Usuario A → forzado a re-enrollar → Usuario A desenrolado
 
 ---
 
