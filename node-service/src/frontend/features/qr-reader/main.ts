@@ -115,11 +115,12 @@ class QRReaderApplication {
     // Iniciar autenticacion
     this.authClient.initialize();
 
-    if (this.authClient.isUserAuthenticated()) {
-      this.handleAuthReady();
-    } else {
-      this.authClient.onAuthenticated(() => this.handleAuthReady());
-    }
+    // SIEMPRE esperar al evento AUTH_TOKEN del host PHP.
+    // El sessionStorage puede tener un token obsoleto de otro usuario.
+    // El host PHP enviará el token del usuario ACTUAL via postMessage.
+    // El callback se dispara cuando llega AUTH_TOKEN, momento en que
+    // AuthClient ya habrá detectado cambio de usuario y limpiado el estado anterior.
+    this.authClient.onAuthenticated(() => this.handleAuthReady());
 
     // Registrar helpers de debug en desarrollo
     if (import.meta.env.DEV) {
