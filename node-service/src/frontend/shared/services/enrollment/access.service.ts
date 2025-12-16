@@ -162,8 +162,11 @@ export class DeviceFingerprintGenerator {
  */
 export class AccessService {
   private readonly baseUrl: string;
+  private readonly getAuthToken?: () => string | null;
 
-  constructor(baseUrl?: string) {
+  constructor(getAuthToken?: () => string | null, baseUrl?: string) {
+    this.getAuthToken = getAuthToken;
+    
     if (baseUrl) {
       this.baseUrl = baseUrl;
     } else {
@@ -197,12 +200,20 @@ export class AccessService {
       const url = new URL(`${this.baseUrl}/state`, window.location.origin);
       url.searchParams.set('deviceFingerprint', deviceFingerprint);
 
+      // Obtener token de autenticación si está disponible
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      
+      const token = this.getAuthToken?.();
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const response = await fetch(url.toString(), {
         method: 'GET',
         credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
       });
 
       if (!response.ok) {

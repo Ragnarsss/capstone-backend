@@ -53,7 +53,7 @@ class EnrollmentApplication {
     this.enrollmentService = new EnrollmentService();
     this.loginService = new LoginService(this.authClient);
     this.sessionKeyStore = new SessionKeyStore();
-    this.accessService = new AccessService();
+    this.accessService = new AccessService(() => this.authClient.getToken());
   }
 
   async initialize(): Promise<void> {

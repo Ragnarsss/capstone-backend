@@ -77,7 +77,7 @@ class QRReaderApplication {
     this.enrollmentService = new EnrollmentService();
     this.loginService = new LoginService(this.authClient);
     this.sessionKeyStore = new SessionKeyStore();
-    this.accessService = new AccessService();
+    this.accessService = new AccessService(() => this.authClient.getToken());
     const component = new CameraViewComponent();
     const cameraManager = new CameraManager('camera-feed');
     this.scanService = new QRScanService(component, cameraManager, this.authClient, this.attendanceApi);
