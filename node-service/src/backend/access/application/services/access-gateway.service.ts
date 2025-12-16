@@ -63,15 +63,15 @@ export class AccessGatewayService {
 
     if (enrollmentResult.result === AccessResult.REQUIRES_ENROLLMENT) {
       return {
-        state: 'NOT_ENROLLED',
-        action: 'enroll',
+        state: 'NOT_ENROLLED' as const,
+        action: 'enroll' as const,
       };
     }
 
     if (enrollmentResult.result === AccessResult.REQUIRES_REENROLLMENT) {
       return {
-        state: 'NOT_ENROLLED',
-        action: 'enroll',
+        state: 'NOT_ENROLLED' as const,
+        action: 'enroll' as const,
         message: 'Dispositivo ya esta registrado en otra sesion. Re-enrolement requerido.',
       };
     }
@@ -81,8 +81,8 @@ export class AccessGatewayService {
     const hasSession = await this.sessionQuery.hasActiveSession(userId);
     if (!hasSession) {
       return {
-        state: 'ENROLLED_NO_SESSION',
-        action: 'login',
+        state: 'ENROLLED_NO_SESSION' as const,
+        action: 'login' as const,
         device: enrollmentResult.device ? {
           credentialId: enrollmentResult.device.credentialId,
           deviceId: enrollmentResult.device.deviceId,
@@ -91,8 +91,8 @@ export class AccessGatewayService {
     }
 
     return {
-      state: 'READY',
-      action: 'scan',
+      state: 'READY' as const,
+      action: 'scan' as const,
       device: enrollmentResult.device ? {
         credentialId: enrollmentResult.device.credentialId,
         deviceId: enrollmentResult.device.deviceId,
