@@ -65,10 +65,11 @@ export async function registerSessionRoutes(fastify: FastifyInstance): Promise<v
             clientPublicKey: string;
           };
 
-          const userId = (request as unknown as { userId?: number }).userId;
-          if (!userId) {
+          const user = request.user;
+          if (!user) {
             return reply.code(401).send({ error: 'Unauthorized' });
           }
+          const userId = user.userId.toNumber();
 
           const result = await loginEcdhUseCase.execute({
             userId,
