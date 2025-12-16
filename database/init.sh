@@ -2,7 +2,7 @@
 # ============================================================================
 # Database Initialization Script
 # ============================================================================
-# Description: Executes all migration scripts in order for PostgreSQL
+# Description: Executes consolidated schema migration for PostgreSQL
 # Usage: Automatically executed by PostgreSQL container on first run
 # Location: Mounted in /docker-entrypoint-initdb.d/
 # ============================================================================
@@ -38,24 +38,24 @@ for migration in $(find "$MIGRATIONS_DIR" -name "*.sql" -type f | sort); do
     filename=$(basename "$migration")
 
     echo ""
-    echo "→ Executing: $filename"
+    echo "-> Executing: $filename"
 
     # Check if schema already exists (idempotency check)
-    if [[ "$filename" == *"initial-schema"* ]]; then
+    if [[ "$filename" == *"schema"* ]]; then
         SCHEMA_EXISTS=$(psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc \
             "SELECT COUNT(*) FROM information_schema.schemata WHERE schema_name IN ('enrollment', 'attendance');")
 
         if [ "$SCHEMA_EXISTS" -gt 0 ]; then
-            echo "  ⚠ Schemas already exist, skipping..."
+            echo "  WARNING: Schemas already exist, skipping..."
             continue
         fi
     fi
 
     # Execute the migration
     if psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f "$migration"; then
-        echo "  ✓ Success: $filename"
+        echo "  SUCCESS: $filename"
     else
-        echo "  ✗ FAILED: $filename"
+        echo "  FAILED: $filename"
         exit 1
     fi
 done
@@ -74,10 +74,10 @@ ATTENDANCE_EXISTS=$(psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc \
     "SELECT EXISTS(SELECT 1 FROM information_schema.schemata WHERE schema_name = 'attendance');")
 
 if [ "$ENROLLMENT_EXISTS" = "t" ] && [ "$ATTENDANCE_EXISTS" = "t" ]; then
-    echo "✓ Schema 'enrollment' created"
-    echo "✓ Schema 'attendance' created"
+    echo "OK: Schema 'enrollment' created"
+    echo "OK: Schema 'attendance' created"
 else
-    echo "⚠ WARNING: Some schemas may not have been created"
+    echo "WARNING: Some schemas may not have been created"
 fi
 
 echo ""
