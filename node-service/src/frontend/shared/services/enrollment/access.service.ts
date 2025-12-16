@@ -23,8 +23,17 @@ export interface AccessState {
 export class AccessService {
   private readonly baseUrl: string;
 
-  constructor(baseUrl = '/api/access') {
-    this.baseUrl = baseUrl;
+  constructor(baseUrl?: string) {
+    if (baseUrl) {
+      this.baseUrl = baseUrl;
+    } else {
+      // Auto-detectar si estamos embebidos en PHP o acceso directo a Node
+      const isEmbeddedInPhp =
+        window.location.port === '9500' ||
+        window.location.port === '9505' ||
+        window.location.port === '';
+      this.baseUrl = isEmbeddedInPhp ? '/minodo-api/access' : '/api/access';
+    }
   }
 
   /**
