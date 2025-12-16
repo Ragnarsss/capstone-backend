@@ -190,8 +190,8 @@ export class AccessService {
    */
   async getState(): Promise<AccessState> {
     try {
-      // Generar huella del dispositivo actual
-      const deviceFingerprint = DeviceFingerprintGenerator.generate();
+      // Generar huella del dispositivo actual (SHA-256 para consistencia con enrollment)
+      const deviceFingerprint = await DeviceFingerprintGenerator.generateAsync();
 
       // Pasar deviceFingerprint al servidor para validacion 1:1
       const url = new URL(`${this.baseUrl}/state`, window.location.origin);
