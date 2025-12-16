@@ -1,7 +1,7 @@
 # ROADMAP - Plan de Implementacion
 
 > Fuente de verdad para tareas pendientes.
-> Ultima actualizacion: 2025-12-14 (tareas de limpieza de indices agregadas a 19.2/19.3)
+> Ultima actualizacion: 2025-12-15 (fase 20.7 marcada como completada)
 
 ---
 
@@ -16,7 +16,7 @@
 | **19.1** | **shared/ports/ - Interfaces cross-domain** | COMPLETADA |
 | **19.2** | **session/ - Dominio Session** | COMPLETADA |
 | **19.3** | **restriction/ - Dominio Restriction** | COMPLETADA |
-| **20** | **Limpieza Legacy (7 subfases)** | PENDIENTE |
+| **20** | **Limpieza Legacy (7 subfases)** | COMPLETADA |
 | **21** | **Unificar Frontend** | PENDIENTE |
 | **22** | **Hardening Criptografico** | PENDIENTE |
 | **23** | **Puente PHP Produccion** | PENDIENTE |
@@ -378,17 +378,19 @@ backend/restriction/
 
 **Tareas:**
 
-- [ ] Eliminar re-export de SessionKeyRepository en enrollment/infrastructure/index.ts
-- [ ] Eliminar re-export de RestrictionService en enrollment/domain/services/index.ts
-- [ ] Eliminar re-export de RestrictionQueryAdapter en enrollment/infrastructure/adapters/index.ts
-- [ ] Eliminar enrollment/presentation/controllers/login-ecdh.controller.ts (codigo muerto, no usado en routes)
-- [ ] Limpiar enrollment/application/use-cases/index.ts (exports incorrectos de LoginEcdhUseCase)
-- [ ] Verificar compilacion: `npm run build`
-- [ ] Verificar tests: `npm run test`
+- [x] Eliminar re-export de SessionKeyRepository en enrollment/infrastructure/index.ts
+- [x] Eliminar re-export de RestrictionService en enrollment/domain/services/index.ts
+- [x] Eliminar re-export de RestrictionQueryAdapter en enrollment/infrastructure/adapters/index.ts
+- [x] Eliminar enrollment/presentation/controllers/login-ecdh.controller.ts (codigo muerto, no usado en routes)
+- [x] Limpiar enrollment/application/use-cases/index.ts (exports incorrectos de LoginEcdhUseCase)
+- [x] Verificar compilacion: `npm run build` (exitoso)
+- [x] Verificar tests: `npm run test` (134/134 passed)
 
 **Dependencias:** Requiere 20.5 completada (imports actualizados).
 
-**Criterio de exito:** Enrollment solo exporta sus propios componentes, no proxies de otros dominios.
+**Criterio de exito:** COMPLETADA - Enrollment solo exporta sus propios componentes, no proxies de otros dominios.
+
+**Nota:** Esta fase se completó implícitamente durante las fases 19.2 y 19.3 cuando se separaron los dominios session y restriction. Verificación realizada el 2025-12-15.
 
 ---
 
