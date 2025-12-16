@@ -1,7 +1,15 @@
 # ROADMAP - Plan de Implementacion
 
 > Fuente de verdad para tareas pendientes.
-> Ultima actualizacion: 2025-12-16 (agregadas fases 21.1.1, 24, 25)
+> Ultima actualizacion: 2025-12-16
+
+**Ultimo commit consolidado:** bf5c514 (Merge fase-21.1-shared-enrollment-services)
+
+**Estado actual del proyecto:**
+- Migraciones consolidadas en `001-schema.sql` v2.0.0
+- Servicios compartidos creados en `frontend/shared/services/enrollment/`
+- Branches consolidadas en main (ancla de seguridad establecida)
+- Archivos legacy de migraciones pendientes de eliminar (001-initial, 002, 003)
 
 ---
 
@@ -9,17 +17,13 @@
 
 | Fase | Descripcion | Estado |
 |------|-------------|--------|
-| 1-16 | Fundamentos, FIDO2, QR, Pipeline | COMPLETADA |
-| 17 | SoC Enrollment (automatas, policy) | COMPLETADA |
-| 18.0 | Access Gateway Backend | COMPLETADA |
-| 18.1 | Simplificar Frontend Enrollment | COMPLETADA |
-| **19.1** | **shared/ports/ - Interfaces cross-domain** | COMPLETADA |
-| **19.2** | **session/ - Dominio Session** | COMPLETADA |
-| **19.3** | **restriction/ - Dominio Restriction** | COMPLETADA |
-| **20** | **Limpieza Legacy (7 subfases)** | COMPLETADA |
+| 1-18 | Fundamentos, FIDO2, QR, Pipeline, SoC, Access Gateway | COMPLETADA |
+| 19-20 | Separacion Dominios y Limpieza Legacy | COMPLETADA |
 | **21.1** | **Servicios compartidos enrollment** | COMPLETADA |
-| **21.1.1** | **Fix: LoginService sin authClient** | PENDIENTE |
-| **21** | **Unificar Frontend** | EN PROGRESO |
+| **21.1.1** | **Fix: LoginService sin authClient** | COMPLETADA |
+| **21.1.2** | **Access Gateway con Orchestrator** | PENDIENTE |
+| **21.2** | **qr-reader usa Access Gateway** | PENDIENTE |
+| **21.3** | **Eliminar feature guest/** | PENDIENTE |
 | **22** | **Hardening Criptografico** | PENDIENTE |
 | **23** | **Puente PHP Produccion** | PENDIENTE |
 | **24** | **Infraestructura y Operaciones** | PENDIENTE |
@@ -36,365 +40,77 @@
 
 ---
 
-## Arquitectura Objetivo
+## Arquitectura Actual
 
 Ver `spec-architecture.md` para diagramas completos.
 
 ```
 backend/
-├── access/          # Gateway lectura (existe)
-├── attendance/      # Validacion QR (existe)
-├── auth/            # JWT (existe)
-├── enrollment/      # Solo FIDO2 devices (limpiar)
-├── session/         # ECDH login (CREAR)
-├── restriction/     # Stub PHP (CREAR)
-└── shared/
-    └── ports/       # Interfaces cross-domain (CREAR)
+├── access/          # Gateway lectura ✅
+├── attendance/      # Validacion QR ✅
+├── auth/            # JWT ✅
+├── enrollment/      # Solo FIDO2 devices ✅
+├── session/         # ECDH login ✅
+├── restriction/     # Stub PHP ✅
+└── shared/ports/    # Interfaces cross-domain ✅
 
 frontend/features/
-├── enrollment/      # UI registro (mantener)
-├── qr-reader/       # Lector (refactorizar)
-├── qr-host/         # Proyector (mantener)
-└── guest/           # ELIMINAR
+├── enrollment/      # UI registro ✅
+├── qr-reader/       # Lector (refactorizar - 21.2)
+├── qr-host/         # Proyector ✅
+└── guest/           # ELIMINAR (21.3)
 
-frontend/shared/
-└── services/
-    └── enrollment/  # Servicios unificados (CREAR)
+frontend/shared/services/enrollment/  # Servicios unificados ✅
 ```
 
 ---
 
-## Fase 19: Separacion de Dominios
+## Fases 1-18: Fundamentos del Sistema - COMPLETADAS
 
-**Objetivo:** Extraer Session y Restriction como dominios independientes.
-**Rama base:** `fase-19-domain-separation`
-**Modelo recomendado global:** Sonnet (tareas mecanicas de mover codigo)
+**Trabajo realizado:**
+
+- **Fases 1-16:** Sistema base con FIDO2, QR criptografico, pipeline de validacion
+- **Fase 17:** SoC Enrollment con automatas (EnrollmentFlowOrchestrator), OneToOnePolicyService
+- **Fase 18:** Access Gateway backend y simplificacion frontend
+
+**Arquitectura lograda:** Sistema funcional con enrollment FIDO2, validacion QR, y gateway de lectura.
 
 ---
 
-### 19.1: Crear shared/ports/ con interfaces cross-domain
+## Fases 19-20: Separacion de Dominios y Limpieza Legacy - COMPLETADAS
 
-**Rama:** `fase-19.1-shared-ports`
-**Modelo:** Sonnet
-**Dificultad:** Baja
+**Estado:** COMPLETADAS
+**Commits principales:** b208425, 0391c98, e9dc8e1, f21adc0, 2308b52, 7ce6b8f, c372c2f, 9bc38b5
 
-**Justificacion:** Las interfaces IDeviceQuery, ISessionQuery, IRestrictionQuery son usadas por Access Gateway pero estan en enrollment/. Deben estar en ubicacion neutral.
+**Trabajo realizado:**
 
-**Estructura a crear:**
+- **Fase 19:** Separacion de dominios session/ y restriction/ de enrollment/
+  - Creado `shared/ports/` con interfaces cross-domain (IDeviceQuery, ISessionQuery, IRestrictionQuery)
+  - Dominio `session/` con LoginEcdhUseCase, SessionStateMachine, SessionKeyRepository
+  - Dominio `restriction/` con RestrictionService (stub) y adapters
+  - Endpoint `POST /api/session/login` registrado
+  - Tests: 134/134 pasando
+
+- **Fase 20:** Limpieza de codigo legacy y endpoints obsoletos
+  - Eliminado endpoint `/api/enrollment/status`, reemplazado por `GET /api/enrollment/devices`
+  - Eliminados controllers duplicados y codigo muerto
+  - Access Gateway actualizado para importar desde session/ y restriction/
+  - Actualizado spec-qr-validation.md con endpoints correctos
+  - Eliminados re-exports legacy en enrollment/
+  - Compilacion y tests exitosos
+
+**Arquitectura resultante:**
 
 ```
-shared/ports/
-├── device-query.interface.ts
-├── session-query.interface.ts
-├── restriction-query.interface.ts
-└── index.ts
+backend/
+├── access/          # Gateway lectura (usa shared/ports/)
+├── session/         # ECDH login (POST /api/session/login)
+├── restriction/     # Stub PHP (listo para implementacion)
+├── enrollment/      # Solo FIDO2 devices (limpio)
+├── attendance/      # Validacion QR
+├── auth/            # JWT
+└── shared/ports/    # Interfaces cross-domain
 ```
-
-**Tareas:**
-
-- [x] Crear carpeta `node-service/src/backend/shared/ports/`
-- [x] Mover `enrollment/domain/interfaces/device-query.interface.ts` a `shared/ports/`
-- [x] Mover `enrollment/domain/interfaces/session-query.interface.ts` a `shared/ports/`
-- [x] Mover `enrollment/domain/interfaces/restriction-query.interface.ts` a `shared/ports/`
-- [x] Crear `shared/ports/index.ts` con exports
-- [x] Actualizar imports en `access/` para usar `shared/ports/`
-- [x] Actualizar imports en `enrollment/` para usar `shared/ports/`
-- [x] Eliminar `enrollment/domain/interfaces/` (carpeta vacia)
-- [x] Verificar tests: `npm run test` (134/134 passed)
-
-**Criterio de exito:** COMPLETADO - Tests pasando, imports apuntan a shared/ports.
-**Commit:** b208425
-
----
-
-### 19.2: Crear dominio Session
-
-**Rama:** `fase-19.2-session-domain`
-**Modelo:** Sonnet
-**Dificultad:** Media
-
-**Justificacion:** LoginEcdhUseCase, SessionStateMachine y SessionKeyRepository son logica de sesion, no de enrollment. Segun spec-architecture.md deben estar separados.
-
-**Estructura a crear:**
-
-```
-backend/session/
-├── application/
-│   └── use-cases/
-│       └── login-ecdh.use-case.ts
-├── domain/
-│   ├── state-machines/
-│   │   └── session-state-machine.ts
-│   └── models.ts (SessionState, SESSION_STATES)
-├── infrastructure/
-│   ├── repositories/
-│   │   └── session-key.repository.ts
-│   └── adapters/
-│       └── session-query.adapter.ts
-├── presentation/
-│   └── routes.ts
-└── session.module.ts
-```
-
-**Tareas:**
-
-- [x] Crear estructura de carpetas `backend/session/`
-- [x] Mover `enrollment/application/use-cases/login-ecdh.use-case.ts` a `session/application/use-cases/`
-- [x] Mover `enrollment/domain/state-machines/session-state-machine.ts` a `session/domain/state-machines/`
-- [x] Extraer `SessionState` y `SESSION_STATES` de `enrollment/domain/models.ts` a `session/domain/models.ts`
-- [x] Mover `enrollment/infrastructure/session-key.repository.ts` a `session/infrastructure/repositories/`
-- [x] Mover `enrollment/infrastructure/adapters/session-query.adapter.ts` a `session/infrastructure/adapters/`
-- [x] Crear `session/presentation/routes.ts` con `POST /api/session/login`
-- [x] Crear `session/session.module.ts` para registro DI
-- [x] Actualizar `enrollment/domain/models.ts` para NO exportar SessionState
-- [x] Actualizar `enrollment/presentation/routes.ts` para NO registrar /login
-- [x] Registrar session.module en `app.ts`
-- [x] Actualizar imports en attendance/ y tests
-- [x] Actualizar enrollment/infrastructure/adapters/index.ts (eliminar export de SessionQueryAdapter)
-- [x] Actualizar enrollment/infrastructure/index.ts (eliminar export de SessionKeyRepository)
-- [x] Actualizar enrollment/domain/state-machines/index.ts (eliminar export de SessionStateMachine)
-- [x] Actualizar enrollment/application/use-cases/index.ts (eliminar export de LoginEcdhUseCase)
-- [x] Verificar tests: `npm run test` (134/134 passed)
-
-**Dependencias:** Requiere 19.1 completada (shared/ports).
-
-**Criterio de exito:** COMPLETADO - Endpoint `POST /api/session/login` registrado, tests pasando, indices de enrollment limpios.
-**Commits:** 0391c98, e9dc8e1, f21adc0
-
----
-
-### 19.3: Crear dominio Restriction
-
-**Rama:** `fase-19.3-restriction-domain`
-**Modelo:** Sonnet
-**Dificultad:** Baja
-
-**Justificacion:** RestrictionService es un stub para integracion futura con PHP. Debe tener su propio dominio para cuando se implemente.
-
-**Estructura a crear:**
-
-```
-backend/restriction/
-├── application/
-│   └── services/
-│       └── restriction.service.ts (stub)
-├── domain/
-│   └── models.ts (RestrictionResult)
-├── infrastructure/
-│   └── adapters/
-│       └── restriction-query.adapter.ts
-└── restriction.module.ts
-```
-
-**Tareas:**
-
-- [x] Crear estructura de carpetas `backend/restriction/`
-- [x] Mover `enrollment/domain/services/restriction.service.ts` a `restriction/application/services/`
-- [x] Crear `restriction/domain/models.ts` con tipo RestrictionResult
-- [x] Mover `enrollment/infrastructure/adapters/restriction-query.adapter.ts` a `restriction/infrastructure/adapters/`
-- [x] Crear `restriction/restriction.module.ts` para registro DI
-- [x] Registrar restriction.module en `app.ts`
-- [x] Actualizar imports en enrollment/domain/services/
-- [x] Actualizar enrollment/infrastructure/adapters/index.ts (eliminar export de RestrictionQueryAdapter)
-- [x] Actualizar enrollment/domain/services/index.ts (eliminar re-export de RestrictionService)
-- [x] Verificar tests: `npm run test` (134/134 passed)
-
-**Dependencias:** Requiere 19.1 completada (shared/ports).
-
-**Criterio de exito:** COMPLETADO - Tests pasando, dominio restriction independiente, indices de enrollment limpios.
-**Commits:** 2308b52, 7ce6b8f, f21adc0
-
----
-
-## Fase 20: Limpieza Legacy
-
-**Objetivo:** Eliminar codigo legacy y endpoints obsoletos.
-**Rama base:** `fase-20-cleanup-legacy`
-**Modelo recomendado global:** Sonnet
-
----
-
-### 20.1: Eliminar endpoint /api/enrollment/status
-
-**Rama:** `fase-20.1-remove-enrollment-status`
-**Modelo:** Sonnet
-**Dificultad:** Baja
-
-**Justificacion:** Access Gateway (`GET /api/access/state`) reemplaza este endpoint. Ya no hay consumidores.
-
-**Archivos a eliminar:**
-
-- `enrollment/application/use-cases/get-enrollment-status.use-case.ts`
-- `enrollment/presentation/controllers/enrollment-status.controller.ts`
-
-**Tareas:**
-
-- [x] Verificar que frontend usa `getStatus()` (encontrado en enrollment, qr-reader, guest)
-- [x] Crear `GetDevicesUseCase` para reemplazar funcionalidad
-- [x] Crear endpoint `GET /api/enrollment/devices`
-- [x] Actualizar frontend para usar `/devices`
-- [x] Eliminar `GetEnrollmentStatusUseCase`
-- [x] Eliminar `EnrollmentStatusController`
-- [x] Remover ruta `/status` de `enrollment/presentation/routes.ts`
-- [x] Remover export de `enrollment/application/use-cases/index.ts`
-- [x] Eliminar codigo legacy: `enrollment.service.ts`, `enrollment-controller.ts`
-- [x] Mover `LoginEcdhController` a session domain
-- [x] Verificar compilacion: `npm run build` (exitoso)
-- [x] Verificar tests: `npm run test` (134/134 passed)
-
-**Criterio de exito:** COMPLETADO - Endpoint `/devices` funcional, `/status` eliminado.
-**Commit:** c372c2f
-
-**Nota:** Fases 20.1 y 20.2 combinadas en un solo commit para mantener funcionalidad.
-
----
-
-### 20.2: Crear endpoint /api/enrollment/devices
-
-**Rama:** `fase-20.2-devices-endpoint` (combinada con 20.1)
-**Modelo:** Sonnet
-**Dificultad:** Baja
-
-**Justificacion:** El frontend necesita listar dispositivos para UI de revocacion. Este endpoint reemplaza la parte de listado de /status.
-
-**Tareas:**
-
-- [x] Crear `GetDevicesUseCase` en `enrollment/application/use-cases/`
-- [x] Crear ruta `GET /api/enrollment/devices` en routes.ts
-- [x] Actualizar `loadDevicesList()` en frontend para usar nuevo endpoint
-- [x] Actualizar qr-reader y guest modules
-- [x] Verificar compilacion y tests
-
-**Criterio de exito:** COMPLETADO - UI muestra lista de dispositivos correctamente.
-**Commit:** c372c2f (mismo que 20.1)
-
----
-
-### 20.3: Eliminar controller legacy
-
-**Rama:** `fase-20.3-remove-legacy-controller` (combinada con 20.1)
-**Modelo:** Sonnet
-**Dificultad:** Baja
-
-**Justificacion:** `enrollment-controller.ts` duplica rutas ya definidas en routes.ts.
-
-**Tareas:**
-
-- [x] Verificar que `routes.ts` tiene todas las rutas necesarias
-- [x] Eliminar `enrollment/presentation/enrollment-controller.ts`
-- [x] Eliminar `enrollment/application/enrollment.service.ts`
-- [x] Verificar compilacion: `npm run build` (exitoso)
-
-**Criterio de exito:** COMPLETADO - No hay controllers duplicados.
-**Commit:** c372c2f (mismo que 20.1)
-
----
-
-### 20.4: Limpiar codigo muerto en enrollment
-
-**Rama:** `fase-20.4-cleanup-dead-code`
-**Modelo:** Sonnet
-**Dificultad:** Baja
-
-**Estado:** N/A - Fase mal planteada, no hay codigo muerto
-
-**Analisis realizado:**
-
-- [x] `PenaltyService` - SI se usa activamente (16 referencias en controllers, routes, use cases)
-- [x] `EnrollmentStateMachine` - NO existe como archivo, solo es nombre de bloque de test
-- [x] `enrollment.service.ts` - Ya eliminado en fase 20.1-20.3
-
-**Criterio de exito:** N/A - No hay codigo muerto que eliminar.
-
----
-
-### 20.5: Actualizar imports en Access Gateway
-
-**Rama:** `fase-20.5-fix-access-imports`
-**Modelo:** Sonnet
-**Dificultad:** Baja
-
-**Estado:** COMPLETADA en fase 20.1 (commit c372c2f)
-
-**Justificacion:** Access Gateway importa SessionQueryAdapter, SessionKeyRepository y RestrictionService desde enrollment/ cuando deben importarse desde session/ y restriction/ respectivamente. Esto viola SoC y mantiene acoplamiento innecesario.
-
-**Archivos modificados:**
-
-- `backend/access/presentation/routes.ts`
-
-**Tareas:**
-
-- [x] Actualizar import de SessionQueryAdapter: desde session/infrastructure/adapters/
-- [x] Actualizar import de SessionKeyRepository: desde session/infrastructure/repositories/
-- [x] Actualizar import de RestrictionQueryAdapter: desde restriction/infrastructure/adapters/
-- [x] Actualizar import de RestrictionService: desde restriction/application/services/
-- [x] Verificar compilacion: `npm run build`
-- [x] Verificar tests: `npm run test` (134/134 passed)
-
-**Dependencias:** Requiere 19.2 y 19.3 completadas.
-
-**Criterio de exito:** COMPLETADO - Access Gateway importa directamente desde dominios session/ y restriction/.
-**Commit:** c372c2f (mismo que 20.1-20.3)
-
----
-
-### 20.6: Actualizar spec-qr-validation.md
-
-**Rama:** `fase-20.6-update-spec-qr`
-**Modelo:** Sonnet
-**Dificultad:** Trivial
-
-**Justificacion:** spec-qr-validation.md menciona endpoints que no existen o tienen rutas incorrectas, causando confusion al consultar la documentacion.
-
-**Archivos a modificar:**
-
-- `spec-qr-validation.md`
-- `spec-architecture.md`
-
-**Tareas:**
-
-- [x] Linea 42: Reemplazar `POST /api/enrollment/flow/check` con `GET /api/access/state`
-- [x] Linea 24: Actualizar referencia `/api/enrollment/login` a `/api/session/login`
-- [x] Linea 62: Actualizar a `POST /asistencia/api/attendance/register`
-- [x] Linea 126: Actualizar a `POST /api/attendance/validate`
-- [x] Linea 282: Actualizar referencia de login ECDH a `/api/session/login`
-- [x] Verificar spec-architecture.md (sin cambios necesarios)
-
-**Criterio de exito:** COMPLETADO - spec-qr-validation.md refleja endpoints reales implementados.
-**Commit:** 9bc38b5
-
----
-
-### 20.7: Eliminar re-exports legacy en enrollment
-
-**Rama:** `fase-20.7-remove-reexports`
-**Modelo:** Sonnet
-**Dificultad:** Baja
-
-**Justificacion:** Enrollment todavia re-exporta componentes de session/ y restriction/ para backward compatibility temporal. Con 20.5 completada, estos re-exports causan confusion y deben eliminarse.
-
-**Archivos a modificar:**
-
-- `enrollment/infrastructure/index.ts`
-- `enrollment/domain/services/index.ts`
-- `enrollment/infrastructure/adapters/index.ts`
-- `enrollment/presentation/controllers/` (LoginEcdhController - codigo muerto)
-
-**Tareas:**
-
-- [x] Eliminar re-export de SessionKeyRepository en enrollment/infrastructure/index.ts
-- [x] Eliminar re-export de RestrictionService en enrollment/domain/services/index.ts
-- [x] Eliminar re-export de RestrictionQueryAdapter en enrollment/infrastructure/adapters/index.ts
-- [x] Eliminar enrollment/presentation/controllers/login-ecdh.controller.ts (codigo muerto, no usado en routes)
-- [x] Limpiar enrollment/application/use-cases/index.ts (exports incorrectos de LoginEcdhUseCase)
-- [x] Verificar compilacion: `npm run build` (exitoso)
-- [x] Verificar tests: `npm run test` (134/134 passed)
-
-**Dependencias:** Requiere 20.5 completada (imports actualizados).
-
-**Criterio de exito:** COMPLETADA - Enrollment solo exporta sus propios componentes, no proxies de otros dominios.
-
-**Nota:** Esta fase se completó implícitamente durante las fases 19.2 y 19.3 cuando se separaron los dominios session y restriction. Verificación realizada el 2025-12-15.
 
 ---
 
@@ -491,20 +207,80 @@ this.loginService = new LoginService(this.authClient);  // CORRECTO: Con authCli
 
 **Tareas:**
 
-- [ ] Verificar estado del repositorio: `git status`
-- [ ] Crear rama de trabajo desde rama base
-- [ ] Modificar `enrollment/main.ts`: cambiar `new LoginService()` a `new LoginService(this.authClient)`
-- [ ] Modificar `qr-reader/main.ts`: cambiar `new LoginService()` a `new LoginService(this.authClient)`
-- [ ] Verificar compilacion (dentro del contenedor): `podman exec asistencia-node npm run build`
-- [ ] Verificar tests (dentro del contenedor): `podman exec asistencia-node npm run test`
-- [ ] Probar flujo manualmente en navegador (login ECDH debe funcionar)
-- [ ] Commit con mensaje descriptivo
+- [x] Verificar estado del repositorio: `git status`
+- [x] Crear rama de trabajo: `git checkout -b fase-21.1.1-fix-login-service-authclient`
+- [x] Modificar `enrollment/main.ts`: cambiar `new LoginService()` a `new LoginService(this.authClient)`
+- [x] Modificar `qr-reader/main.ts`: cambiar `new LoginService()` a `new LoginService(this.authClient)`
+- [x] Verificar compilacion: `npm run build` (exitoso)
+- [x] Verificar tests: `npm run test` (134/134 passed)
+- [ ] Probar flujo manualmente en navegador (pendiente validacion usuario)
+- [x] Commit con mensaje descriptivo
 
-**Dependencias:** Requiere 21.1 completada.
+**Dependencias:** Requiere 21.1 completada (YA COMPLETADA).
 
-**Nota:** Todos los comandos npm DEBEN ejecutarse dentro del contenedor. El host NO tiene npm instalado (ver PROJECT-CONSTITUTION.md Art. 3.2).
+**Criterio de exito:** COMPLETADA - El boton "Iniciar Sesion" en enrollment debe ejecutar login ECDH exitosamente sin error "No se encontró token de autenticación".
 
-**Criterio de exito:** El boton "Iniciar Sesion" en enrollment ejecuta login ECDH exitosamente sin error "No se encontró token de autenticación".
+**Commit:** bb0d90a
+
+---
+
+### 21.1.2: Refactorizar Access Gateway para usar EnrollmentFlowOrchestrator
+
+**Rama:** `fase-21.1.2-access-gateway-orchestrator`
+**Modelo:** Opus
+**Dificultad:** Alta
+**Recordatorio:** Comandos npm DEBEN ejecutarse dentro del contenedor Node (PROJECT-CONSTITUTION.md Art. 3.2)
+
+**Justificacion:** Access Gateway tiene validacion manual que duplica logica del automata EnrollmentFlowOrchestrator. Esto causa bug critico donde multiples usuarios en el mismo dispositivo NO son detectados porque Access Gateway no valida deviceFingerprint (politica 1:1). El orchestrator YA implementa el automata completo con validacion de deviceFingerprint pero NO se esta usando.
+
+**Problema actual:**
+
+- Access Gateway hace queries directas sin validar deviceFingerprint
+- EnrollmentFlowOrchestrator.attemptAccess() existe pero no se llama
+- Bug: Multiples usuarios en mismo dispositivo bypasean enrollment
+
+**Arquitectura objetivo:**
+
+```
+Access Gateway → EnrollmentFlowOrchestrator.attemptAccess(userId, deviceFingerprint)
+                 ↓
+                 ACCESS_GRANTED | REQUIRES_ENROLLMENT | REQUIRES_REENROLLMENT
+```
+
+**Archivos afectados:**
+
+- `backend/access/application/services/access-gateway.service.ts`
+- `backend/access/presentation/routes.ts` (agregar deviceFingerprint a request)
+- `frontend/shared/services/access.service.ts` (enviar deviceFingerprint)
+
+**Flujo Git:**
+
+1. Verificar estado: `git status`
+2. Crear rama: `git checkout -b fase-21.1.2-access-gateway-orchestrator`
+3. Realizar cambios atomicos
+4. Commit: `git commit -m "refactor(access): integrar EnrollmentFlowOrchestrator para validacion 1:1"`
+5. Merge a main preservando ultimos 4 commits sin mergear (daRulez.md regla 35)
+
+**Tareas:**
+
+- [ ] Agregar EnrollmentFlowOrchestrator como dependencia de Access Gateway
+- [ ] Modificar `getState()` para recibir deviceFingerprint como parametro
+- [ ] Reemplazar query manual `deviceQuery.getActiveDevice()` con `orchestrator.attemptAccess()`
+- [ ] Mapear resultados del orchestrator a estados del Gateway:
+  - `ACCESS_GRANTED` → verificar sesion → `READY` o `ENROLLED_NO_SESSION`
+  - `REQUIRES_ENROLLMENT` → `NOT_ENROLLED`
+  - `REQUIRES_REENROLLMENT` → `NOT_ENROLLED` (forzar reenrolamiento)
+- [ ] Actualizar ruta `GET /api/access/state` para recibir deviceFingerprint en query params
+- [ ] Actualizar AccessService frontend para generar y enviar deviceFingerprint
+- [ ] Actualizar tests de Access Gateway para verificar integracion con orchestrator
+- [ ] Verificar tests: `podman exec asistencia-node npm run test`
+- [ ] Verificar compilacion: `podman exec asistencia-node npm run build`
+- [ ] Probar flujo completo: mismo usuario en dos dispositivos debe requerir reenrolamiento
+- [ ] Commit atomico con mensaje descriptivo
+
+**Dependencias:** Requiere 21.1.1 completada (LoginService fix).
+
+**Criterio de exito:** Access Gateway usa orchestrator, multiples usuarios en mismo dispositivo son detectados y bloqueados correctamente.
 
 ---
 
@@ -513,45 +289,42 @@ this.loginService = new LoginService(this.authClient);  // CORRECTO: Con authCli
 **Rama:** `fase-21.2-qr-reader-access-gateway`
 **Modelo:** Sonnet
 **Dificultad:** Media
+**Recordatorio:** Comandos npm DEBEN ejecutarse dentro del contenedor Node (PROJECT-CONSTITUTION.md Art. 3.2)
 
-**Justificacion:** qr-reader importa directamente de enrollment/ (cross-feature) y tiene logica de inferencia legacy.
+**Justificacion:** qr-reader importa directamente de enrollment/ (cross-feature) y tiene logica de inferencia legacy que bypasea Access Gateway. Debe delegarse completamente al Gateway.
 
-**Archivo:** `frontend/features/qr-reader/main.ts`
+**Problema actual:**
 
-**Antes (lineas 27-30):**
-
-```typescript
-import { EnrollmentService } from '../enrollment/services/enrollment.service';
-import { LoginService } from '../enrollment/services/login.service';
-```
-
-**Despues:**
-
-```typescript
-import { AccessService } from '../../shared/services/access.service';
-```
+- qr-reader hace verificacion local con `enrollmentService.getDevices()` y `hasSessionKey()`
+- Bypasea Access Gateway creando path de validacion paralelo
+- Contribuye al bug de multiples usuarios en mismo dispositivo
 
 **Flujo Git:**
 
 1. Verificar estado: `git status`
 2. Crear rama: `git checkout -b fase-21.2-qr-reader-access-gateway`
-3. Realizar refactorizacion
-4. Commit: `git commit -m "refactor(qr-reader): usar Access Gateway en lugar de inferencia local"`
+3. Realizar cambios atomicos
+4. Commit: `git commit -m "refactor(qr-reader): delegar validacion a Access Gateway"`
+5. Merge a main preservando ultimos 4 commits sin mergear (daRulez.md regla 35)
 
 **Tareas:**
 
 - [ ] Verificar estado del repositorio: `git status`
+
 - [ ] Copiar `AccessService` de enrollment/ a shared/services/
 - [ ] Reemplazar logica de inferencia con `accessService.getState()`
 - [ ] Si `state !== READY`: redirigir a enrollment feature
 - [ ] Eliminar imports de EnrollmentService, LoginService
 - [ ] Eliminar variable hasSessionKey como condicion
+- [ ] Verificar que deviceFingerprint se envia correctamente a Access Gateway
 - [ ] Verificar compilacion: `podman exec asistencia-node npm run build`
 - [ ] Verificar tests: `podman exec asistencia-node npm run test`
-- [ ] Verificar flujo manualmente en navegador
-- [ ] Commit con mensaje descriptivo
+- [ ] Probar flujo completo manualmente
+- [ ] Commit atomico con mensaje descriptivo
 
-**Criterio de exito:** qr-reader no importa de enrollment/, usa Access Gateway.
+**Dependencias:** Requiere 21.1.2 completada (Access Gateway con orchestrator).
+
+**Criterio de exito:** qr-reader no importa de enrollment/, delega toda validacion a Access Gateway, no tiene logica local de estado.
 
 ---
 
@@ -560,6 +333,7 @@ import { AccessService } from '../../shared/services/access.service';
 **Rama:** `fase-21.3-remove-guest`
 **Modelo:** Opus
 **Dificultad:** Alta
+**Recordatorio:** Comandos npm DEBEN ejecutarse dentro del contenedor Node (PROJECT-CONSTITUTION.md Art. 3.2)
 
 **Justificacion:** guest/ reimplementa la state machine completa. Con Access Gateway, enrollment/ puede hacer todo.
 
@@ -575,6 +349,7 @@ import { AccessService } from '../../shared/services/access.service';
 2. Crear rama: `git checkout -b fase-21.3-remove-guest`
 3. Migrar funcionalidad necesaria, eliminar guest/
 4. Commit: `git commit -m "refactor(frontend): eliminar feature guest/, unificar en enrollment/"`
+5. Merge a main preservando ultimos 4 commits sin mergear (daRulez.md regla 35)
 
 **Tareas:**
 
@@ -600,8 +375,7 @@ import { AccessService } from '../../shared/services/access.service';
 **Objetivo:** Completar validaciones de seguridad pendientes.
 **Rama base:** `fase-22-hardening`
 **Modelo recomendado global:** Opus (seguridad requiere razonamiento cuidadoso)
-
-**Recordatorio de entorno:** Todos los comandos npm DEBEN ejecutarse dentro del contenedor Node. El host NO tiene npm instalado (PROJECT-CONSTITUTION.md Art. 3.2).
+**Recordatorio:** Comandos npm DEBEN ejecutarse dentro del contenedor Node (PROJECT-CONSTITUTION.md Art. 3.2)
 
 ---
 
@@ -621,6 +395,7 @@ import { AccessService } from '../../shared/services/access.service';
 2. Crear rama: `git checkout -b fase-22.1-totp-validation`
 3. Implementar stage de validacion
 4. Commit: `git commit -m "feat(attendance): agregar validacion de TOTPu en pipeline"`
+5. Merge a main preservando ultimos 4 commits sin mergear (daRulez.md regla 35)
 
 **Tareas:**
 
@@ -655,6 +430,7 @@ import { AccessService } from '../../shared/services/access.service';
 2. Crear rama: `git checkout -b fase-22.2-session-binding`
 3. Implementar binding
 4. Commit: `git commit -m "feat(session): agregar binding de session_key con credentialId"`
+5. Merge a main preservando ultimos 4 commits sin mergear (daRulez.md regla 35)
 
 **Tareas:**
 
@@ -689,6 +465,7 @@ import { AccessService } from '../../shared/services/access.service';
 2. Crear rama: `git checkout -b fase-22.3-aaguid-validation`
 3. Implementar extraccion y almacenamiento
 4. Commit: `git commit -m "feat(enrollment): extraer y almacenar AAGUID de dispositivo"`
+5. Merge a main preservando ultimos 4 commits sin mergear (daRulez.md regla 35)
 
 **Tareas:**
 
@@ -709,8 +486,7 @@ import { AccessService } from '../../shared/services/access.service';
 **Objetivo:** Integrar con el sistema PHP existente para produccion.
 **Rama base:** `fase-23-php-bridge`
 **Modelo recomendado global:** Sonnet (integracion bien definida)
-
-**Recordatorio de entorno:** Todos los comandos npm DEBEN ejecutarse dentro del contenedor Node. El host NO tiene npm instalado (PROJECT-CONSTITUTION.md Art. 3.2).
+**Recordatorio:** Comandos npm DEBEN ejecutarse dentro del contenedor Node (PROJECT-CONSTITUTION.md Art. 3.2)
 
 ---
 
@@ -735,6 +511,7 @@ backend/attendance/presentation/routes/
 2. Crear rama: `git checkout -b fase-23.1-internal-attendance`
 3. Implementar endpoint
 4. Commit: `git commit -m "feat(attendance): agregar endpoint interno para marcar asistencia"`
+5. Merge a main preservando ultimos 4 commits sin mergear (daRulez.md regla 35)
 
 **Tareas:**
 
@@ -765,6 +542,7 @@ backend/attendance/presentation/routes/
 2. Crear rama: `git checkout -b fase-23.2-php-controller`
 3. Implementar controller PHP
 4. Commit: `git commit -m "feat(php): agregar controller para recibir asistencia de Node"`
+5. Merge a main preservando ultimos 4 commits sin mergear (daRulez.md regla 35)
 
 **Tareas:**
 
@@ -795,6 +573,7 @@ backend/attendance/presentation/routes/
 2. Crear rama: `git checkout -b fase-23.3-survey`
 3. Implementar componente de encuesta
 4. Commit: `git commit -m "feat(frontend): agregar componente de encuesta post-validacion"`
+5. Merge a main preservando ultimos 4 commits sin mergear (daRulez.md regla 35)
 
 **Tareas:**
 
@@ -824,6 +603,7 @@ backend/attendance/presentation/routes/
 2. Crear rama: `git checkout -b fase-23.4-parent-notification`
 3. Implementar postMessage
 4. Commit: `git commit -m "feat(frontend): agregar notificacion postMessage al parent PHP"`
+5. Merge a main preservando ultimos 4 commits sin mergear (daRulez.md regla 35)
 
 **Tareas:**
 
@@ -844,8 +624,7 @@ backend/attendance/presentation/routes/
 **Objetivo:** Preparar el sistema para despliegue en produccion con configuracion robusta.
 **Rama base:** `fase-24-infrastructure`
 **Modelo recomendado global:** Sonnet (tareas de configuracion bien definidas)
-
-**Recordatorio de entorno:** Todos los comandos npm DEBEN ejecutarse dentro del contenedor Node. El host NO tiene npm instalado (PROJECT-CONSTITUTION.md Art. 3.2).
+**Recordatorio:** Comandos npm DEBEN ejecutarse dentro del contenedor Node (PROJECT-CONSTITUTION.md Art. 3.2)
 
 ---
 
@@ -879,12 +658,15 @@ backend/attendance/presentation/routes/
 2. Crear rama: `git checkout -b fase-24.1-consolidate-migrations`
 3. Eliminar archivos obsoletos
 4. Commit: `git commit -m "refactor(database): consolidar migraciones en 001-schema.sql"`
+5. Merge a main preservando ultimos 4 commits sin mergear (daRulez.md regla 35)
 
 **Tareas:**
 
-- [ ] Verificar estado del repositorio: `git status`
-- [x] Crear `database/migrations/001-schema.sql` consolidado (HECHO)
-- [x] Actualizar `database/init.sh` sin emoticones (HECHO)
+- [x] Verificar estado del repositorio: `git status`
+- [x] Crear `database/migrations/001-schema.sql` consolidado v2.0.0
+- [x] Actualizar `database/init.sh` sin emoticones
+- [x] Actualizar `database/README.md` documentando consolidacion
+- [x] Actualizar `db-schema.md` con columnas faltantes (transports, status)
 - [ ] Eliminar `database/migrations/001-initial-schema.sql`
 - [ ] Eliminar `database/migrations/002-add-transports.sql`
 - [ ] Eliminar `database/migrations/003-add-enrollment-status.sql`
@@ -893,8 +675,9 @@ backend/attendance/presentation/routes/
 - [ ] Recrear contenedores: `podman compose -f compose.dev.yaml up -d`
 - [ ] Verificar tablas: `podman exec asistencia-db psql -U postgres -d asistencia -c '\dt enrollment.*'`
 - [ ] Verificar columnas: `podman exec asistencia-db psql -U postgres -d asistencia -c '\d enrollment.devices'`
-- [ ] Crear `database/README.md` documentando el proceso
-- [ ] Commit con mensaje descriptivo
+- [ ] Commit eliminacion de archivos legacy
+
+**Estado:** PARCIALMENTE COMPLETADA - Archivos consolidados creados, falta eliminar archivos legacy y recrear volumen.
 
 **Criterio de exito:** Consulta `SELECT status, transports FROM enrollment.devices` ejecuta sin error, mostrando que ambas columnas existen.
 
@@ -919,6 +702,7 @@ backend/attendance/presentation/routes/
 2. Crear rama: `git checkout -b fase-24.2-env-production`
 3. Realizar cambios
 4. Commit: `git commit -m "config(env): documentar variables de entorno para produccion"`
+5. Merge a main preservando ultimos 4 commits sin mergear (daRulez.md regla 35)
 
 **Tareas:**
 
@@ -956,6 +740,7 @@ GET /api/health/live     -> { status: 'ok' }
 2. Crear rama: `git checkout -b fase-24.3-health-checks`
 3. Implementar endpoints
 4. Commit: `git commit -m "feat(health): agregar endpoints de health check"`
+5. Merge a main preservando ultimos 4 commits sin mergear (daRulez.md regla 35)
 
 **Tareas:**
 
@@ -991,6 +776,7 @@ GET /api/health/live     -> { status: 'ok' }
 2. Crear rama: `git checkout -b fase-24.4-structured-logging`
 3. Implementar servicio de logging
 4. Commit: `git commit -m "feat(logging): implementar logging estructurado con Pino"`
+5. Merge a main preservando ultimos 4 commits sin mergear (daRulez.md regla 35)
 
 **Tareas:**
 
@@ -1012,8 +798,7 @@ GET /api/health/live     -> { status: 'ok' }
 **Objetivo:** Asegurar calidad del sistema con tests automatizados y validacion de flujos completos.
 **Rama base:** `fase-25-testing-quality`
 **Modelo recomendado global:** Opus (requiere diseno de estrategia de testing)
-
-**Recordatorio de entorno:** Todos los comandos npm DEBEN ejecutarse dentro del contenedor Node. El host NO tiene npm instalado (PROJECT-CONSTITUTION.md Art. 3.2).
+**Recordatorio:** Comandos npm DEBEN ejecutarse dentro del contenedor Node (PROJECT-CONSTITUTION.md Art. 3.2)
 
 ---
 
@@ -1035,6 +820,7 @@ GET /api/health/live     -> { status: 'ok' }
 2. Crear rama: `git checkout -b fase-25.1-access-gateway-integration-tests`
 3. Crear tests
 4. Commit: `git commit -m "test(access): agregar tests de integracion para Access Gateway"`
+5. Merge a main preservando ultimos 4 commits sin mergear (daRulez.md regla 35)
 
 **Tareas:**
 
@@ -1070,6 +856,7 @@ GET /api/health/live     -> { status: 'ok' }
 2. Crear rama: `git checkout -b fase-25.2-e2e-enrollment`
 3. Implementar tests
 4. Commit: `git commit -m "test(e2e): agregar tests E2E para flujo de enrollment"`
+5. Merge a main preservando ultimos 4 commits sin mergear (daRulez.md regla 35)
 
 **Tareas:**
 
@@ -1106,6 +893,7 @@ GET /api/health/live     -> { status: 'ok' }
 2. Crear rama: `git checkout -b fase-25.3-e2e-attendance`
 3. Implementar tests
 4. Commit: `git commit -m "test(e2e): agregar tests E2E para flujo de asistencia QR"`
+5. Merge a main preservando ultimos 4 commits sin mergear (daRulez.md regla 35)
 
 **Tareas:**
 
@@ -1136,6 +924,7 @@ GET /api/health/live     -> { status: 'ok' }
 2. Crear rama: `git checkout -b fase-25.4-code-coverage`
 3. Configurar cobertura
 4. Commit: `git commit -m "config(test): agregar reporte de cobertura de codigo"`
+5. Merge a main preservando ultimos 4 commits sin mergear (daRulez.md regla 35)
 
 **Tareas:**
 

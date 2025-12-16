@@ -1,8 +1,9 @@
 import type { FastifyInstance } from 'fastify';
 import { AccessStateController } from './controllers';
 import { AccessGatewayService } from '../application/services';
-import { DeviceQueryAdapter } from '../../enrollment/infrastructure/adapters';
+import { EnrollmentFlowOrchestrator } from '../../enrollment/application/orchestrators';
 import { DeviceRepository } from '../../enrollment/infrastructure';
+import { OneToOnePolicyService } from '../../enrollment/domain/services';
 import { SessionQueryAdapter } from '../../session/infrastructure/adapters';
 import { SessionKeyRepository } from '../../session/infrastructure/repositories';
 import { RestrictionQueryAdapter } from '../../restriction/infrastructure/adapters';
@@ -14,21 +15,33 @@ import { config } from '../../../shared/config';
 
 /**
  * Registra las rutas de access
+ *
+ * Arquitectura delegada (segun spec-architecture.md):
+ * - Access Gateway NO implementa logica de enrollment
+ * - Delega a EnrollmentFlowOrchestrator (automata CheckEnrolado + EvaluarUnoAUno)
+ * - Solo coordina restricciones, sesion y presentacion de estado
  */
 export async function registerAccessRoutes(fastify: FastifyInstance): Promise<void> {
-  // Instanciar repositorios y servicios de otros dominios
+  // Repositorios e inyecciones del dominio Enrollment
   const deviceRepository = new DeviceRepository();
+  const policyService = new OneToOnePolicyService(deviceRepository);
+
+  // Instanciar EnrollmentFlowOrchestrator (automata de enrollment)
+  const enrollmentOrchestrator = new EnrollmentFlowOrchestrator(
+    deviceRepository,
+    policyService
+  );
+
+  // Sesion y Restriction
   const sessionKeyRepository = new SessionKeyRepository();
   const restrictionService = new RestrictionService();
 
-  // Crear adapters para lectura cross-domain
-  const deviceQuery = new DeviceQueryAdapter(deviceRepository);
   const sessionQuery = new SessionQueryAdapter(sessionKeyRepository);
   const restrictionQuery = new RestrictionQueryAdapter(restrictionService);
 
-  // Instanciar AccessGatewayService
+  // Instanciar AccessGatewayService (delegando enrollment al orchestrator)
   const accessGatewayService = new AccessGatewayService(
-    deviceQuery,
+    enrollmentOrchestrator,
     sessionQuery,
     restrictionQuery
   );
@@ -51,7 +64,7 @@ export async function registerAccessRoutes(fastify: FastifyInstance): Promise<vo
     // Aplicar autenticación a todas las rutas de access
     accessRoutes.addHook('preHandler', authMiddleware.authenticate());
 
-    // GET /api/access/state
+    // GET /api/access/state?deviceFingerprint={fingerprint}
     accessRoutes.get('/api/access/state', {
       handler: accessStateController.handle.bind(accessStateController),
     });

@@ -3,8 +3,18 @@ import type { AccessGatewayService } from '../../application/services';
 import { logger } from '../../../../shared/infrastructure/logger';
 
 /**
+ * Query params para GET /api/access/state
+ */
+interface AccessStateQuery {
+  deviceFingerprint?: string;
+}
+
+/**
  * Controller para GET /api/access/state
  * Responsabilidad: Obtener estado agregado de acceso del usuario
+ *
+ * Query params:
+ * - deviceFingerprint (requerido): Huella del dispositivo para validacion 1:1
  *
  * Retorna estado sin wrappers (diferente de endpoints legacy)
  */
@@ -20,10 +30,28 @@ export class AccessStateController {
         return;
       }
 
-      // Obtener estado agregado
-      const state = await this.accessGatewayService.getState(user.userId.toNumber());
+      // Extraer deviceFingerprint de query params
+      const query = request.query as AccessStateQuery;
+      const deviceFingerprint = query.deviceFingerprint;
+      
+      if (!deviceFingerprint) {
+        reply.code(400).send({
+          error: 'BAD_REQUEST',
+          message: 'deviceFingerprint query param es requerido',
+        });
+        return;
+      }
 
-      logger.debug(`[AccessStateController] Usuario ${user.userId}: state=${state.state}, action=${state.action}`);
+      // Obtener estado agregado (delegando logica al orchestrator)
+      const state = await this.accessGatewayService.getState(
+        user.userId.toNumber(),
+        deviceFingerprint
+      );
+
+      logger.debug(
+        `[AccessStateController] Usuario ${user.userId} (device: ${deviceFingerprint.substring(0, 8)}...): ` +
+        `state=${state.state}, action=${state.action}`
+      );
 
       // Retornar estado SIN wrappers (diseño nuevo)
       reply.code(200).send(state);
