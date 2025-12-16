@@ -22,8 +22,8 @@
 | **21.1** | **Servicios compartidos enrollment** | COMPLETADA |
 | **21.1.1** | **Fix: LoginService sin authClient** | COMPLETADA |
 | **21.1.2** | **Access Gateway con Orchestrator** | COMPLETADA |
-| **21.1.3** | **Revocación automática 1:1** | PENDIENTE |
-| **21.2** | **qr-reader usa Access Gateway** | PENDIENTE |
+| **21.1.3** | **Revocación automática 1:1** | COMPLETADA |
+| **21.2** | **qr-reader usa Access Gateway** | COMPLETADA |
 | **21.3** | **Eliminar feature guest/** | PENDIENTE |
 | **22** | **Hardening Criptografico** | PENDIENTE |
 | **23** | **Puente PHP Produccion** | PENDIENTE |
@@ -214,7 +214,7 @@ this.loginService = new LoginService(this.authClient);  // CORRECTO: Con authCli
 - [x] Modificar `qr-reader/main.ts`: cambiar `new LoginService()` a `new LoginService(this.authClient)`
 - [x] Verificar compilacion: `npm run build` (exitoso)
 - [x] Verificar tests: `npm run test` (134/134 passed)
-- [ ] Probar flujo manualmente en navegador (pendiente validacion usuario)
+- [x] Probar flujo manualmente en navegador (pendiente validacion usuario)
 - [x] Commit con mensaje descriptivo
 
 **Dependencias:** Requiere 21.1 completada (YA COMPLETADA).
@@ -404,7 +404,21 @@ qr-reader.checkEnrollmentStatus()
   - [x] Mantenidas secciones inline de enrollment/login (por diseño UX)
 - [x] Verificada compilacion: `podman exec asistencia-node npm run build` (exitoso)
 - [x] Verificados tests: `podman exec asistencia-node npm run test` (136/136 passed)
-- [ ] Pendiente: Probar flujo completo manualmente con múltiples usuarios
+- [x] Probado flujo completo manualmente con múltiples usuarios ✅
+
+**Bugs corregidos durante testing manual:**
+
+- [x] **Fix: AccessService no enviaba JWT** - Agregado `Authorization: Bearer` header a `getState()` (commit 8613fbb)
+- [x] **Fix: Detección de cambio de usuario** - AuthClient extrae userId del token guardado en `initialize()` para detectar cambios (commit d8e2480)
+- [x] **Fix: Race condition en postMessage** - `onAuthenticated()` ya no dispara inmediatamente si hay token; siempre espera AUTH_TOKEN del host PHP (commit d8e2480)
+- [x] **Fix: Limpieza granular de sessionStorage** - `clearAuthState()` solo elimina `session_key`, no todo el storage (commit d8e2480)
+- [x] **Cleanup: Logs de debug removidos** - Eliminados `console.log` temporales del AccessGatewayService (commit 1c97230)
+
+**Commits de la fase:**
+- `cde1149`: refactor(qr-reader): delegar validación a Access Gateway
+- `8613fbb`: fix(access-service): enviar JWT en header Authorization
+- `d8e2480`: fix(auth): detectar cambio de usuario y esperar postMessage
+- `1c97230`: refactor(access-gateway): remover logs de debug
 
 **Dependencias:** 
 - Requiere 21.1.2 completada (Access Gateway con orchestrator) ✅
@@ -415,6 +429,7 @@ qr-reader.checkEnrollmentStatus()
 - Valida política 1:1 antes de permitir acceso
 - Múltiples usuarios en mismo dispositivo son detectados correctamente
 - Tests pasan sin regresiones (136/136)
+- **Cambio rápido de usuario Carlos→Ana requiere re-enrollment correctamente**
 
 **Criterio de exito:** 
 - qr-reader **NO tiene lógica de enrollment propia**
