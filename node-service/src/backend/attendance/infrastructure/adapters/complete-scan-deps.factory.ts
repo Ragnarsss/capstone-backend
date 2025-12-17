@@ -6,6 +6,7 @@
  */
 
 import type { CompleteScanDependencies, PersistenceDependencies } from '../../application/complete-scan.usecase';
+import { AttendancePersistenceService } from '../../application/services/attendance-persistence.service';
 import { AesGcmService } from '../../../../shared/infrastructure/crypto';
 import { QRPayloadRepository } from '../../../qr-projection/infrastructure/qr-payload.repository';
 import { StudentSessionRepository } from '../student-session.repository';
@@ -130,12 +131,22 @@ export function createCompleteScanDepsWithPersistence(
   let persistence: PersistenceDependencies | undefined;
   
   if (cfg.enablePostgresPersistence) {
+    const validationRepo = new ValidationRepository();
+    const resultRepo = new ResultRepository();
+    const registrationRepo = new RegistrationRepository();
+    const persistenceService = new AttendancePersistenceService(
+      validationRepo,
+      resultRepo,
+      registrationRepo
+    );
+    
     persistence = {
-      validationRepo: new ValidationRepository(),
-      resultRepo: new ResultRepository(),
-      registrationRepo: new RegistrationRepository(),
+      validationRepo,
+      resultRepo,
+      registrationRepo,
+      persistenceService,
     };
-    logger.debug('[CompleteScanDeps] Persistencia PostgreSQL habilitada');
+    logger.debug('[CompleteScanDeps] Persistencia PostgreSQL habilitada con servicio');
   }
 
   return { deps, persistence };
