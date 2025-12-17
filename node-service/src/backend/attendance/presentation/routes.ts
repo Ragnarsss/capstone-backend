@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { ParticipationService } from '../application/participation.service';
 import { ValidateScanUseCase } from '../application/validate-scan.usecase';
 import { CompleteScanUseCase } from '../application/complete-scan.usecase';
+import { StudentStateService, QRLifecycleService } from '../application/services';
 import { ActiveSessionRepository, ProjectionPoolRepository } from '../../../shared/infrastructure/valkey';
 import { StudentSessionRepository } from '../infrastructure/student-session.repository';
 import { 
@@ -65,19 +66,20 @@ export async function registerAttendanceRoutes(
     minPoolSize: DEFAULT_MIN_POOL_SIZE 
   });
 
+  // Servicios de dominio
+  const studentRepo = new StudentSessionRepository();
+  const studentStateService = new StudentStateService(studentRepo);
+  const qrLifecycleService = new QRLifecycleService(qrGenerator, payloadRepo, poolRepo, poolBalancer);
+
   // Instanciar ParticipationService con dependencias inyectadas
   const participation = participationService ?? new ParticipationService(
-    qrGenerator,
-    payloadRepo,
-    poolBalancer,
-    undefined, // studentRepo - usa default
-    poolRepo,  // poolRepo
-    undefined  // config - usa default
+    studentStateService,
+    qrLifecycleService,
+    undefined // config - usa defaults
   );
   const activeSessionRepo = new ActiveSessionRepository();
 
   // UseCases con pipeline
-  const studentRepo = new StudentSessionRepository();
   
   // UseCase para solo validación (debugging)
   const sessionKeyQuery = new SessionKeyQueryAdapter(new SessionKeyRepository());
