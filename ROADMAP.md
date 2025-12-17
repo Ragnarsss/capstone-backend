@@ -1,7 +1,7 @@
 # ROADMAP - Plan de Implementacion
 
 > Fuente de verdad para tareas pendientes.
-> Ultima actualizacion: 2025-12-16
+> Ultima actualizacion: 2025-12-17
 
 **Ultimo commit consolidado:** bf5c514 (Merge fase-21.1-shared-enrollment-services)
 
@@ -25,7 +25,10 @@
 | **21.1.3** | **Revocación automática 1:1** | COMPLETADA |
 | **21.2** | **qr-reader usa Access Gateway** | COMPLETADA |
 | **21.3** | **Eliminar feature guest/** | COMPLETADA |
-| **22** | **Hardening Criptografico** | PENDIENTE |
+| **22.1** | **Validar TOTPu en Pipeline** | COMPLETADA |
+| **22.6-22.7-22.9** | **SoC Crítico (eliminar violations)** | PENDIENTE |
+| **22.4-22.5-22.8** | **Refactorización Attendance** | PENDIENTE |
+| **22.2-22.3** | **Session Binding + AAGUID** | PENDIENTE |
 | **23** | **Puente PHP Produccion** | PENDIENTE |
 | **24** | **Infraestructura y Operaciones** | PENDIENTE |
 | **25** | **Testing E2E y Calidad** | PENDIENTE |
@@ -499,6 +502,30 @@ node-service/src/frontend/features/guest/
 **Modelo recomendado global:** Opus (excepto 22.1 - ver justificacion individual)
 **Recordatorio:** Comandos npm DEBEN ejecutarse dentro del contenedor Node (PROJECT-CONSTITUTION.md Art. 3.2)
 
+### ORDEN OPTIMIZADO (Decisión 2025-12-17)
+
+**Justificación:** Constitution Article 2.3 (Separation of Concerns) es principio INMUTABLE. Implementar features de seguridad (22.2-22.3) sobre código con violations arquitectónicas perpetúa deuda técnica. Se reordena para lograr arquitectura limpia ANTES de agregar lógica crítica.
+
+**Secuencia de ejecución:**
+
+```text
+BLOQUE A: Eliminar Violations SoC (PRIMERO)
+  22.6 → Inyectar ISessionKeyQuery en Pipeline (elimina lazy imports)
+  22.7 → Puertos QR-Projection (independencia de dominios)
+  22.9 → Eliminar endpoints /dev/ (cleanup seguridad)
+
+BLOQUE B: Refactorizar Attendance
+  22.4 → Extraer Persistencia de CompleteScanUseCase
+  22.5 → Extraer Cálculo de Estadísticas
+  22.8 → Descomponer ParticipationService (facade pattern)
+
+BLOQUE C: Features Criptográficas (SOBRE CÓDIGO LIMPIO)
+  22.2 → Session Key Binding con credentialId
+  22.3 → Validar AAGUID de dispositivo
+```
+
+**Beneficio:** Tests de 22.2-22.3 verificarán contratos (interfaces), no implementaciones.
+
 ---
 
 ### 22.1: Validar TOTPu en Pipeline
@@ -610,6 +637,277 @@ node-service/src/frontend/features/guest/
 - [ ] Commit con mensaje descriptivo
 
 **Criterio de exito:** AAGUID almacenado en BD para cada dispositivo.
+
+---
+
+### 22.4: Extraer Persistencia de CompleteScanUseCase
+
+**Rama:** `fase-22.4-extract-persistence`
+**Modelo:** Sonnet
+**Dificultad:** Media
+
+**Justificacion:** `CompleteScanUseCase.execute()` contiene 3 metodos de persistencia inline que suman 167 lineas. Extraerlos a repositorio dedicado reduce el metodo God y mejora testabilidad.
+
+**Archivos a crear:**
+
+- `backend/attendance/infrastructure/repositories/attendance-result.repository.ts`
+
+**Archivos a modificar:**
+
+- `backend/attendance/application/complete-scan.usecase.ts`
+- `backend/attendance/presentation/routes.ts`
+
+**Tareas:**
+
+- [ ] Verificar estado del repositorio: `git status`
+- [ ] Crear rama: `git checkout -b fase-22.4-extract-persistence`
+- [ ] Crear `AttendanceResultRepository` con metodos:
+  - `saveValidation(sessionId, studentId, round, responseTime, validatedAt)`
+  - `saveResult(sessionId, studentId, stats, validatedAt)`
+- [ ] Mover `persistValidation()` al nuevo repositorio
+- [ ] Mover `persistResult()` al nuevo repositorio
+- [ ] Actualizar `CompleteScanUseCase` para usar repositorio inyectado
+- [ ] Actualizar `routes.ts` para instanciar e inyectar repositorio
+- [ ] Verificar tests: `podman exec asistencia-node npm run test` (143/143)
+- [ ] Commit: `refactor(attendance): extraer persistencia de CompleteScanUseCase`
+
+**Criterio de exito:** `CompleteScanUseCase.execute()` reduce de 143 a ~80 lineas. Tests pasan.
+
+---
+
+### 22.5: Extraer Calculo de Estadisticas
+
+**Rama:** `fase-22.5-extract-stats`
+**Modelo:** Sonnet
+**Dificultad:** Baja
+
+**Justificacion:** `calculateStats()` es logica de dominio pura embebida en UseCase de aplicacion. Debe estar en domain/services/.
+
+**Archivos a crear:**
+
+- `backend/attendance/domain/services/attendance-stats.service.ts`
+
+**Archivos a modificar:**
+
+- `backend/attendance/application/complete-scan.usecase.ts`
+
+**Tareas:**
+
+- [ ] Verificar estado del repositorio: `git status`
+- [ ] Crear rama: `git checkout -b fase-22.5-extract-stats`
+- [ ] Crear `AttendanceStatsService` en domain/services/
+- [ ] Mover funcion `calculateStats()` al servicio
+- [ ] Crear interfaz `IAttendanceStatsService`
+- [ ] Importar servicio en `CompleteScanUseCase`
+- [ ] Verificar tests: `podman exec asistencia-node npm run test` (143/143)
+- [ ] Commit: `refactor(attendance): extraer calculo de estadisticas a domain service`
+
+**Criterio de exito:** Logica de calculo en domain/, UseCase solo orquesta.
+
+---
+
+### 22.6: Inyectar ISessionKeyQuery en Pipeline
+
+**Rama:** `fase-22.6-inject-session-query`
+**Modelo:** Sonnet
+**Dificultad:** Media
+
+**Justificacion:** `DecryptStage` y `TotpValidationStage` (domain/) importan directamente de `session/infrastructure/`. Esto viola arquitectura limpia. Deben recibir dependencia via interfaz.
+
+**Archivos a crear:**
+
+- `shared/ports/session-key-query.interface.ts`
+- `backend/attendance/infrastructure/adapters/session-key-query.adapter.ts`
+
+**Archivos a modificar:**
+
+- `backend/attendance/domain/validation-pipeline/stages/decrypt.stage.ts`
+- `backend/attendance/domain/validation-pipeline/stages/totp-validation.stage.ts`
+- `backend/attendance/domain/validation-pipeline/pipeline.factory.ts`
+- `backend/attendance/presentation/routes.ts`
+- `shared/ports/index.ts`
+
+**Tareas:**
+
+- [ ] Verificar estado del repositorio: `git status`
+- [ ] Crear rama: `git checkout -b fase-22.6-inject-session-query`
+- [ ] Crear interfaz `ISessionKeyQuery` en `shared/ports/`:
+
+```typescript
+interface ISessionKeyQuery {
+  findByUserId(userId: number): Promise<string | null>;
+}
+```
+
+- [ ] Crear `SessionKeyQueryAdapter` que implementa interfaz usando `SessionKeyRepository`
+- [ ] Modificar `DecryptStage` para recibir `ISessionKeyQuery` en constructor
+- [ ] Modificar `TotpValidationStage` para recibir `ISessionKeyQuery` en constructor
+- [ ] Eliminar lazy loading (`await import()`) de ambos stages
+- [ ] Actualizar `pipeline.factory.ts` para recibir e inyectar dependencia
+- [ ] Actualizar `routes.ts` para crear adapter y pasarlo al factory
+- [ ] Actualizar `shared/ports/index.ts` con export
+- [ ] Verificar tests: `podman exec asistencia-node npm run test` (143/143)
+- [ ] Commit: `refactor(attendance): inyectar ISessionKeyQuery en pipeline stages`
+
+**Criterio de exito:**
+
+- Stages en domain/ NO importan de infrastructure/
+- No hay `await import()` en stages
+- Tests pasan sin cambios
+
+---
+
+### 22.7: Crear Puertos para QR-Projection
+
+**Rama:** `fase-22.7-qr-projection-ports`
+**Modelo:** Sonnet
+**Dificultad:** Media
+
+**Justificacion:** `ParticipationService` importa directamente de `qr-projection/` (domain, infrastructure, application). Debe usar interfaces de `shared/ports/`.
+
+**Archivos a crear:**
+
+- `shared/ports/qr-generator.interface.ts`
+- `shared/ports/qr-payload-repository.interface.ts`
+- `shared/ports/pool-projection.interface.ts`
+
+**Archivos a modificar:**
+
+- `backend/attendance/application/participation.service.ts`
+- `backend/attendance/presentation/routes.ts`
+- `shared/ports/index.ts`
+
+**Tareas:**
+
+- [ ] Verificar estado del repositorio: `git status`
+- [ ] Crear rama: `git checkout -b fase-22.7-qr-projection-ports`
+- [ ] Crear `IQRGenerator` interface:
+
+```typescript
+interface IQRGenerator {
+  generateForStudent(sessionId: string, studentId: number, round: number): QRPayloadV1;
+}
+```
+
+- [ ] Crear `IQRPayloadRepository` interface:
+
+```typescript
+interface IQRPayloadRepository {
+  store(payload: QRPayloadV1, encrypted: string, ttl: number): Promise<void>;
+}
+```
+
+- [ ] Crear `IPoolProjection` interface:
+
+```typescript
+interface IPoolProjection {
+  upsertStudentQR(sessionId: string, studentId: number, encrypted: string, round: number): Promise<void>;
+}
+```
+
+- [ ] Modificar `ParticipationService` para usar interfaces
+- [ ] Actualizar `routes.ts` para inyectar implementaciones concretas
+- [ ] Actualizar `shared/ports/index.ts` con exports
+- [ ] Verificar tests: `podman exec asistencia-node npm run test` (143/143)
+- [ ] Commit: `refactor(attendance): usar puertos para dependencias de qr-projection`
+
+**Criterio de exito:**
+
+- `attendance/` NO importa de `qr-projection/infrastructure/` ni `qr-projection/domain/`
+- Solo importa de `shared/ports/`
+
+---
+
+### 22.8: Descomponer ParticipationService
+
+**Rama:** `fase-22.8-decompose-participation`
+**Modelo:** Opus (requiere decision arquitectonica)
+**Dificultad:** Alta
+
+**Justificacion:** `ParticipationService` tiene 5 responsabilidades mezcladas. Aplicar patron Facade para delegar a servicios especializados.
+
+**Archivos a crear:**
+
+- `backend/attendance/application/services/student-state.service.ts`
+- `backend/attendance/application/services/qr-lifecycle.service.ts`
+- `backend/attendance/application/services/index.ts`
+
+**Archivos a modificar:**
+
+- `backend/attendance/application/participation.service.ts`
+- `backend/attendance/presentation/routes.ts`
+
+**Estructura propuesta:**
+
+```
+attendance/application/
+├── participation.service.ts      # Facade (orquesta, <50 lineas)
+├── complete-scan.usecase.ts
+└── services/
+    ├── student-state.service.ts  # Estado del estudiante en sesion
+    ├── qr-lifecycle.service.ts   # Genera + almacena + proyecta QR
+    └── index.ts
+```
+
+**Tareas:**
+
+- [ ] Verificar estado del repositorio: `git status`
+- [ ] Crear rama: `git checkout -b fase-22.8-decompose-participation`
+- [ ] Crear `StudentStateService` extrayendo:
+  - `getOrCreateState()`
+  - `updateState()`
+  - Dependencia: `IStudentSessionRepository`
+- [ ] Crear `QRLifecycleService` extrayendo:
+  - `generateAndStore()`
+  - `projectToPool()`
+  - Dependencias: `IQRGenerator`, `IQRPayloadRepository`, `IPoolProjection`
+- [ ] Refactorizar `ParticipationService` como Facade que delega
+- [ ] Cada servicio recibe solo las dependencias que necesita
+- [ ] Actualizar `routes.ts` para instanciar servicios
+- [ ] Verificar tests: `podman exec asistencia-node npm run test` (143/143)
+- [ ] Commit: `refactor(attendance): descomponer ParticipationService en servicios especializados`
+
+**Criterio de exito:**
+
+- `ParticipationService` reduce a <50 lineas
+- Cada servicio tiene 1 responsabilidad
+- Tests pasan sin modificacion
+
+---
+
+### 22.9: Eliminar Endpoints de Desarrollo
+
+**Rama:** `fase-22.9-remove-dev-endpoints`
+**Modelo:** Sonnet
+**Dificultad:** Baja
+
+**Justificacion:** `routes.ts` contiene endpoints de desarrollo que acceden directamente a repositorios, violando SoC. Deben eliminarse antes de produccion.
+
+**Archivos a modificar:**
+
+- `backend/attendance/presentation/routes.ts`
+
+**Endpoints a eliminar:**
+
+- `POST /asistencia/api/attendance/dev/fakes` (lineas ~355-392)
+- Cualquier otro endpoint marcado como DEV
+
+**Tareas:**
+
+- [ ] Verificar estado del repositorio: `git status`
+- [ ] Crear rama: `git checkout -b fase-22.9-remove-dev-endpoints`
+- [ ] Identificar todos los endpoints con `/dev/` en la ruta
+- [ ] Eliminar endpoints y codigo asociado
+- [ ] Eliminar imports que ya no se usen
+- [ ] Verificar build: `podman exec asistencia-node npm run build`
+- [ ] Verificar tests: `podman exec asistencia-node npm run test` (143/143)
+- [ ] Commit: `refactor(attendance): eliminar endpoints de desarrollo`
+
+**Criterio de exito:**
+
+- `routes.ts` no tiene acceso directo a repositorios (excepto via servicios)
+- No existen rutas `/dev/` en produccion
+- Build y tests exitosos
 
 ---
 
@@ -1100,10 +1398,23 @@ Fase 20.6 (update spec)    ┘                                           │
                                                                         │
                                                                         └──► Fase 21.3 (remove guest)
 
-Fase 22.1 (TOTP) ──┐
-Fase 22.2 (binding)├──► Fase 23 (PHP bridge) ──► Fase 24 (infrastructure)
-Fase 22.3 (AAGUID)─┘                                    │
-                                                        └──► Fase 25 (testing E2E)
+Fase 22.1 (TOTP) ✅
+    │
+    ▼
+BLOQUE A: SoC Crítico (ORDEN OPTIMIZADO 2025-12-17)
+    22.6 (ISessionKeyQuery) ──► 22.7 (QR-Projection ports) ──► 22.9 (remove /dev/)
+                                                                      │
+                                                                      ▼
+BLOQUE B: Refactorizar Attendance
+    22.4 (extract persistence) ──► 22.5 (extract stats) ──► 22.8 (facade)
+                                                                 │
+                                                                 ▼
+BLOQUE C: Features Criptográficas
+    22.2 (session binding) ──► 22.3 (AAGUID) ──► Fase 23 (PHP bridge)
+                                                        │
+                                                        └──► Fase 24 (infrastructure)
+                                                                    │
+                                                                    └──► Fase 25 (testing E2E)
 
 Fase 24.1 (migrations) ◄── Independiente, puede ejecutarse en cualquier momento
 Fase 24.2 (env vars)   ◄── Independiente, puede ejecutarse en cualquier momento
@@ -1119,6 +1430,11 @@ Fase 24.2 (env vars)   ◄── Independiente, puede ejecutarse en cualquier mo
 4. **Sin Codigo Legacy:** No existe /api/enrollment/status, guest/, controller duplicado
 5. **Tests Pasan:** `npm run test` sin errores
 6. **Documentacion Actualizada:** spec-architecture.md refleja realidad
+7. **SoC Estricto (post-22.9):**
+   - Domain NO importa de Infrastructure
+   - Dependencias cross-module via `shared/ports/`
+   - UseCases < 100 lineas (solo orquestacion)
+   - Sin endpoints `/dev/` en produccion
 
 ---
 
