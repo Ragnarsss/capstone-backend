@@ -17,6 +17,7 @@ node-service/src/frontend/**/*.js.map
 # IDE
 .vscode/
 .idea/
+.claude/
 
 # OS
 .DS_Store
