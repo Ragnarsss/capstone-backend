@@ -531,18 +531,18 @@ node-service/src/frontend/features/guest/
 
 **Tareas:**
 
-- [ ] Verificar estado del repositorio: `git status`
-- [ ] Crear `totp-validation.stage.ts`
-- [ ] Obtener session_key del usuario desde Valkey
-- [ ] Generar TOTP esperado con session_key
-- [ ] Comparar con TOTPu del payload
-- [ ] Configurar ventana de tolerancia (+/-30 segundos)
-- [ ] Agregar stage al pipeline en posicion correcta
-- [ ] Crear tests unitarios
-- [ ] Verificar tests (dentro del contenedor): `podman exec asistencia-node npm run test`
-- [ ] Commit con mensaje descriptivo
+- [x] Verificar estado del repositorio: `git status`
+- [x] Crear `totp-validation.stage.ts`
+- [x] Obtener session_key del usuario desde Valkey
+- [x] Generar TOTP esperado con session_key
+- [x] Comparar con TOTPu del payload
+- [x] Configurar ventana de tolerancia (+/-30 segundos) - `totp.options = { window: 1 }`
+- [x] Agregar stage al pipeline en posicion correcta (despues de decrypt)
+- [x] Crear tests unitarios (7 tests)
+- [x] Verificar tests (dentro del contenedor): `podman exec asistencia-node npm run test` - 143/143 pasando
+- [x] Commit con mensaje descriptivo - `42a035c`
 
-**Criterio de exito:** Payload con TOTPu incorrecto es rechazado.
+**Criterio de exito:** Payload con TOTPu incorrecto es rechazado. ✅ Test confirma rechazo
 
 ---
 
