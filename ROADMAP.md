@@ -3,13 +3,18 @@
 > Fuente de verdad para tareas pendientes.
 > Ultima actualizacion: 2025-12-17
 
-**Ultimo commit consolidado:** bf5c514 (Merge fase-21.1-shared-enrollment-services)
+**Ultimo commit consolidado:** 2a91b21 (fase-22.4-extract-persistence)
 
 **Estado actual del proyecto:**
-- Migraciones consolidadas en `001-schema.sql` v2.0.0
-- Servicios compartidos creados en `frontend/shared/services/enrollment/`
-- Branches consolidadas en main (ancla de seguridad establecida)
-- Archivos legacy de migraciones pendientes de eliminar (001-initial, 002, 003)
+- COMPLETADA: Todas las fases 21 completadas (21.1→21.1.3→21.2→21.3)
+- COMPLETADA: Fase 22 BLOQUE A completado (22.6→22.7→22.9)
+- COMPLETADA: Fase 22.1 (TOTP validation) completada
+- COMPLETADA: Fase 22.4 (AttendancePersistenceService) completada
+- COMPLETADA: Fase 22.8 (Decompose ParticipationService) completada
+- EN PROGRESO: Pendiente merge de branches 22.x a main
+- **SIGUIENTE: Fase 22.10 (mover WebSocketAuthMiddleware) - PRIORIDAD CRÍTICA**
+- **DESPUÉS: Fase 22.5 AMPLIADA (stats + QR lifecycle)**
+- Tests: 155 pasando (12 nuevos en fase 22.4)
 
 ---
 
@@ -27,11 +32,16 @@
 | **21.3** | **Eliminar feature guest/** | COMPLETADA |
 | **22.1** | **Validar TOTPu en Pipeline** | COMPLETADA |
 | **22.6** | **Inyectar ISessionKeyQuery en Pipeline** | COMPLETADA |
-| **22.7** | **Crear Puertos para QR-Projection** | ✅ COMPLETADA |
-| **22.9** | **Eliminar endpoints /dev/** | ✅ COMPLETADA |
-| **22.4-22.5** | **Refactorización Attendance (persistence/stats)** | PENDIENTE |
-| **22.8** | **Descomponer ParticipationService** | ✅ COMPLETADA |
-| **22.2-22.3** | **Session Binding + AAGUID** | PENDIENTE |
+| **22.7** | **Crear Puertos para QR-Projection** | COMPLETADA |
+| **22.9** | **Eliminar endpoints /dev/** | COMPLETADA |
+| **22.4** | **Extraer Persistencia de CompleteScanUseCase** | COMPLETADA |
+| **22.10** | **Mover WebSocketAuthMiddleware** | PENDIENTE |
+| **22.5** | **Extraer Stats + QR Lifecycle** | PENDIENTE (AMPLIADA) |
+| **22.8** | **Descomponer ParticipationService** | COMPLETADA |
+| **22.2** | **Session Key Binding con credentialId** | PENDIENTE |
+| **22.3** | **Validar AAGUID de dispositivo** | PENDIENTE |
+| **22.11** | **Refactorizar ValidationErrorCode** | PENDIENTE (opcional) |
+| **22.12** | **Refactorizar FinishEnrollmentController** | PENDIENTE (opcional) |
 | **23** | **Puente PHP Produccion** | PENDIENTE |
 | **24** | **Infraestructura y Operaciones** | PENDIENTE |
 | **25** | **Testing E2E y Calidad** | PENDIENTE |
@@ -53,21 +63,21 @@ Ver `spec-architecture.md` para diagramas completos.
 
 ```
 backend/
-├── access/          # Gateway lectura ✅
-├── attendance/      # Validacion QR ✅
-├── auth/            # JWT ✅
-├── enrollment/      # Solo FIDO2 devices ✅
-├── session/         # ECDH login ✅
-├── restriction/     # Stub PHP ✅
-└── shared/ports/    # Interfaces cross-domain ✅
+├── access/          # Gateway lectura 
+├── attendance/      # Validacion QR 
+├── auth/            # JWT 
+├── enrollment/      # Solo FIDO2 devices 
+├── session/         # ECDH login 
+├── restriction/     # Stub PHP 
+└── shared/ports/    # Interfaces cross-domain 
 
 frontend/features/
-├── enrollment/      # UI registro ✅
+├── enrollment/      # UI registro 
 ├── qr-reader/       # Lector (refactorizar - 21.2)
-├── qr-host/         # Proyector ✅
+├── qr-host/         # Proyector 
 └── guest/           # ELIMINAR (21.3)
 
-frontend/shared/services/enrollment/  # Servicios unificados ✅
+frontend/shared/services/enrollment/  # Servicios unificados 
 ```
 
 ---
@@ -236,7 +246,7 @@ this.loginService = new LoginService(this.authClient);  // CORRECTO: Con authCli
 **Rama:** `fase-21.1.2-access-gateway-orchestrator`
 **Modelo:** Opus
 **Dificultad:** Alta
-**Recordatorio:** Comandos npm DEBEN ejecutarse dentro del contenedor Node (PROJECT-CONSTITUTION.md Art. 3.2)
+**Recordatorio:** Comandos npm DEBEN ejecutarse dentro del contenedor Node (daRulez.md Art. 3.2)
 **Estado:** COMPLETADA
 **Commit:** 04a8df6
 
@@ -275,7 +285,7 @@ Access Gateway → EnrollmentFlowOrchestrator.attemptAccess(userId, deviceFinger
 
 **Dependencias:** Requiere 21.1.1 completada (LoginService fix).
 
-**Criterio de exito:** COMPLETADO ✅
+**Criterio de exito:** COMPLETADO 
 - Access Gateway usa orchestrator para toda validacion de enrollment
 - Multiples usuarios en mismo dispositivo son detectados y bloqueados correctamente
 - deviceFingerprint fluye correctamente frontend → backend
@@ -289,7 +299,7 @@ Access Gateway → EnrollmentFlowOrchestrator.attemptAccess(userId, deviceFinger
 **Rama:** `fase-21.1.3-auto-revoke-enrollment`
 **Modelo:** Opus
 **Dificultad:** Alta
-**Recordatorio:** Comandos npm DEBEN ejecutarse dentro del contenedor Node (PROJECT-CONSTITUTION.md Art. 3.2)
+**Recordatorio:** Comandos npm DEBEN ejecutarse dentro del contenedor Node (daRulez.md Art. 3.2)
 **Estado:** COMPLETADA
 **Commits:** d0ff3a6, 9bb4a19
 
@@ -339,7 +349,7 @@ FinishEnrollmentController:
 
 **Dependencias:** Requiere 21.1.2 completada (Access Gateway con orchestrator).
 
-**Criterio de exito:** COMPLETADO ✅
+**Criterio de exito:** COMPLETADO 
 - `FinishEnrollmentController` ejecuta `revokeViolations()` automáticamente
 - Base de datos mantiene política 1:1 (un deviceFingerprint por usuario activo)
 - Tests verifican revocación automática (136/136 passed)
@@ -353,7 +363,7 @@ FinishEnrollmentController:
 **Rama:** `fase-21.2-qr-reader-access-gateway`
 **Modelo:** Sonnet
 **Dificultad:** Media
-**Recordatorio:** Comandos npm DEBEN ejecutarse dentro del contenedor Node (PROJECT-CONSTITUTION.md Art. 3.2)
+**Recordatorio:** Comandos npm DEBEN ejecutarse dentro del contenedor Node (daRulez.md Art. 3.2)
 **Estado:** COMPLETADA
 
 **Justificacion:** qr-reader hace verificación local con `sessionKeyStore.hasSessionKey()` y **NO consulta Access Gateway** como requiere `spec-qr-validation.md` Fase 0. Esto permite que múltiples usuarios usen el mismo dispositivo sin revalidación, violando la política 1:1.
@@ -390,7 +400,7 @@ qr-reader.checkEnrollmentStatus()
 2. Crear rama: `git checkout -b fase-21.2-qr-reader-access-gateway`
 3. Realizar cambios atomicos
 4. Commit: `git commit -m "refactor(qr-reader): delegar validacion a Access Gateway"`
-5. Merge a main preservando ultimos 4 commits sin mergear (daRulez.md regla 35)
+5. Merge a main cuando tests pasen
 
 **Cambios realizados:**
 
@@ -410,7 +420,7 @@ qr-reader.checkEnrollmentStatus()
   - [x] Mantenidas secciones inline de enrollment/login (por diseño UX)
 - [x] Verificada compilacion: `podman exec asistencia-node npm run build` (exitoso)
 - [x] Verificados tests: `podman exec asistencia-node npm run test` (136/136 passed)
-- [x] Probado flujo completo manualmente con múltiples usuarios ✅
+- [x] Probado flujo completo manualmente con múltiples usuarios 
 
 **Bugs corregidos durante testing manual:**
 
@@ -427,10 +437,10 @@ qr-reader.checkEnrollmentStatus()
 - `1c97230`: refactor(access-gateway): remover logs de debug
 
 **Dependencias:** 
-- Requiere 21.1.2 completada (Access Gateway con orchestrator) ✅
-- Requiere 21.1.3 completada (revocación automática en backend) ✅
+- Requiere 21.1.2 completada (Access Gateway con orchestrator) 
+- Requiere 21.1.3 completada (revocación automática en backend) 
 
-**Criterio de exito:** COMPLETADO ✅
+**Criterio de exito:** COMPLETADO 
 - qr-reader consulta Access Gateway con deviceFingerprint
 - Valida política 1:1 antes de permitir acceso
 - Múltiples usuarios en mismo dispositivo son detectados correctamente
@@ -452,7 +462,7 @@ qr-reader.checkEnrollmentStatus()
 **Dificultad:** Baja (tras análisis)
 **Estado:** COMPLETADA
 **Commit:** 5afe4b4
-**Recordatorio:** Comandos npm DEBEN ejecutarse dentro del contenedor Node (PROJECT-CONSTITUTION.md Art. 3.2)
+**Recordatorio:** Comandos npm DEBEN ejecutarse dentro del contenedor Node (daRulez.md Art. 3.2)
 
 **Análisis realizado (2025-12-16):**
 
@@ -491,7 +501,7 @@ node-service/src/frontend/features/guest/
 
 **Dependencias:** Requiere 21.1 (servicios compartidos) y 21.2 (qr-reader usa Access Gateway) completadas.
 
-**Criterio de exito:** COMPLETADO ✅
+**Criterio de exito:** COMPLETADO 
 - Solo existe enrollment/ y qr-reader para flujo de estudiante
 - Build y tests exitosos sin guest/
 - Sistema más limpio y mantenible
@@ -503,7 +513,7 @@ node-service/src/frontend/features/guest/
 **Objetivo:** Completar validaciones de seguridad pendientes.
 **Rama base:** `fase-22-hardening`
 **Modelo recomendado global:** Opus (excepto 22.1 - ver justificacion individual)
-**Recordatorio:** Comandos npm DEBEN ejecutarse dentro del contenedor Node (PROJECT-CONSTITUTION.md Art. 3.2)
+**Recordatorio:** Comandos npm DEBEN ejecutarse dentro del contenedor Node (daRulez.md Art. 3.2)
 
 ### ORDEN OPTIMIZADO (Decisión 2025-12-17)
 
@@ -557,7 +567,7 @@ BLOQUE C: Features Criptográficas (SOBRE CÓDIGO LIMPIO)
 2. Crear rama: `git checkout -b fase-22.1-totp-validation`
 3. Implementar stage de validacion
 4. Commit: `git commit -m "feat(attendance): agregar validacion de TOTPu en pipeline"`
-5. Merge a main preservando ultimos 4 commits sin mergear (daRulez.md regla 35)
+5. Merge a main cuando tests pasen
 
 **Tareas:**
 
@@ -572,7 +582,7 @@ BLOQUE C: Features Criptográficas (SOBRE CÓDIGO LIMPIO)
 - [x] Verificar tests (dentro del contenedor): `podman exec asistencia-node npm run test` - 143/143 pasando
 - [x] Commit con mensaje descriptivo - `42a035c`
 
-**Criterio de exito:** Payload con TOTPu incorrecto es rechazado. ✅ Test confirma rechazo
+**Criterio de exito:** Payload con TOTPu incorrecto es rechazado. Test confirma rechazo
 
 ---
 
@@ -592,7 +602,7 @@ BLOQUE C: Features Criptográficas (SOBRE CÓDIGO LIMPIO)
 2. Crear rama: `git checkout -b fase-22.2-session-binding`
 3. Implementar binding
 4. Commit: `git commit -m "feat(session): agregar binding de session_key con credentialId"`
-5. Merge a main preservando ultimos 4 commits sin mergear (daRulez.md regla 35)
+5. Merge a main cuando tests pasen
 
 **Tareas:**
 
@@ -627,7 +637,7 @@ BLOQUE C: Features Criptográficas (SOBRE CÓDIGO LIMPIO)
 2. Crear rama: `git checkout -b fase-22.3-aaguid-validation`
 3. Implementar extraccion y almacenamiento
 4. Commit: `git commit -m "feat(enrollment): extraer y almacenar AAGUID de dispositivo"`
-5. Merge a main preservando ultimos 4 commits sin mergear (daRulez.md regla 35)
+5. Merge a main cuando tests pasen
 
 **Tareas:**
 
@@ -643,12 +653,106 @@ BLOQUE C: Features Criptográficas (SOBRE CÓDIGO LIMPIO)
 
 ---
 
+## BLOQUE D: Deudas Técnicas Menores (Post-Hardening)
+
+**Objetivo:** Resolver deudas técnicas no críticas identificadas en auditoría antes de integración PHP.
+**Prioridad:** Media (pueden postergarse a Fase 25 si hay presión de tiempo)
+
+---
+
+### 22.11: Refactorizar ValidationErrorCode
+
+**Rama:** `fase-22.11-validation-error-code`
+**Modelo:** Sonnet
+**Dificultad:** Baja
+**Estado:** PENDIENTE (opcional, puede postergarse)
+
+**Justificacion:** `ValidationErrorCode` está definido en `attendance/domain/models.ts` pero se usa en contratos públicos (API responses). Debe estar en capa compartida para evitar acoplamiento.
+
+**Problema actual:**
+- Enum local se expone en contrato público
+- Si se agregan errores, impacta múltiples capas
+- Frontend debe importar desde domain interno
+
+**Arquitectura objetivo:**
+```
+shared/types/validation-errors.ts
+  └── ValidationErrorCode (enum compartido)
+```
+
+**Archivos a crear:**
+- `shared/types/validation-errors.ts`
+
+**Archivos a modificar:**
+- `backend/attendance/domain/models.ts` → Re-exportar desde shared
+- `frontend/features/qr-reader/types.ts` → Importar desde shared types
+
+**Tareas:**
+
+- [ ] Mover `ValidationErrorCode` a `shared/types/validation-errors.ts`
+- [ ] Actualizar imports en attendance/domain/models.ts
+- [ ] Actualizar imports en frontend (si existen)
+- [ ] Verificar tests: `podman exec asistencia-node npm run test`
+- [ ] Commit: `refactor(shared): mover ValidationErrorCode a tipos compartidos`
+
+**Criterio de exito:** Enum compartido, sin duplicación.
+
+---
+
+### 22.12: Refactorizar FinishEnrollmentController
+
+**Rama:** `fase-22.12-finish-enrollment-controller-soc`
+**Modelo:** Sonnet
+**Dificultad:** Baja
+**Estado:** PENDIENTE (opcional, puede postergarse)
+
+**Justificacion:** `FinishEnrollmentController` instancia `OneToOnePolicyService` directamente. Debe recibir por inyección de dependencias para mejorar testabilidad.
+
+**Problema actual:**
+```typescript
+// routes.ts
+const policyService = new OneToOnePolicyService(deviceRepository);
+const controller = new FinishEnrollmentController(useCase, policyService);
+```
+
+**Arquitectura objetivo:**
+```typescript
+// Controller no conoce implementación, solo contrato
+class FinishEnrollmentController {
+  constructor(
+    private readonly useCase: FinishEnrollmentUseCase,
+    private readonly orchestrator: IEnrollmentOrchestrator  // ← Usa orchestrator
+  ) {}
+}
+```
+
+**Archivos a modificar:**
+- `backend/enrollment/presentation/controllers/finish-enrollment.controller.ts`
+- `backend/enrollment/presentation/routes.ts`
+
+**Tareas:**
+
+- [ ] Modificar controller para recibir orchestrator en lugar de policyService
+- [ ] Delegar revocación a `orchestrator.revokeViolations()` (si no existe, agregarlo)
+- [ ] Actualizar routes.ts para inyectar orchestrator
+- [ ] Actualizar tests de controller (mock orchestrator)
+- [ ] Verificar tests: `podman exec asistencia-node npm run test`
+- [ ] Commit: `refactor(enrollment): mejorar SoC en FinishEnrollmentController`
+
+**Criterio de exito:** Controller agnóstico a implementación de política 1:1.
+
+---
+
 ### 22.4: Extraer Persistencia de CompleteScanUseCase
 
 **Rama:** `fase-22.4-extract-persistence`
 **Modelo:** Sonnet
 **Dificultad:** Media
-**Recordatorio:** Comandos npm DEBEN ejecutarse dentro del contenedor Node (PROJECT-CONSTITUTION.md Art. 3.2)
+**Estado:** COMPLETADA
+**Commit:** 2a91b21
+**Tests:** 155 pasando (12 nuevos)
+**Fecha:** 2025-12-17
+**Recordatorio:** Comandos npm DEBEN ejecutarse dentro del contenedor Node (daRulez.md Art. 3.2)
 
 **Justificacion:** `CompleteScanUseCase.execute()` tiene 477 lineas con 3 metodos de persistencia inline (~167 lineas). Extraer a servicio dedicado aplicando Facade Pattern reduce complejidad y mejora testabilidad.
 
@@ -683,67 +787,82 @@ CompleteScanUseCase → AttendancePersistenceService
 2. Crear rama: `git checkout -b fase-22.4-extract-persistence`
 3. Implementar servicio
 4. Commit: `git commit -m "refactor(attendance): extraer persistencia a AttendancePersistenceService (fase 22.4)"`
-5. Merge a main preservando ultimos 4 commits sin mergear (daRulez.md regla 35)
+5. Merge a main cuando tests pasen
 
 **Tareas:**
 
-- [ ] Verificar estado del repositorio: `git status`
-- [ ] Crear rama: `git checkout -b fase-22.4-extract-persistence`
-- [ ] Crear `AttendancePersistenceService` con metodos:
+- [x] Verificar estado del repositorio: `git status`
+- [x] Crear rama: `git checkout -b fase-22.4-extract-persistence`
+- [x] Crear `AttendancePersistenceService` con metodos:
   - `saveValidationAttempt(params)`: INSERT en validation_attempts
   - `saveAttendanceResult(params)`: INSERT en attendance_results (idempotente)
   - `markRegistrationComplete(studentId, sessionId)`: UPDATE registrations
   - `saveCompleteAttendance(validation, result)`: operacion atomica
-- [ ] Migrar logica de `persistValidation()` al servicio
-- [ ] Migrar logica de `persistResult()` al servicio
-- [ ] Migrar logica de `persistRegistration()` al servicio
-- [ ] Agregar manejo de duplicados (UNIQUE constraint en attendance_results)
-- [ ] Exportar en `application/services/index.ts`
-- [ ] Modificar `CompleteScanUseCase`:
+- [x] Migrar logica de `persistValidation()` al servicio
+- [x] Migrar logica de `persistResult()` al servicio
+- [x] Migrar logica de `persistRegistration()` al servicio
+- [x] Agregar manejo de duplicados (UNIQUE constraint en attendance_results)
+- [x] Exportar en `application/services/index.ts`
+- [x] Modificar `CompleteScanUseCase`:
   - Inyectar `AttendancePersistenceService` en `PersistenceDependencies`
   - Reemplazar llamadas a metodos privados por `persistenceService.saveX()`
   - Eliminar metodos privados de persistencia
-- [ ] Actualizar `routes.ts`: instanciar servicio y pasar a UseCase
-- [ ] Crear tests unitarios (8+ tests):
+- [x] Actualizar factory: instanciar servicio y pasar a UseCase
+- [x] Crear tests unitarios (12 tests):
   - Test: saveValidationAttempt llama validationRepo correctamente
   - Test: saveAttendanceResult maneja duplicados (UNIQUE constraint)
   - Test: markRegistrationComplete actualiza registrations
   - Test: saveCompleteAttendance ejecuta 3 operaciones en orden
   - Test: errores de BD se propagan correctamente
-- [ ] Actualizar tests de CompleteScanUseCase (mockear servicio)
-- [ ] Verificar tests: `podman exec asistencia-node npm run test` (143+ nuevos)
-- [ ] Verificar build: `podman exec asistencia-node npm run build`
-- [ ] Commit con mensaje descriptivo
+- [x] Actualizar tests de CompleteScanUseCase (servicio inyectado)
+- [x] Verificar tests: `podman exec asistencia-node npm run test` (155 total)
+- [x] Verificar build: `podman exec asistencia-node npm run build`
+- [x] Commit con mensaje descriptivo
 
 **Criterio de exito:**
-- `CompleteScanUseCase.execute()` reduce de 477 a ~300 lineas
-- `AttendancePersistenceService` encapsula toda logica PostgreSQL
-- Tests de servicio cubren casos exito, idempotencia, errores
-- Tests existos de UseCase siguen pasando (mock servicio)
+- `CompleteScanUseCase.execute()` reducido de 477 a 371 lineas (22% reducción)
+- `AttendancePersistenceService` encapsula toda logica PostgreSQL (215 lineas)
+- Tests de servicio cubren casos exito, idempotencia, errores (12 tests)
+- Tests existentes de UseCase siguen pasando (155 total)
 - Build exitoso sin warnings
-- SoC mejorado: application/ orquesta, infrastructure/service persiste
+- SoC mejorado: application/ orquesta, service persiste
+
+**Resultados alcanzados:**
+- Servicio con 4 métodos públicos y Facade Pattern aplicado
+- Idempotencia garantizada en `saveAttendanceResult()` (verifica duplicados)
+- Operación atómica `saveCompleteAttendance()` ejecuta 3 operaciones en secuencia
+- 12 tests nuevos con cobertura de casos normales, edge cases y errores
+- Factory actualizado con inyección de dependencias correcta
 
 ---
 
-### 22.5: Extraer Calculo de Estadisticas
+### 22.5: Extraer Cálculo de Estadísticas y QR Lifecycle
 
-**Rama:** `fase-22.5-extract-stats`
-**Modelo:** Sonnet
-**Dificultad:** Baja
-**Recordatorio:** Comandos npm DEBEN ejecutarse dentro del contenedor Node (PROJECT-CONSTITUTION.md Art. 3.2)
+**Rama:** `fase-22.5-extract-stats-and-qr-lifecycle`
+**Modelo:** Opus (cambio por complejidad adicional)
+**Dificultad:** Alta
+**Recordatorio:** Comandos npm DEBEN ejecutarse dentro del contenedor Node (daRulez.md Art. 3.2)
 
-**Justificacion:** `calculateStats()` es funcion helper en domain/stats-calculator.ts importada directamente. Debe ser servicio inyectado para testabilidad y evolucion futura.
+**Justificacion:** `CompleteScanUseCase` tiene responsabilidades de attendance Y qr-projection mezcladas. Debe extraerse:
+1. Cálculo de estadísticas (attendance concern)
+2. Generación de siguiente QR (qr-projection concern)
 
 **Problema actual:**
-- UseCase importa funcion directamente (acoplamiento estructural)
-- No se puede mockear facilmente en tests
-- Dificil agregar features (ej: calcular desviacion estandar)
+- UseCase importa `calculateStats()` directamente (acoplamiento estructural)
+- UseCase tiene lógica de `generateNextQR()` y `updatePoolQR()` (violation SoC)
+- CompleteScanDependencies incluye responsabilidades de qr-projection:
+  ```typescript
+  generateNextQR: (...) => Promise<{...}>;  // ← qr-projection concern
+  updatePoolQR: (...) => Promise<void>;     // ← qr-projection concern
+  ```
 
 **Arquitectura objetivo:**
 ```
-CompleteScanUseCase → IAttendanceStatsService (interfaz)
-                      ↓
-                      AttendanceStatsService (implementacion)
+CompleteScanUseCase
+  ├──► IAttendanceStatsService (stats)
+  └──► IQRLifecycleService (generar siguiente QR, actualizar pool)
+       ↓
+       QRLifecycleService (implementación via adapters)
 ```
 
 **Archivos a crear:**
@@ -751,6 +870,8 @@ CompleteScanUseCase → IAttendanceStatsService (interfaz)
 - `backend/attendance/domain/services/attendance-stats.service.ts`
 - `backend/attendance/domain/services/__tests__/attendance-stats.service.test.ts`
 - `shared/ports/attendance-stats.interface.ts`
+- `shared/ports/qr-lifecycle.interface.ts` ← **NUEVO**
+- `backend/attendance/infrastructure/adapters/qr-lifecycle.adapter.ts` ← **NUEVO**
 
 **Archivos a modificar:**
 
@@ -761,52 +882,60 @@ CompleteScanUseCase → IAttendanceStatsService (interfaz)
 
 **Flujo Git:**
 
-1. Verificar estado: `git status` (desde rama 22.4 mergeada)
-2. Crear rama: `git checkout -b fase-22.5-extract-stats`
-3. Implementar servicio
-4. Commit: `git commit -m "refactor(attendance): extraer calculo de stats a domain service (fase 22.5)"`
-5. Merge a main preservando ultimos 4 commits sin mergear (daRulez.md regla 35)
+1. Verificar estado: `git status`
+2. Crear rama: `git checkout -b fase-22.5-extract-stats-and-qr-lifecycle`
+3. Implementar servicios (2 fases: stats primero, lifecycle segundo)
+4. Commit 1: `git commit -m "refactor(attendance): extraer stats a domain service"`
+5. Commit 2: `git commit -m "refactor(attendance): delegar QR lifecycle a puerto compartido"`
+6. Merge a main cuando tests pasen
 
-**Tareas:**
+**Tareas PARTE 1 - Stats (como estaba planeado):**
 
 - [ ] Verificar estado del repositorio: `git status`
-- [ ] Crear rama: `git checkout -b fase-22.5-extract-stats`
-- [ ] Crear interfaz `IAttendanceStatsService` en `shared/ports/`:
+- [ ] Crear rama: `git checkout -b fase-22.5-extract-stats-and-qr-lifecycle`
+- [ ] Crear interfaz `IAttendanceStatsService` en `shared/ports/`
+- [ ] Crear `AttendanceStatsService` en domain/services/
+- [ ] Migrar lógica de `stats-calculator.ts` a método `calculate()`
+- [ ] Agregar cálculo de desviación estándar
+- [ ] Exportar en `domain/services/index.ts` y `shared/ports/index.ts`
+- [ ] Modificar `CompleteScanUseCase`: inyectar y usar statsService
+- [ ] Actualizar `routes.ts`: instanciar y pasar servicio
+- [ ] Crear tests unitarios (6+ tests de stats)
+- [ ] Verificar tests: `podman exec asistencia-node npm run test`
+- [ ] Commit: stats extraction
+
+**Tareas PARTE 2 - QR Lifecycle (NUEVO):**
+
+- [ ] Crear interfaz `IQRLifecycleService` en `shared/ports/`:
   ```typescript
-  interface IAttendanceStatsService {
-    calculate(responseTimes: number[]): AttendanceStats;
+  interface IQRLifecycleService {
+    generateNextQR(sessionId: string, studentId: number, round: number): Promise<{
+      encrypted: string;
+      nonce: string;
+    }>;
+    updatePool(sessionId: string, studentId: number, encrypted: string, round: number): Promise<void>;
   }
   ```
-- [ ] Crear `AttendanceStatsService` en domain/services/
-- [ ] Migrar logica de `stats-calculator.ts` a metodo `calculate()`
-- [ ] Agregar calculo de desviacion estandar (para registro, no usado aun)
-- [ ] Exportar en `domain/services/index.ts`
-- [ ] Exportar interfaz en `shared/ports/index.ts`
-- [ ] Modificar `CompleteScanUseCase`:
-  - Inyectar `IAttendanceStatsService` en constructor
-  - Reemplazar `calculateStats(responseTimes)` por `statsService.calculate(responseTimes)`
-  - Eliminar import de `stats-calculator.ts`
-- [ ] Actualizar `routes.ts`: instanciar servicio y pasar a UseCase
-- [ ] Agregar `statsService` a `CompleteScanDependencies`
-- [ ] Crear tests unitarios (6+ tests):
-  - Test: RT normales (800-3000ms) → certeza alta (>80%)
-  - Test: RT muy rapidos (<300ms) → certeza baja (<50%)
-  - Test: RT muy lentos (>15s) → certeza media (~60%)
-  - Test: RT con baja desviacion → certeza +10%
-  - Test: Array vacio → error o stats por defecto
-- [ ] Actualizar tests de CompleteScanUseCase (mockear IAttendanceStatsService)
-- [ ] Agregar comentario de deprecacion en `stats-calculator.ts`
-- [ ] Verificar tests: `podman exec asistencia-node npm run test` (143+ nuevos)
-- [ ] Verificar build: `podman exec asistencia-node npm run build`
-- [ ] Commit con mensaje descriptivo
+- [ ] Crear `QRLifecycleAdapter` en `infrastructure/adapters/`:
+  - Inyecta `IQRGenerator`, `IQRPayloadRepository`, `IPoolBalancer`
+  - Implementa métodos delegando a puertos existentes
+- [ ] Modificar `CompleteScanDependencies`:
+  - Eliminar `generateNextQR`, `updatePoolQR` directos
+  - Agregar `qrLifecycleService: IQRLifecycleService`
+- [ ] Actualizar `routes.ts`: instanciar adapter y pasar a UseCase
+- [ ] Actualizar `complete-scan-deps.factory.ts` si existe
+- [ ] Crear tests de QRLifecycleAdapter (mock de puertos)
+- [ ] Verificar tests: `podman exec asistencia-node npm run test` (165+)
+- [ ] Commit: QR lifecycle delegation
 
 **Criterio de exito:**
-- `CompleteScanUseCase` reduce de ~300 a ~250 lineas
-- `AttendanceStatsService` en domain/ con logica pura encapsulada
-- Interfaz `IAttendanceStatsService` en shared/ports/ para DI
-- Tests de servicio cubren todos rangos de RT y desviacion
-- UseCase NO conoce implementacion concreta (solo interfaz)
-- Build exitoso, tests pasan (143+ nuevos)
+- `CompleteScanUseCase` reduce de ~371 a ~180 lineas (51% reducción)
+- `AttendanceStatsService` en domain/ con lógica pura
+- `QRLifecycleAdapter` delega a puertos de qr-projection
+- CompleteScanDependencies SIN referencias directas a qr-projection
+- Tests pasan (165+ nuevos incluyendo lifecycle)
+- Build exitoso
+- **SoC perfecto**: attendance NO conoce implementación de qr-projection
 
 ---
 
@@ -870,7 +999,7 @@ interface ISessionKeyQuery {
 **Rama:** `fase-22.7-qr-projection-ports`
 **Modelo:** Sonnet
 **Dificultad:** Media
-**Estado:** ✅ COMPLETADA
+**Estado:** COMPLETADA
 **Commit:** c0dc4ea
 
 **Justificacion:** `ParticipationService` importa directamente de `qr-projection/` (domain, infrastructure, application). Debe usar interfaces de `shared/ports/` para desacoplamiento.
@@ -888,7 +1017,7 @@ interface ISessionKeyQuery {
 - [x] Verificar tests: `podman exec asistencia-node npm run test` (143/143 pasando)
 - [x] Commit atomico: `refactor(attendance): crear puertos para qr-projection (fase 22.7)`
 
-**Criterio de exito:** ✅ COMPLETADO
+**Criterio de exito:** COMPLETADO
 
 - `attendance/application/` NO importa directamente de `qr-projection/`
 - ParticipationService es agnóstica a la implementación concreta de generación/balanceo de QR
@@ -902,7 +1031,7 @@ interface ISessionKeyQuery {
 **Rama:** `fase-22.9-remove-dev-endpoints`
 **Modelo:** Sonnet
 **Dificultad:** Baja
-**Estado:** ✅ COMPLETADA
+**Estado:** COMPLETADA
 **Commit:** c8da2fd
 
 **Justificacion:** Endpoints `/dev/` en `routes.ts` facilitan bypass de validaciones. Deben eliminarse antes de producción. Los tests deben estar en test suites, no en API pública.
@@ -923,12 +1052,84 @@ interface ISessionKeyQuery {
 - [x] Verificar grep: `grep -r "'/dev/" node-service/src/backend/` (sin resultados)
 - [x] Commit atomico: `security(attendance): eliminar endpoints /dev/ (fase 22.9)`
 
-**Criterio de exito:** ✅ COMPLETADO
+**Criterio de exito:** COMPLETADO
 
 - Todos los endpoints `/dev/` eliminados
 - No hay imports innecesarios
 - Build y tests exitosos
 - API más segura: sin backdoors de testing en producción
+
+---
+
+### 22.10: Mover WebSocketAuthMiddleware a Auth Domain
+
+**Rama:** `fase-22.10-move-websocket-auth`
+**Modelo:** Sonnet
+**Dificultad:** Media
+**Estado:** PENDIENTE
+**Recordatorio:** Comandos npm DEBEN ejecutarse dentro del contenedor Node (daRulez.md Art. 3.2)
+
+**Justificacion:** `WebSocketAuthMiddleware` en `middleware/` importa directamente de `backend/auth/domain/`. Un middleware transversal NO DEBE depender de módulos específicos. Viola arquitectura hexagonal y Separation of Concerns.
+
+**Problema actual:**
+- `middleware/websocket-auth.middleware.ts` importa:
+  - `JWTUtils` desde `backend/auth/domain/jwt-utils`
+  - `UserId` desde `backend/auth/domain/user-id`
+  - `AuthenticatedUser` desde `backend/auth/domain/models`
+- Si auth/ cambia, middleware/ se rompe
+- Viola daRulez.md Art. 2.2 (Segmentación vertical)
+
+**Arquitectura objetivo:**
+```
+backend/auth/presentation/
+  ├── auth-middleware.ts (HTTP)
+  └── websocket-auth.middleware.ts (WebSocket) ← MOVER AQUÍ
+```
+
+**Alternativa (si se necesita en otros módulos):**
+```
+shared/ports/
+  └── auth.interface.ts ← Interfaz genérica
+backend/auth/infrastructure/adapters/
+  └── websocket-auth.adapter.ts ← Implementación
+```
+
+**Archivos a modificar:**
+
+- `middleware/websocket-auth.middleware.ts` → MOVER a `backend/auth/presentation/`
+- `middleware/index.ts` → Eliminar export de WebSocketAuthMiddleware
+- `backend/auth/presentation/index.ts` → Agregar export
+- `backend/qr-projection/presentation/websocket-controller.ts` → Actualizar import
+- `app.ts` → Actualizar import
+
+**Flujo Git:**
+
+1. Verificar estado: `git status`
+2. Crear rama: `git checkout -b fase-22.10-move-websocket-auth`
+3. Mover archivo y actualizar imports
+4. Commit: `git commit -m "refactor(auth): mover WebSocketAuthMiddleware a auth/presentation (fase 22.10)"`
+5. Merge a main cuando tests pasen
+
+**Tareas:**
+
+- [ ] Verificar estado del repositorio: `git status`
+- [ ] Crear rama: `git checkout -b fase-22.10-move-websocket-auth`
+- [ ] Mover `middleware/websocket-auth.middleware.ts` a `backend/auth/presentation/`
+- [ ] Actualizar `middleware/index.ts`: eliminar export
+- [ ] Actualizar `backend/auth/presentation/index.ts`: agregar export
+- [ ] Actualizar `websocket-controller.ts`: cambiar import path
+- [ ] Actualizar `app.ts`: cambiar import path
+- [ ] Verificar que NO hay otros imports del middleware antiguo: `grep -r "middleware/websocket-auth" node-service/src/`
+- [ ] Verificar tests: `podman exec asistencia-node npm run test` (155/155)
+- [ ] Verificar build: `podman exec asistencia-node npm run build`
+- [ ] Commit con mensaje descriptivo
+
+**Criterio de exito:**
+- `middleware/` NO contiene lógica de dominio específica
+- WebSocketAuthMiddleware vive en `auth/presentation/` (cohesión modular)
+- Imports actualizados correctamente
+- Tests pasan sin regresiones (155/155)
+- Build exitoso
 
 ---
 
@@ -974,7 +1175,7 @@ interface ISessionKeyQuery {
 **Objetivo:** Integrar con el sistema PHP existente para produccion.
 **Rama base:** `fase-23-php-bridge`
 **Modelo recomendado global:** Sonnet (integracion bien definida)
-**Recordatorio:** Comandos npm DEBEN ejecutarse dentro del contenedor Node (PROJECT-CONSTITUTION.md Art. 3.2)
+**Recordatorio:** Comandos npm DEBEN ejecutarse dentro del contenedor Node (daRulez.md Art. 3.2)
 
 ---
 
@@ -999,7 +1200,7 @@ backend/attendance/presentation/routes/
 2. Crear rama: `git checkout -b fase-23.1-internal-attendance`
 3. Implementar endpoint
 4. Commit: `git commit -m "feat(attendance): agregar endpoint interno para marcar asistencia"`
-5. Merge a main preservando ultimos 4 commits sin mergear (daRulez.md regla 35)
+5. Merge a main preservando ultimos 4 commits sin mergear
 
 **Tareas:**
 
@@ -1030,7 +1231,7 @@ backend/attendance/presentation/routes/
 2. Crear rama: `git checkout -b fase-23.2-php-controller`
 3. Implementar controller PHP
 4. Commit: `git commit -m "feat(php): agregar controller para recibir asistencia de Node"`
-5. Merge a main preservando ultimos 4 commits sin mergear (daRulez.md regla 35)
+5. Merge a main preservando ultimos 4 commits sin mergear
 
 **Tareas:**
 
@@ -1061,7 +1262,7 @@ backend/attendance/presentation/routes/
 2. Crear rama: `git checkout -b fase-23.3-survey`
 3. Implementar componente de encuesta
 4. Commit: `git commit -m "feat(frontend): agregar componente de encuesta post-validacion"`
-5. Merge a main preservando ultimos 4 commits sin mergear (daRulez.md regla 35)
+5. Merge a main preservando ultimos 4 commits sin mergear
 
 **Tareas:**
 
@@ -1091,7 +1292,7 @@ backend/attendance/presentation/routes/
 2. Crear rama: `git checkout -b fase-23.4-parent-notification`
 3. Implementar postMessage
 4. Commit: `git commit -m "feat(frontend): agregar notificacion postMessage al parent PHP"`
-5. Merge a main preservando ultimos 4 commits sin mergear (daRulez.md regla 35)
+5. Merge a main preservando ultimos 4 commits sin mergear
 
 **Tareas:**
 
@@ -1112,7 +1313,7 @@ backend/attendance/presentation/routes/
 **Objetivo:** Preparar el sistema para despliegue en produccion con configuracion robusta.
 **Rama base:** `fase-24-infrastructure`
 **Modelo recomendado global:** Sonnet (tareas de configuracion bien definidas)
-**Recordatorio:** Comandos npm DEBEN ejecutarse dentro del contenedor Node (PROJECT-CONSTITUTION.md Art. 3.2)
+**Recordatorio:** Comandos npm DEBEN ejecutarse dentro del contenedor Node (daRulez.md Art. 3.2)
 
 ---
 
@@ -1146,7 +1347,7 @@ backend/attendance/presentation/routes/
 2. Crear rama: `git checkout -b fase-24.1-consolidate-migrations`
 3. Eliminar archivos obsoletos
 4. Commit: `git commit -m "refactor(database): consolidar migraciones en 001-schema.sql"`
-5. Merge a main preservando ultimos 4 commits sin mergear (daRulez.md regla 35)
+5. Merge a main preservando ultimos 4 commits sin mergear
 
 **Tareas:**
 
@@ -1190,7 +1391,7 @@ backend/attendance/presentation/routes/
 2. Crear rama: `git checkout -b fase-24.2-env-production`
 3. Realizar cambios
 4. Commit: `git commit -m "config(env): documentar variables de entorno para produccion"`
-5. Merge a main preservando ultimos 4 commits sin mergear (daRulez.md regla 35)
+5. Merge a main preservando ultimos 4 commits sin mergear
 
 **Tareas:**
 
@@ -1228,7 +1429,7 @@ GET /api/health/live     -> { status: 'ok' }
 2. Crear rama: `git checkout -b fase-24.3-health-checks`
 3. Implementar endpoints
 4. Commit: `git commit -m "feat(health): agregar endpoints de health check"`
-5. Merge a main preservando ultimos 4 commits sin mergear (daRulez.md regla 35)
+5. Merge a main preservando ultimos 4 commits sin mergear
 
 **Tareas:**
 
@@ -1264,7 +1465,7 @@ GET /api/health/live     -> { status: 'ok' }
 2. Crear rama: `git checkout -b fase-24.4-structured-logging`
 3. Implementar servicio de logging
 4. Commit: `git commit -m "feat(logging): implementar logging estructurado con Pino"`
-5. Merge a main preservando ultimos 4 commits sin mergear (daRulez.md regla 35)
+5. Merge a main preservando ultimos 4 commits sin mergear
 
 **Tareas:**
 
@@ -1286,7 +1487,7 @@ GET /api/health/live     -> { status: 'ok' }
 **Objetivo:** Asegurar calidad del sistema con tests automatizados y validacion de flujos completos.
 **Rama base:** `fase-25-testing-quality`
 **Modelo recomendado global:** Opus (requiere diseno de estrategia de testing)
-**Recordatorio:** Comandos npm DEBEN ejecutarse dentro del contenedor Node (PROJECT-CONSTITUTION.md Art. 3.2)
+**Recordatorio:** Comandos npm DEBEN ejecutarse dentro del contenedor Node (daRulez.md Art. 3.2)
 
 ---
 
@@ -1308,7 +1509,7 @@ GET /api/health/live     -> { status: 'ok' }
 2. Crear rama: `git checkout -b fase-25.1-access-gateway-integration-tests`
 3. Crear tests
 4. Commit: `git commit -m "test(access): agregar tests de integracion para Access Gateway"`
-5. Merge a main preservando ultimos 4 commits sin mergear (daRulez.md regla 35)
+5. Merge a main preservando ultimos 4 commits sin mergear
 
 **Tareas:**
 
@@ -1344,7 +1545,7 @@ GET /api/health/live     -> { status: 'ok' }
 2. Crear rama: `git checkout -b fase-25.2-e2e-enrollment`
 3. Implementar tests
 4. Commit: `git commit -m "test(e2e): agregar tests E2E para flujo de enrollment"`
-5. Merge a main preservando ultimos 4 commits sin mergear (daRulez.md regla 35)
+5. Merge a main preservando ultimos 4 commits sin mergear
 
 **Tareas:**
 
@@ -1381,7 +1582,7 @@ GET /api/health/live     -> { status: 'ok' }
 2. Crear rama: `git checkout -b fase-25.3-e2e-attendance`
 3. Implementar tests
 4. Commit: `git commit -m "test(e2e): agregar tests E2E para flujo de asistencia QR"`
-5. Merge a main preservando ultimos 4 commits sin mergear (daRulez.md regla 35)
+5. Merge a main preservando ultimos 4 commits sin mergear
 
 **Tareas:**
 
@@ -1412,7 +1613,7 @@ GET /api/health/live     -> { status: 'ok' }
 2. Crear rama: `git checkout -b fase-25.4-code-coverage`
 3. Configurar cobertura
 4. Commit: `git commit -m "config(test): agregar reporte de cobertura de codigo"`
-5. Merge a main preservando ultimos 4 commits sin mergear (daRulez.md regla 35)
+5. Merge a main preservando ultimos 4 commits sin mergear
 
 **Tareas:**
 
@@ -1456,23 +1657,30 @@ Fase 20.6 (update spec)    ┘                                           │
                                                                         │
                                                                         └──► Fase 21.3 (remove guest)
 
-Fase 22.1 (TOTP) ✅
+Fase 22.1 (TOTP) ✓
     │
     ▼
-BLOQUE A: SoC Crítico (ORDEN OPTIMIZADO 2025-12-17)
-    22.6 (ISessionKeyQuery) ──► 22.7 (QR-Projection ports) ──► 22.9 (remove /dev/)
+BLOQUE A: SoC Crítico ✓ (COMPLETADO)
+    22.6 ✓ (ISessionKeyQuery) ──► 22.7 ✓ (QR-Projection ports) ──► 22.9 ✓ (remove /dev/)
                                                                       │
                                                                       ▼
-BLOQUE B: Refactorizar Attendance
-    22.4 (extract persistence) ──► 22.5 (extract stats) ──► 22.8 (facade)
-                                                                 │
-                                                                 ▼
-BLOQUE C: Features Criptográficas
-    22.2 (session binding) ──► 22.3 (AAGUID) ──► Fase 23 (PHP bridge)
+BLOQUE B: Refactorizar Attendance (PRIORIDAD: Deuda Técnica)
+    22.10 (WebSocketAuthMiddleware) ──► 22.4 ✓ (extract persistence) ──► 22.5 AMPLIADA (stats + QR lifecycle) ──► 22.8 ✓ (facade)
+                                                                                                                            │
+                                                                                                                            ▼
+BLOQUE C: Features Criptográficas (sobre código limpio)
+    22.2 (session binding) ──► 22.3 (AAGUID)
+                                    │
+                                    ▼
+BLOQUE D: Deudas Técnicas Menores (opcional, puede ser Fase 25)
+    22.11 (ValidationErrorCode) ──► 22.12 (FinishEnrollmentController SoC)
+                                                │
+                                                ▼
+                                          Fase 23 (PHP bridge)
+                                                │
+                                                └──► Fase 24 (infrastructure)
                                                         │
-                                                        └──► Fase 24 (infrastructure)
-                                                                    │
-                                                                    └──► Fase 25 (testing E2E)
+                                                        └──► Fase 25 (testing E2E)
 
 Fase 24.1 (migrations) ◄── Independiente, puede ejecutarse en cualquier momento
 Fase 24.2 (env vars)   ◄── Independiente, puede ejecutarse en cualquier momento
@@ -1500,5 +1708,5 @@ Fase 24.2 (env vars)   ◄── Independiente, puede ejecutarse en cualquier mo
 
 - `spec-architecture.md` - Arquitectura de dominios (fuente de verdad)
 - `spec-qr-validation.md` - Flujo de validacion QR
-- `PROJECT-CONSTITUTION.md` - Principios arquitectonicos
+- `daRulez.md` - Principios arquitectonicos
 - `daRulez.md` - Reglas de desarrollo
