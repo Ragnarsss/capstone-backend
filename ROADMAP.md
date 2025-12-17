@@ -27,7 +27,8 @@
 | **21.3** | **Eliminar feature guest/** | COMPLETADA |
 | **22.1** | **Validar TOTPu en Pipeline** | COMPLETADA |
 | **22.6** | **Inyectar ISessionKeyQuery en Pipeline** | COMPLETADA |
-| **22.7-22.9** | **SoC Crítico (restante)** | PENDIENTE |
+| **22.7** | **Crear Puertos para QR-Projection** | ✅ COMPLETADA |
+| **22.9** | **Eliminar endpoints /dev/** | ✅ COMPLETADA |
 | **22.4-22.5-22.8** | **Refactorización Attendance** | PENDIENTE |
 | **22.2-22.3** | **Session Binding + AAGUID** | PENDIENTE |
 | **23** | **Puente PHP Produccion** | PENDIENTE |
@@ -767,69 +768,75 @@ interface ISessionKeyQuery {
 **Rama:** `fase-22.7-qr-projection-ports`
 **Modelo:** Sonnet
 **Dificultad:** Media
+**Estado:** ✅ COMPLETADA
+**Commit:** c0dc4ea
 
-**Justificacion:** `ParticipationService` importa directamente de `qr-projection/` (domain, infrastructure, application). Debe usar interfaces de `shared/ports/`.
+**Justificacion:** `ParticipationService` importa directamente de `qr-projection/` (domain, infrastructure, application). Debe usar interfaces de `shared/ports/` para desacoplamiento.
 
-**Archivos a crear:**
+**Trabajo realizado:**
 
-- `shared/ports/qr-generator.interface.ts`
-- `shared/ports/qr-payload-repository.interface.ts`
-- `shared/ports/pool-projection.interface.ts`
+- [x] Analizar que interfaces ya existen en shared/ports/: `IQRGenerator`, `IPoolBalancer`, `IQRPayloadRepository`
+- [x] Crear `QRGeneratorAdapter` en `infrastructure/adapters/`
+- [x] Crear `PoolBalancerAdapter` en `infrastructure/adapters/`
+- [x] Crear `QRPayloadRepositoryAdapter` en `infrastructure/adapters/`
+- [x] Refactorizar `ParticipationService` constructor para inyectar interfaces
+- [x] Eliminar imports directos de `qr-projection/domain/`, `/infrastructure/`, `/application/`
+- [x] Actualizar `routes.ts` para instanciar adapters e inyectar dependencias
+- [x] Actualizar `infrastructure/adapters/index.ts` con exports nuevos
+- [x] Verificar tests: `podman exec asistencia-node npm run test` (143/143 pasando)
+- [x] Commit atomico: `refactor(attendance): crear puertos para qr-projection (fase 22.7)`
 
-**Archivos a modificar:**
+**Criterio de exito:** ✅ COMPLETADO
 
-- `backend/attendance/application/participation.service.ts`
-- `backend/attendance/presentation/routes.ts`
-- `shared/ports/index.ts`
+- `attendance/application/` NO importa directamente de `qr-projection/`
+- ParticipationService es agnóstica a la implementación concreta de generación/balanceo de QR
+- Tests pasan sin cambios (143/143)
+- SoC mejorado: attendance depende solo de interfaces públicas
 
-**Tareas:**
+---
 
-- [ ] Verificar estado del repositorio: `git status`
-- [ ] Crear rama: `git checkout -b fase-22.7-qr-projection-ports`
-- [ ] Crear `IQRGenerator` interface:
+### 22.9: Eliminar Endpoints de Desarrollo
 
-```typescript
-interface IQRGenerator {
-  generateForStudent(sessionId: string, studentId: number, round: number): QRPayloadV1;
-}
-```
+**Rama:** `fase-22.9-remove-dev-endpoints`
+**Modelo:** Sonnet
+**Dificultad:** Baja
+**Estado:** ✅ COMPLETADA
+**Commit:** c8da2fd
 
-- [ ] Crear `IQRPayloadRepository` interface:
+**Justificacion:** Endpoints `/dev/` en `routes.ts` facilitan bypass de validaciones. Deben eliminarse antes de producción. Los tests deben estar en test suites, no en API pública.
 
-```typescript
-interface IQRPayloadRepository {
-  store(payload: QRPayloadV1, encrypted: string, ttl: number): Promise<void>;
-}
-```
+**Trabajo realizado:**
 
-- [ ] Crear `IPoolProjection` interface:
+- [x] Identificar bloque de endpoints `/dev/` (líneas ~375-543)
+- [x] Eliminar endpoints:
+  - `/asistencia/api/attendance/dev/fakes`
+  - `/asistencia/api/attendance/dev/balance`
+  - `/asistencia/api/attendance/dev/pool/:sessionId`
+  - `/asistencia/api/attendance/dev/fraud/:sessionId`
+  - `/asistencia/api/attendance/dev/config`
+- [x] Eliminar import de `FraudMetricsRepository` (no se necesita sin endpoints)
+- [x] Agregar comentario aclarando que testing debe estar en test suites
+- [x] Verificar build: `podman exec asistencia-node npm run build` (exitoso)
+- [x] Verificar tests: `podman exec asistencia-node npm run test` (143/143 pasando)
+- [x] Verificar grep: `grep -r "'/dev/" node-service/src/backend/` (sin resultados)
+- [x] Commit atomico: `security(attendance): eliminar endpoints /dev/ (fase 22.9)`
 
-```typescript
-interface IPoolProjection {
-  upsertStudentQR(sessionId: string, studentId: number, encrypted: string, round: number): Promise<void>;
-}
-```
+**Criterio de exito:** ✅ COMPLETADO
 
-- [ ] Modificar `ParticipationService` para usar interfaces
-- [ ] Actualizar `routes.ts` para inyectar implementaciones concretas
-- [ ] Actualizar `shared/ports/index.ts` con exports
-- [ ] Verificar tests: `podman exec asistencia-node npm run test` (143/143)
-- [ ] Commit: `refactor(attendance): usar puertos para dependencias de qr-projection`
-
-**Criterio de exito:**
-
-- `attendance/` NO importa de `qr-projection/infrastructure/` ni `qr-projection/domain/`
-- Solo importa de `shared/ports/`
+- Todos los endpoints `/dev/` eliminados
+- No hay imports innecesarios
+- Build y tests exitosos
+- API más segura: sin backdoors de testing en producción
 
 ---
 
 ### 22.8: Descomponer ParticipationService
 
 **Rama:** `fase-22.8-decompose-participation`
-**Modelo:** Opus (requiere decision arquitectonica)
+**Modelo:** Opus
 **Dificultad:** Alta
 
-**Justificacion:** `ParticipationService` tiene 5 responsabilidades mezcladas. Aplicar patron Facade para delegar a servicios especializados.
+**Justificacion:** `ParticipationService` tiene múltiples responsabilidades. Aplicar patrón Facade para delegar a servicios especializados.
 
 **Archivos a crear:**
 
@@ -842,62 +849,23 @@ interface IPoolProjection {
 - `backend/attendance/application/participation.service.ts`
 - `backend/attendance/presentation/routes.ts`
 
-**Estructura propuesta:**
-
-```
-attendance/application/
-├── participation.service.ts      # Facade (orquesta, <50 lineas)
-├── complete-scan.usecase.ts
-└── services/
-    ├── student-state.service.ts  # Estado del estudiante en sesion
-    ├── qr-lifecycle.service.ts   # Genera + almacena + proyecta QR
-    └── index.ts
-```
-
 **Tareas:**
 
-- [ ] Verificar estado del repositorio: `git status`
+- [ ] Verificar estado del repositorio
 - [ ] Crear rama: `git checkout -b fase-22.8-decompose-participation`
-- [ ] Crear `StudentStateService` extrayendo:
-  - `getOrCreateState()`
-  - `updateState()`
-  - Dependencia: `IStudentSessionRepository`
-- [ ] Crear `QRLifecycleService` extrayendo:
-  - `generateAndStore()`
-  - `projectToPool()`
-  - Dependencias: `IQRGenerator`, `IQRPayloadRepository`, `IPoolProjection`
-- [ ] Refactorizar `ParticipationService` como Facade que delega
-- [ ] Cada servicio recibe solo las dependencias que necesita
-- [ ] Actualizar `routes.ts` para instanciar servicios
+- [ ] Crear `StudentStateService` extrayendo lógica de estado
+- [ ] Crear `QRLifecycleService` extrayendo lógica de generación/almacenamiento
+- [ ] Refactorizar `ParticipationService` como Facade
 - [ ] Verificar tests: `podman exec asistencia-node npm run test` (143/143)
-- [ ] Commit: `refactor(attendance): descomponer ParticipationService en servicios especializados`
+- [ ] Commit con mensaje descriptivo
 
 **Criterio de exito:**
 
 - `ParticipationService` reduce a <50 lineas
-- Cada servicio tiene 1 responsabilidad
-- Tests pasan sin modificacion
+- Cada servicio tiene 1 responsabilidad clara
+- Tests pasan sin cambios
 
----
-
-### 22.9: Eliminar Endpoints de Desarrollo
-
-**Rama:** `fase-22.9-remove-dev-endpoints`
-**Modelo:** Sonnet
-**Dificultad:** Baja
-
-**Justificacion:** `routes.ts` contiene endpoints de desarrollo que acceden directamente a repositorios, violando SoC. Deben eliminarse antes de produccion.
-
-**Archivos a modificar:**
-
-- `backend/attendance/presentation/routes.ts`
-
-**Endpoints a eliminar:**
-
-- `POST /asistencia/api/attendance/dev/fakes` (lineas ~355-392)
-- Cualquier otro endpoint marcado como DEV
-
-**Tareas:**
+---**Tareas:**
 
 - [ ] Verificar estado del repositorio: `git status`
 - [ ] Crear rama: `git checkout -b fase-22.9-remove-dev-endpoints`
