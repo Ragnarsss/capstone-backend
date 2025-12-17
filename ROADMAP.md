@@ -29,7 +29,8 @@
 | **22.6** | **Inyectar ISessionKeyQuery en Pipeline** | COMPLETADA |
 | **22.7** | **Crear Puertos para QR-Projection** | ✅ COMPLETADA |
 | **22.9** | **Eliminar endpoints /dev/** | ✅ COMPLETADA |
-| **22.4-22.5-22.8** | **Refactorización Attendance** | PENDIENTE |
+| **22.4-22.5** | **Refactorización Attendance (persistence/stats)** | PENDIENTE |
+| **22.8** | **Descomponer ParticipationService** | ✅ COMPLETADA |
 | **22.2-22.3** | **Session Binding + AAGUID** | PENDIENTE |
 | **23** | **Puente PHP Produccion** | PENDIENTE |
 | **24** | **Infraestructura y Operaciones** | PENDIENTE |
@@ -647,33 +648,80 @@ BLOQUE C: Features Criptográficas (SOBRE CÓDIGO LIMPIO)
 **Rama:** `fase-22.4-extract-persistence`
 **Modelo:** Sonnet
 **Dificultad:** Media
+**Recordatorio:** Comandos npm DEBEN ejecutarse dentro del contenedor Node (PROJECT-CONSTITUTION.md Art. 3.2)
 
-**Justificacion:** `CompleteScanUseCase.execute()` contiene 3 metodos de persistencia inline que suman 167 lineas. Extraerlos a repositorio dedicado reduce el metodo God y mejora testabilidad.
+**Justificacion:** `CompleteScanUseCase.execute()` tiene 477 lineas con 3 metodos de persistencia inline (~167 lineas). Extraer a servicio dedicado aplicando Facade Pattern reduce complejidad y mejora testabilidad.
+
+**Problema actual:**
+- UseCase mezcla orquestacion, logica de negocio y persistencia
+- Metodos privados `persistValidation()`, `persistResult()`, `persistRegistration()` embebidos
+- Dificil mockear persistencia en tests unitarios
+
+**Arquitectura objetivo:**
+```
+CompleteScanUseCase → AttendancePersistenceService
+                      ↓
+                      ValidationRepository
+                      ResultRepository
+                      RegistrationRepository
+```
 
 **Archivos a crear:**
 
-- `backend/attendance/infrastructure/repositories/attendance-result.repository.ts`
+- `backend/attendance/application/services/attendance-persistence.service.ts`
+- `backend/attendance/application/services/__tests__/attendance-persistence.service.test.ts`
 
 **Archivos a modificar:**
 
 - `backend/attendance/application/complete-scan.usecase.ts`
+- `backend/attendance/application/services/index.ts`
 - `backend/attendance/presentation/routes.ts`
+
+**Flujo Git:**
+
+1. Verificar estado: `git status`
+2. Crear rama: `git checkout -b fase-22.4-extract-persistence`
+3. Implementar servicio
+4. Commit: `git commit -m "refactor(attendance): extraer persistencia a AttendancePersistenceService (fase 22.4)"`
+5. Merge a main preservando ultimos 4 commits sin mergear (daRulez.md regla 35)
 
 **Tareas:**
 
 - [ ] Verificar estado del repositorio: `git status`
 - [ ] Crear rama: `git checkout -b fase-22.4-extract-persistence`
-- [ ] Crear `AttendanceResultRepository` con metodos:
-  - `saveValidation(sessionId, studentId, round, responseTime, validatedAt)`
-  - `saveResult(sessionId, studentId, stats, validatedAt)`
-- [ ] Mover `persistValidation()` al nuevo repositorio
-- [ ] Mover `persistResult()` al nuevo repositorio
-- [ ] Actualizar `CompleteScanUseCase` para usar repositorio inyectado
-- [ ] Actualizar `routes.ts` para instanciar e inyectar repositorio
-- [ ] Verificar tests: `podman exec asistencia-node npm run test` (143/143)
-- [ ] Commit: `refactor(attendance): extraer persistencia de CompleteScanUseCase`
+- [ ] Crear `AttendancePersistenceService` con metodos:
+  - `saveValidationAttempt(params)`: INSERT en validation_attempts
+  - `saveAttendanceResult(params)`: INSERT en attendance_results (idempotente)
+  - `markRegistrationComplete(studentId, sessionId)`: UPDATE registrations
+  - `saveCompleteAttendance(validation, result)`: operacion atomica
+- [ ] Migrar logica de `persistValidation()` al servicio
+- [ ] Migrar logica de `persistResult()` al servicio
+- [ ] Migrar logica de `persistRegistration()` al servicio
+- [ ] Agregar manejo de duplicados (UNIQUE constraint en attendance_results)
+- [ ] Exportar en `application/services/index.ts`
+- [ ] Modificar `CompleteScanUseCase`:
+  - Inyectar `AttendancePersistenceService` en `PersistenceDependencies`
+  - Reemplazar llamadas a metodos privados por `persistenceService.saveX()`
+  - Eliminar metodos privados de persistencia
+- [ ] Actualizar `routes.ts`: instanciar servicio y pasar a UseCase
+- [ ] Crear tests unitarios (8+ tests):
+  - Test: saveValidationAttempt llama validationRepo correctamente
+  - Test: saveAttendanceResult maneja duplicados (UNIQUE constraint)
+  - Test: markRegistrationComplete actualiza registrations
+  - Test: saveCompleteAttendance ejecuta 3 operaciones en orden
+  - Test: errores de BD se propagan correctamente
+- [ ] Actualizar tests de CompleteScanUseCase (mockear servicio)
+- [ ] Verificar tests: `podman exec asistencia-node npm run test` (143+ nuevos)
+- [ ] Verificar build: `podman exec asistencia-node npm run build`
+- [ ] Commit con mensaje descriptivo
 
-**Criterio de exito:** `CompleteScanUseCase.execute()` reduce de 143 a ~80 lineas. Tests pasan.
+**Criterio de exito:**
+- `CompleteScanUseCase.execute()` reduce de 477 a ~300 lineas
+- `AttendancePersistenceService` encapsula toda logica PostgreSQL
+- Tests de servicio cubren casos exito, idempotencia, errores
+- Tests existos de UseCase siguen pasando (mock servicio)
+- Build exitoso sin warnings
+- SoC mejorado: application/ orquesta, infrastructure/service persiste
 
 ---
 
@@ -682,29 +730,83 @@ BLOQUE C: Features Criptográficas (SOBRE CÓDIGO LIMPIO)
 **Rama:** `fase-22.5-extract-stats`
 **Modelo:** Sonnet
 **Dificultad:** Baja
+**Recordatorio:** Comandos npm DEBEN ejecutarse dentro del contenedor Node (PROJECT-CONSTITUTION.md Art. 3.2)
 
-**Justificacion:** `calculateStats()` es logica de dominio pura embebida en UseCase de aplicacion. Debe estar en domain/services/.
+**Justificacion:** `calculateStats()` es funcion helper en domain/stats-calculator.ts importada directamente. Debe ser servicio inyectado para testabilidad y evolucion futura.
+
+**Problema actual:**
+- UseCase importa funcion directamente (acoplamiento estructural)
+- No se puede mockear facilmente en tests
+- Dificil agregar features (ej: calcular desviacion estandar)
+
+**Arquitectura objetivo:**
+```
+CompleteScanUseCase → IAttendanceStatsService (interfaz)
+                      ↓
+                      AttendanceStatsService (implementacion)
+```
 
 **Archivos a crear:**
 
 - `backend/attendance/domain/services/attendance-stats.service.ts`
+- `backend/attendance/domain/services/__tests__/attendance-stats.service.test.ts`
+- `shared/ports/attendance-stats.interface.ts`
 
 **Archivos a modificar:**
 
 - `backend/attendance/application/complete-scan.usecase.ts`
+- `backend/attendance/domain/services/index.ts`
+- `backend/attendance/presentation/routes.ts`
+- `shared/ports/index.ts`
+
+**Flujo Git:**
+
+1. Verificar estado: `git status` (desde rama 22.4 mergeada)
+2. Crear rama: `git checkout -b fase-22.5-extract-stats`
+3. Implementar servicio
+4. Commit: `git commit -m "refactor(attendance): extraer calculo de stats a domain service (fase 22.5)"`
+5. Merge a main preservando ultimos 4 commits sin mergear (daRulez.md regla 35)
 
 **Tareas:**
 
 - [ ] Verificar estado del repositorio: `git status`
 - [ ] Crear rama: `git checkout -b fase-22.5-extract-stats`
+- [ ] Crear interfaz `IAttendanceStatsService` en `shared/ports/`:
+  ```typescript
+  interface IAttendanceStatsService {
+    calculate(responseTimes: number[]): AttendanceStats;
+  }
+  ```
 - [ ] Crear `AttendanceStatsService` en domain/services/
-- [ ] Mover funcion `calculateStats()` al servicio
-- [ ] Crear interfaz `IAttendanceStatsService`
-- [ ] Importar servicio en `CompleteScanUseCase`
-- [ ] Verificar tests: `podman exec asistencia-node npm run test` (143/143)
-- [ ] Commit: `refactor(attendance): extraer calculo de estadisticas a domain service`
+- [ ] Migrar logica de `stats-calculator.ts` a metodo `calculate()`
+- [ ] Agregar calculo de desviacion estandar (para registro, no usado aun)
+- [ ] Exportar en `domain/services/index.ts`
+- [ ] Exportar interfaz en `shared/ports/index.ts`
+- [ ] Modificar `CompleteScanUseCase`:
+  - Inyectar `IAttendanceStatsService` en constructor
+  - Reemplazar `calculateStats(responseTimes)` por `statsService.calculate(responseTimes)`
+  - Eliminar import de `stats-calculator.ts`
+- [ ] Actualizar `routes.ts`: instanciar servicio y pasar a UseCase
+- [ ] Agregar `statsService` a `CompleteScanDependencies`
+- [ ] Crear tests unitarios (6+ tests):
+  - Test: RT normales (800-3000ms) → certeza alta (>80%)
+  - Test: RT muy rapidos (<300ms) → certeza baja (<50%)
+  - Test: RT muy lentos (>15s) → certeza media (~60%)
+  - Test: RT con baja desviacion → certeza +10%
+  - Test: Array vacio → error o stats por defecto
+- [ ] Actualizar tests de CompleteScanUseCase (mockear IAttendanceStatsService)
+- [ ] Agregar comentario de deprecacion en `stats-calculator.ts`
+- [ ] Verificar tests: `podman exec asistencia-node npm run test` (143+ nuevos)
+- [ ] Verificar build: `podman exec asistencia-node npm run build`
+- [ ] Commit con mensaje descriptivo
 
-**Criterio de exito:** Logica de calculo en domain/, UseCase solo orquesta.
+**Criterio de exito:**
+- `CompleteScanUseCase` reduce de ~300 a ~250 lineas
+- `AttendanceStatsService` en domain/ con logica pura encapsulada
+- Interfaz `IAttendanceStatsService` en shared/ports/ para DI
+- Tests de servicio cubren todos rangos de RT y desviacion
+- UseCase NO conoce implementacion concreta (solo interfaz)
+- Build exitoso, tests pasan (143+ nuevos)
 
 ---
 
@@ -851,36 +953,19 @@ interface ISessionKeyQuery {
 
 **Tareas:**
 
-- [ ] Verificar estado del repositorio
-- [ ] Crear rama: `git checkout -b fase-22.8-decompose-participation`
-- [ ] Crear `StudentStateService` extrayendo lógica de estado
-- [ ] Crear `QRLifecycleService` extrayendo lógica de generación/almacenamiento
-- [ ] Refactorizar `ParticipationService` como Facade
-- [ ] Verificar tests: `podman exec asistencia-node npm run test` (143/143)
-- [ ] Commit con mensaje descriptivo
+- [x] Verificar estado del repositorio
+- [x] Crear rama: `git checkout -b fase-22.8-decompose-participation`
+- [x] Crear `StudentStateService` extrayendo lógica de estado
+- [x] Crear `QRLifecycleService` extrayendo lógica de generación/almacenamiento
+- [x] Refactorizar `ParticipationService` como Facade (inyecta servicios)
+- [x] Verificar tests: `podman exec asistencia-node npm run test` (143/143)
+- [x] Commit con mensaje descriptivo (`refactor(attendance): descomponer ParticipationService (fase 22.8)`, f0c73e9)
 
 **Criterio de exito:**
 
-- `ParticipationService` reduce a <50 lineas
-- Cada servicio tiene 1 responsabilidad clara
-- Tests pasan sin cambios
-
----**Tareas:**
-
-- [ ] Verificar estado del repositorio: `git status`
-- [ ] Crear rama: `git checkout -b fase-22.9-remove-dev-endpoints`
-- [ ] Identificar todos los endpoints con `/dev/` en la ruta
-- [ ] Eliminar endpoints y codigo asociado
-- [ ] Eliminar imports que ya no se usen
-- [ ] Verificar build: `podman exec asistencia-node npm run build`
-- [ ] Verificar tests: `podman exec asistencia-node npm run test` (143/143)
-- [ ] Commit: `refactor(attendance): eliminar endpoints de desarrollo`
-
-**Criterio de exito:**
-
-- `routes.ts` no tiene acceso directo a repositorios (excepto via servicios)
-- No existen rutas `/dev/` en produccion
-- Build y tests exitosos
+- `ParticipationService` delega a servicios especializados (estado y ciclo de vida QR)
+- Servicios nuevos encapsulan responsabilidades únicas
+- Build y tests verdes (143/143)
 
 ---
 
