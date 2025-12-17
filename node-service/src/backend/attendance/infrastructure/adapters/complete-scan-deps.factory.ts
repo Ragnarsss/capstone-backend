@@ -14,6 +14,8 @@ import { QRGenerator } from '../../../qr-projection/domain/qr-generator';
 import type { IQRGenerator, IQRPayloadRepository } from '../../../../shared/ports';
 import { QRStateAdapter } from './qr-state.adapter';
 import { StudentStateAdapter } from './student-state.adapter';
+import { SessionKeyQueryAdapter } from './session-key-query.adapter';
+import { SessionKeyRepository } from '../../../session/infrastructure/repositories/session-key.repository';
 import { ValidationRepository, ResultRepository, RegistrationRepository } from '../repositories';
 import { logger } from '../../../../shared/infrastructure/logger';
 
@@ -63,16 +65,19 @@ export function createCompleteScanDepsWithPersistence(
   const studentRepo = new StudentSessionRepository();
   const poolRepo = new ProjectionPoolRepository();
   const qrGenerator = new QRGenerator(aesGcmService);
+  const sessionKeyRepo = new SessionKeyRepository();
 
   // Adapters para el pipeline de validación
   const qrStateLoader = new QRStateAdapter(poolRepo, cfg.qrTTL);
   const studentStateLoader = new StudentStateAdapter(studentRepo);
+  const sessionKeyQuery = new SessionKeyQueryAdapter(sessionKeyRepo);
 
   const deps: CompleteScanDependencies = {
     // Para ValidateScanUseCase (pipeline)
     aesGcmService,
     qrStateLoader,
     studentStateLoader,
+    sessionKeyQuery,
 
     // Side effects
     markQRConsumed: async (nonce: string, studentId: number) => {

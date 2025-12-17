@@ -1,29 +1,23 @@
 import type { Stage } from '../stage.interface';
 import type { ValidationContext } from '../context';
+import type { ISessionKeyQuery } from '../../../../../shared/ports';
 import { totp } from 'otplib';
 
 /**
  * Dependencias para el TOTPValidationStage
- * El sessionKeyRepo es inyectado o creado internamente
  */
 export interface TOTPValidationStageDeps {
-  sessionKeyRepo?: any; // Inyectable para testing
+  /** Query para obtener session_key (inyectada via interface) */
+  sessionKeyQuery: ISessionKeyQuery;
 }
 
-export function createTOTPValidationStage(deps: TOTPValidationStageDeps = {}): Stage {
-  // Lazy load SessionKeyRepository para evitar circular dependencies
-  let sessionKeyRepo = deps.sessionKeyRepo;
+export function createTOTPValidationStage(deps: TOTPValidationStageDeps): Stage {
+  const { sessionKeyQuery } = deps;
 
   return {
     name: 'totp-validation',
 
     async execute(ctx: ValidationContext): Promise<boolean> {
-      // Crear repositorio en lazy load (primera ejecucion) si no fue inyectado
-      if (!sessionKeyRepo) {
-        // Dynamic import para evitar circular dependencies
-        const { SessionKeyRepository } = await import('../../../../session/infrastructure/repositories/session-key.repository');
-        sessionKeyRepo = new SessionKeyRepository();
-      }
 
       // Stage solo se ejecuta si tenemos response desencriptada
       if (!ctx.response) {
@@ -43,8 +37,8 @@ export function createTOTPValidationStage(deps: TOTPValidationStageDeps = {}): S
         return false;
       }
 
-      // Obtener session_key del estudiante desde Valkey
-      const sessionKeyData = await sessionKeyRepo.findByUserId(ctx.studentId);
+      // Obtener session_key del estudiante via interfaz inyectada
+      const sessionKeyData = await sessionKeyQuery.findByUserId(ctx.studentId);
       
       if (!sessionKeyData) {
         ctx.error = {

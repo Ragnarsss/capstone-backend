@@ -27,6 +27,7 @@ import {
 import type { QRStateLoader } from './stages/load-qr-state.stage';
 import type { StudentStateLoader } from './stages/load-student-state.stage';
 import type { AesGcmService } from '../../../../shared/infrastructure/crypto';
+import type { ISessionKeyQuery } from '../../../../shared/ports';
 
 /**
  * Dependencias requeridas para construir pipelines
@@ -35,6 +36,8 @@ export interface PipelineDependencies {
   aesGcmService: AesGcmService;
   qrStateLoader: QRStateLoader;
   studentStateLoader: StudentStateLoader;
+  /** Query para obtener session_key (inyectada para SoC) */
+  sessionKeyQuery: ISessionKeyQuery;
 }
 
 /**
@@ -56,12 +59,14 @@ export interface PipelineDependencies {
  */
 export function createDefaultPipeline(deps: PipelineDependencies): Stage[] {
   return [
-    // 1. Decrypt
-    createDecryptStage(deps.aesGcmService),
-    
-    // 2. TOTP validation (criptografico)
-    // SessionKeyRepository se crea dentro del stage factory
-    createTOTPValidationStage({}),
+    // 1. Decrypt (usa sessionKeyQuery para obtener clave)
+    createDecryptStage({
+      fallbackAesGcmService: deps.aesGcmService,
+      sessionKeyQuery: deps.sessionKeyQuery,
+    }),
+
+    // 2. TOTP validation (usa sessionKeyQuery para verificar)
+    createTOTPValidationStage({ sessionKeyQuery: deps.sessionKeyQuery }),
     
     // 3. Pure validations (sync wrapped as async)
     toAsyncStage(validateStructureStage),
@@ -86,18 +91,29 @@ export function createDefaultPipeline(deps: PipelineDependencies): Stage[] {
 }
 
 /**
+ * Dependencias minimas para pipeline de testing
+ */
+export interface MinimalPipelineDependencies {
+  aesGcmService: AesGcmService;
+  sessionKeyQuery: ISessionKeyQuery;
+}
+
+/**
  * Crea un pipeline minimo para testing o validacion rapida
- * 
+ *
  * Solo incluye:
  * 1. Decrypt
  * 2. ValidateStructure
  * 3. ValidateOwnership
- * 
+ *
  * No requiere loaders de estado (qrStateLoader, studentStateLoader)
  */
-export function createMinimalPipeline(aesGcmService: AesGcmService): Stage[] {
+export function createMinimalPipeline(deps: MinimalPipelineDependencies): Stage[] {
   return [
-    createDecryptStage(aesGcmService),
+    createDecryptStage({
+      fallbackAesGcmService: deps.aesGcmService,
+      sessionKeyQuery: deps.sessionKeyQuery,
+    }),
     toAsyncStage(validateStructureStage),
     toAsyncStage(validateOwnershipStage),
   ];
@@ -137,7 +153,10 @@ export function createCustomPipeline(
   
   const stages: Stage[] = [
     // Siempre incluidos - core validation
-    createDecryptStage(deps.aesGcmService),
+    createDecryptStage({
+      fallbackAesGcmService: deps.aesGcmService,
+      sessionKeyQuery: deps.sessionKeyQuery,
+    }),
     toAsyncStage(validateStructureStage),
     toAsyncStage(validateOwnershipStage),
     createLoadQRStateStage(deps.qrStateLoader),

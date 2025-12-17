@@ -6,8 +6,9 @@ import { PoolBalancer } from '../../qr-projection/application/services';
 import { ActiveSessionRepository, ProjectionPoolRepository } from '../../../shared/infrastructure/valkey';
 import { StudentSessionRepository } from '../infrastructure/student-session.repository';
 import { FraudMetricsRepository } from '../infrastructure/fraud-metrics.repository';
-import { QRStateAdapter, StudentStateAdapter, createCompleteScanDepsWithPersistence } from '../infrastructure/adapters';
+import { QRStateAdapter, StudentStateAdapter, SessionKeyQueryAdapter, createCompleteScanDepsWithPersistence } from '../infrastructure/adapters';
 import { AesGcmService } from '../../../shared/infrastructure/crypto';
+import { SessionKeyRepository } from '../../session/infrastructure/repositories/session-key.repository';
 import { mapValidationError } from './error-mapper';
 import { logger } from '../../../shared/infrastructure/logger';
 
@@ -56,10 +57,12 @@ export async function registerAttendanceRoutes(
   const studentRepo = new StudentSessionRepository();
   
   // UseCase para solo validación (debugging)
+  const sessionKeyQuery = new SessionKeyQueryAdapter(new SessionKeyRepository());
   const validateScanUseCase = new ValidateScanUseCase({
     aesGcmService: new AesGcmService(),
     qrStateLoader: new QRStateAdapter(poolRepo),
     studentStateLoader: new StudentStateAdapter(studentRepo),
+    sessionKeyQuery,
   });
 
   // UseCase completo (validación + side effects)

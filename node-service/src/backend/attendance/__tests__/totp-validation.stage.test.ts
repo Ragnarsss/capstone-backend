@@ -57,7 +57,7 @@ describe('TOTPValidationStage', () => {
     };
 
     const stage = createTOTPValidationStage({
-      sessionKeyRepo: mockSessionKeyRepo,
+      sessionKeyQuery: mockSessionKeyRepo,
     });
 
     const ctx = createValidContext({
@@ -89,7 +89,7 @@ describe('TOTPValidationStage', () => {
     };
 
     const stage = createTOTPValidationStage({
-      sessionKeyRepo: mockSessionKeyRepo,
+      sessionKeyQuery: mockSessionKeyRepo,
     });
 
     const ctx = createContext('encrypted-test', 42);
@@ -107,7 +107,7 @@ describe('TOTPValidationStage', () => {
     };
 
     const stage = createTOTPValidationStage({
-      sessionKeyRepo: mockSessionKeyRepo,
+      sessionKeyQuery: mockSessionKeyRepo,
     });
 
     const ctx = createValidContext();
@@ -126,7 +126,7 @@ describe('TOTPValidationStage', () => {
     };
 
     const stage = createTOTPValidationStage({
-      sessionKeyRepo: mockSessionKeyRepo,
+      sessionKeyQuery: mockSessionKeyRepo,
     });
 
     const ctx = createValidContext({
@@ -164,7 +164,7 @@ describe('TOTPValidationStage', () => {
     };
 
     const stage = createTOTPValidationStage({
-      sessionKeyRepo: mockSessionKeyRepo,
+      sessionKeyQuery: mockSessionKeyRepo,
     });
 
     const ctx = createValidContext({
@@ -205,7 +205,7 @@ describe('TOTPValidationStage', () => {
       };
 
       const stage = createTOTPValidationStage({
-        sessionKeyRepo: mockSessionKeyRepo,
+        sessionKeyQuery: mockSessionKeyRepo,
       });
 
       const ctx = createValidContext({
@@ -249,7 +249,7 @@ describe('TOTPValidationStage', () => {
     };
 
     const stage = createTOTPValidationStage({
-      sessionKeyRepo: mockSessionKeyRepo,
+      sessionKeyQuery: mockSessionKeyRepo,
     });
 
     const ctx = createValidContext({

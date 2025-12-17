@@ -14,3 +14,4 @@
 export * from './qr-generator.port';
 export * from './pool-balancer.port';
 export * from './qr-payload-repository.port';
+export * from './session-key-query.interface';

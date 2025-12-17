@@ -18,7 +18,7 @@
 import type { Stage } from '../stage.interface';
 import type { ValidationContext, StudentResponse } from '../context';
 import { AesGcmService } from '../../../../../shared/infrastructure/crypto';
-import { SessionKeyRepository } from '../../../../session/infrastructure/repositories/session-key.repository';
+import type { ISessionKeyQuery } from '../../../../../shared/ports';
 import type { QRPayloadV1 } from '../../../../../shared/types';
 
 const STUB_MODE = process.env.ENROLLMENT_STUB_MODE === 'true';
@@ -29,34 +29,27 @@ const STUB_MODE = process.env.ENROLLMENT_STUB_MODE === 'true';
 export interface DecryptStageDeps {
   /** Servicio AES-GCM de fallback (usa mock key) */
   fallbackAesGcmService: AesGcmService;
-  /** Repositorio de session keys para obtener clave real */
-  sessionKeyRepo: SessionKeyRepository;
+  /** Query para obtener session_key (inyectada via interface) */
+  sessionKeyQuery: ISessionKeyQuery;
 }
 
-export function createDecryptStage(deps: DecryptStageDeps): Stage;
-export function createDecryptStage(aesGcmService: AesGcmService): Stage;
-export function createDecryptStage(
-  depsOrService: DecryptStageDeps | AesGcmService
-): Stage {
-  // Compatibilidad: si recibe AesGcmService directamente, usar como fallback
-  const deps: DecryptStageDeps = depsOrService instanceof AesGcmService
-    ? { fallbackAesGcmService: depsOrService, sessionKeyRepo: new SessionKeyRepository() }
-    : depsOrService;
+export function createDecryptStage(deps: DecryptStageDeps): Stage {
+  const { fallbackAesGcmService, sessionKeyQuery } = deps;
 
   return {
     name: 'decrypt',
 
     async execute(ctx: ValidationContext): Promise<boolean> {
-      // 1. Obtener session_key del estudiante desde Valkey
+      // 1. Obtener session_key del estudiante via interfaz inyectada
       let aesService: AesGcmService;
-      const sessionKeyData = await deps.sessionKeyRepo.findByUserId(ctx.studentId);
+      const sessionKeyData = await sessionKeyQuery.findByUserId(ctx.studentId);
       
       if (sessionKeyData) {
         // Usar session_key real del estudiante
         aesService = new AesGcmService(sessionKeyData.sessionKey);
       } else {
         // Fallback a mock key (solo desarrollo)
-        aesService = deps.fallbackAesGcmService;
+        aesService = fallbackAesGcmService;
       }
 
       // 2. Verificar formato

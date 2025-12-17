@@ -7,7 +7,8 @@
 
 export { QRStateAdapter } from './qr-state.adapter';
 export { StudentStateAdapter } from './student-state.adapter';
-export { 
+export { SessionKeyQueryAdapter } from './session-key-query.adapter';
+export {
   createCompleteScanDependencies,
   createCompleteScanDepsWithPersistence,
   type CompleteScanDepsResult,
