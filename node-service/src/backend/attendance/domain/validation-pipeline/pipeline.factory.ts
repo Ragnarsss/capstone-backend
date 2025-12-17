@@ -12,6 +12,7 @@ import type { Stage } from './stage.interface';
 import { toAsyncStage } from './stage.interface';
 import {
   createDecryptStage,
+  createTOTPValidationStage,
   validateStructureStage,
   validateOwnershipStage,
   createLoadQRStateStage,
@@ -41,37 +42,42 @@ export interface PipelineDependencies {
  * 
  * Stages incluidos:
  * 1. Decrypt - desencripta payload AES-GCM
- * 2. ValidateStructure - verifica estructura QRPayloadV1
- * 3. ValidateOwnership - verifica que studentId coincida
- * 4. LoadQRState - carga estado del QR desde Valkey
- * 5. ValidateQRNotExpired - verifica TTL
- * 6. ValidateQRNotConsumed - verifica no usado previamente
- * 7. LoadStudentState - carga estado del estudiante
- * 8. ValidateStudentRegistered - verifica registro
- * 9. ValidateStudentActive - verifica estado activo
- * 10. ValidateStudentOwnsQR - verifica propiedad del QR
- * 11. ValidateRoundMatch - verifica round correcto
+ * 2. TOTPValidation - valida TOTPu derivado de session_key
+ * 3. ValidateStructure - verifica estructura QRPayloadV1
+ * 4. ValidateOwnership - verifica que studentId coincida
+ * 5. LoadQRState - carga estado del QR desde Valkey
+ * 6. ValidateQRNotExpired - verifica TTL
+ * 7. ValidateQRNotConsumed - verifica no usado previamente
+ * 8. LoadStudentState - carga estado del estudiante
+ * 9. ValidateStudentRegistered - verifica registro
+ * 10. ValidateStudentActive - verifica estado activo
+ * 11. ValidateStudentOwnsQR - verifica propiedad del QR
+ * 12. ValidateRoundMatch - verifica round correcto
  */
 export function createDefaultPipeline(deps: PipelineDependencies): Stage[] {
   return [
     // 1. Decrypt
     createDecryptStage(deps.aesGcmService),
     
-    // 2. Pure validations (sync wrapped as async)
+    // 2. TOTP validation (criptografico)
+    // SessionKeyRepository se crea dentro del stage factory
+    createTOTPValidationStage({}),
+    
+    // 3. Pure validations (sync wrapped as async)
     toAsyncStage(validateStructureStage),
     toAsyncStage(validateOwnershipStage),
     
-    // 3. Load QR state
+    // 4. Load QR state
     createLoadQRStateStage(deps.qrStateLoader),
     
-    // 4. QR validations (pure)
+    // 5. QR validations (pure)
     toAsyncStage(validateQRNotExpiredStage),
     toAsyncStage(validateQRNotConsumedStage),
     
-    // 5. Load student state
+    // 6. Load student state
     createLoadStudentStateStage(deps.studentStateLoader),
     
-    // 6. Student validations (pure)
+    // 7. Student validations (pure)
     toAsyncStage(validateStudentRegisteredStage),
     toAsyncStage(validateStudentActiveStage),
     toAsyncStage(validateStudentOwnsQRStage),
