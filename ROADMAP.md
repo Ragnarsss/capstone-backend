@@ -26,7 +26,8 @@
 | **21.2** | **qr-reader usa Access Gateway** | COMPLETADA |
 | **21.3** | **Eliminar feature guest/** | COMPLETADA |
 | **22.1** | **Validar TOTPu en Pipeline** | COMPLETADA |
-| **22.6-22.7-22.9** | **SoC Crítico (eliminar violations)** | PENDIENTE |
+| **22.6** | **Inyectar ISessionKeyQuery en Pipeline** | COMPLETADA |
+| **22.7-22.9** | **SoC Crítico (restante)** | PENDIENTE |
 | **22.4-22.5-22.8** | **Refactorización Attendance** | PENDIENTE |
 | **22.2-22.3** | **Session Binding + AAGUID** | PENDIENTE |
 | **23** | **Puente PHP Produccion** | PENDIENTE |
@@ -711,49 +712,53 @@ BLOQUE C: Features Criptográficas (SOBRE CÓDIGO LIMPIO)
 **Rama:** `fase-22.6-inject-session-query`
 **Modelo:** Sonnet
 **Dificultad:** Media
+**Estado:** COMPLETADA
+**Commit:** 210fa26
 
 **Justificacion:** `DecryptStage` y `TotpValidationStage` (domain/) importan directamente de `session/infrastructure/`. Esto viola arquitectura limpia. Deben recibir dependencia via interfaz.
 
-**Archivos a crear:**
+**Archivos creados:**
 
 - `shared/ports/session-key-query.interface.ts`
 - `backend/attendance/infrastructure/adapters/session-key-query.adapter.ts`
 
-**Archivos a modificar:**
+**Archivos modificados:**
 
 - `backend/attendance/domain/validation-pipeline/stages/decrypt.stage.ts`
 - `backend/attendance/domain/validation-pipeline/stages/totp-validation.stage.ts`
 - `backend/attendance/domain/validation-pipeline/pipeline.factory.ts`
+- `backend/attendance/application/validate-scan.usecase.ts`
+- `backend/attendance/infrastructure/adapters/complete-scan-deps.factory.ts`
 - `backend/attendance/presentation/routes.ts`
 - `shared/ports/index.ts`
 
 **Tareas:**
 
-- [ ] Verificar estado del repositorio: `git status`
-- [ ] Crear rama: `git checkout -b fase-22.6-inject-session-query`
-- [ ] Crear interfaz `ISessionKeyQuery` en `shared/ports/`:
+- [x] Verificar estado del repositorio: `git status`
+- [x] Crear rama: `git checkout -b fase-22.6-inject-session-query`
+- [x] Crear interfaz `ISessionKeyQuery` en `shared/ports/`:
 
 ```typescript
 interface ISessionKeyQuery {
-  findByUserId(userId: number): Promise<string | null>;
+  findByUserId(userId: number): Promise<SessionKeyData | null>;
 }
 ```
 
-- [ ] Crear `SessionKeyQueryAdapter` que implementa interfaz usando `SessionKeyRepository`
-- [ ] Modificar `DecryptStage` para recibir `ISessionKeyQuery` en constructor
-- [ ] Modificar `TotpValidationStage` para recibir `ISessionKeyQuery` en constructor
-- [ ] Eliminar lazy loading (`await import()`) de ambos stages
-- [ ] Actualizar `pipeline.factory.ts` para recibir e inyectar dependencia
-- [ ] Actualizar `routes.ts` para crear adapter y pasarlo al factory
-- [ ] Actualizar `shared/ports/index.ts` con export
-- [ ] Verificar tests: `podman exec asistencia-node npm run test` (143/143)
-- [ ] Commit: `refactor(attendance): inyectar ISessionKeyQuery en pipeline stages`
+- [x] Crear `SessionKeyQueryAdapter` que implementa interfaz usando `SessionKeyRepository`
+- [x] Modificar `DecryptStage` para recibir `ISessionKeyQuery` en constructor
+- [x] Modificar `TotpValidationStage` para recibir `ISessionKeyQuery` en constructor
+- [x] Eliminar lazy loading (`await import()`) de ambos stages
+- [x] Actualizar `pipeline.factory.ts` para recibir e inyectar dependencia
+- [x] Actualizar `routes.ts` para crear adapter y pasarlo al factory
+- [x] Actualizar `shared/ports/index.ts` con export
+- [x] Verificar tests: `podman exec asistencia-node npm run test` (143/143)
+- [x] Commit: `refactor(attendance): inyectar ISessionKeyQuery en pipeline stages`
 
-**Criterio de exito:**
+**Criterio de exito:** COMPLETADO
 
 - Stages en domain/ NO importan de infrastructure/
 - No hay `await import()` en stages
-- Tests pasan sin cambios
+- Tests pasan sin cambios (143/143)
 
 ---
 
