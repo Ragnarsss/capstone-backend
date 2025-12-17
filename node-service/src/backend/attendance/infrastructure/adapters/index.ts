@@ -8,6 +8,9 @@
 export { QRStateAdapter } from './qr-state.adapter';
 export { StudentStateAdapter } from './student-state.adapter';
 export { SessionKeyQueryAdapter } from './session-key-query.adapter';
+export { QRGeneratorAdapter } from './qr-generator.adapter';
+export { PoolBalancerAdapter } from './pool-balancer.adapter';
+export { QRPayloadRepositoryAdapter } from './qr-payload-repository.adapter';
 export {
   createCompleteScanDependencies,
   createCompleteScanDepsWithPersistence,

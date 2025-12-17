@@ -2,15 +2,23 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { ParticipationService } from '../application/participation.service';
 import { ValidateScanUseCase } from '../application/validate-scan.usecase';
 import { CompleteScanUseCase } from '../application/complete-scan.usecase';
-import { PoolBalancer } from '../../qr-projection/application/services';
 import { ActiveSessionRepository, ProjectionPoolRepository } from '../../../shared/infrastructure/valkey';
 import { StudentSessionRepository } from '../infrastructure/student-session.repository';
 import { FraudMetricsRepository } from '../infrastructure/fraud-metrics.repository';
-import { QRStateAdapter, StudentStateAdapter, SessionKeyQueryAdapter, createCompleteScanDepsWithPersistence } from '../infrastructure/adapters';
+import { 
+  QRStateAdapter, 
+  StudentStateAdapter, 
+  SessionKeyQueryAdapter, 
+  QRGeneratorAdapter,
+  PoolBalancerAdapter,
+  QRPayloadRepositoryAdapter,
+  createCompleteScanDepsWithPersistence 
+} from '../infrastructure/adapters';
 import { AesGcmService } from '../../../shared/infrastructure/crypto';
 import { SessionKeyRepository } from '../../session/infrastructure/repositories/session-key.repository';
 import { mapValidationError } from './error-mapper';
 import { logger } from '../../../shared/infrastructure/logger';
+import { DEFAULT_QR_TTL_SECONDS, DEFAULT_MIN_POOL_SIZE } from '../../../shared/config';
 
 /**
  * Request body schema para validación
@@ -49,11 +57,27 @@ export async function registerAttendanceRoutes(
   fastify: FastifyInstance,
   participationService?: ParticipationService
 ): Promise<void> {
-  const participation = participationService ?? new ParticipationService();
+  // Crear adapters para qr-projection (desacoplamiento)
+  const aesGcmService = new AesGcmService();
+  const poolRepo = new ProjectionPoolRepository();
+  const qrGenerator = new QRGeneratorAdapter(aesGcmService);
+  const payloadRepo = new QRPayloadRepositoryAdapter(DEFAULT_QR_TTL_SECONDS);
+  const poolBalancer = new PoolBalancerAdapter(aesGcmService, poolRepo, { 
+    minPoolSize: DEFAULT_MIN_POOL_SIZE 
+  });
+
+  // Instanciar ParticipationService con dependencias inyectadas
+  const participation = participationService ?? new ParticipationService(
+    qrGenerator,
+    payloadRepo,
+    poolBalancer,
+    undefined, // studentRepo - usa default
+    poolRepo,  // poolRepo
+    undefined  // config - usa default
+  );
   const activeSessionRepo = new ActiveSessionRepository();
 
   // UseCases con pipeline
-  const poolRepo = new ProjectionPoolRepository();
   const studentRepo = new StudentSessionRepository();
   
   // UseCase para solo validación (debugging)
@@ -354,7 +378,6 @@ export async function registerAttendanceRoutes(
   const devEndpointsEnabled = process.env.DEV_ENDPOINTS === 'true';
   
   if (devEndpointsEnabled) {
-    const poolBalancer = new PoolBalancer(undefined, poolRepo);
     const fraudMetricsRepo = new FraudMetricsRepository();
 
     /**

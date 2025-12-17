@@ -1,11 +1,7 @@
 import type { RegisterParticipationResult, GetStatusResult } from '../domain/models';
 import { StudentSessionRepository } from '../infrastructure/student-session.repository';
 import { ProjectionPoolRepository } from '../../../shared/infrastructure/valkey';
-import { QRPayloadRepository } from '../../qr-projection/infrastructure/qr-payload.repository';
-import { QRGenerator } from '../../qr-projection/domain/qr-generator';
 import type { IQRGenerator, IPoolBalancer, IQRPayloadRepository } from '../../../shared/ports';
-import { AesGcmService } from '../../../shared/infrastructure/crypto';
-import { PoolBalancer } from '../../qr-projection/application/services';
 import {
   DEFAULT_MAX_ROUNDS,
   DEFAULT_MAX_ATTEMPTS,
@@ -59,29 +55,19 @@ export class ParticipationService {
   private readonly config: ParticipationServiceConfig;
 
   constructor(
+    qrGenerator: IQRGenerator,
+    payloadRepo: IQRPayloadRepository,
+    poolBalancer: IPoolBalancer | null,
     studentRepo?: StudentSessionRepository,
     poolRepo?: ProjectionPoolRepository,
-    payloadRepo?: IQRPayloadRepository,
-    aesGcmService?: AesGcmService,
-    config?: Partial<ParticipationServiceConfig>,
-    poolBalancer?: IPoolBalancer
+    config?: Partial<ParticipationServiceConfig>
   ) {
+    this.qrGenerator = qrGenerator;
+    this.payloadRepo = payloadRepo;
+    this.poolBalancer = poolBalancer;
     this.studentRepo = studentRepo ?? new StudentSessionRepository();
     this.poolRepo = poolRepo ?? new ProjectionPoolRepository();
-    this.payloadRepo = payloadRepo ?? new QRPayloadRepository(config?.qrTTL ?? DEFAULT_CONFIG.qrTTL);
-    this.qrGenerator = new QRGenerator(aesGcmService ?? new AesGcmService());
     this.config = { ...DEFAULT_CONFIG, ...config };
-    
-    // Inicializar PoolBalancer si el balanceo esta habilitado
-    if (this.config.enableFakeQRBalancing) {
-      this.poolBalancer = poolBalancer ?? new PoolBalancer(
-        undefined,  // aesGcmService - usa default
-        this.poolRepo,
-        { minPoolSize: this.config.minPoolSize }
-      );
-    } else {
-      this.poolBalancer = null;
-    }
   }
 
   /**
