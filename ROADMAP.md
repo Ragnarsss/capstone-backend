@@ -496,7 +496,7 @@ node-service/src/frontend/features/guest/
 
 **Objetivo:** Completar validaciones de seguridad pendientes.
 **Rama base:** `fase-22-hardening`
-**Modelo recomendado global:** Opus (seguridad requiere razonamiento cuidadoso)
+**Modelo recomendado global:** Opus (excepto 22.1 - ver justificacion individual)
 **Recordatorio:** Comandos npm DEBEN ejecutarse dentro del contenedor Node (PROJECT-CONSTITUTION.md Art. 3.2)
 
 ---
@@ -504,10 +504,20 @@ node-service/src/frontend/features/guest/
 ### 22.1: Validar TOTPu en Pipeline
 
 **Rama:** `fase-22.1-totp-validation`
-**Modelo:** Opus
-**Dificultad:** Alta
+**Modelo:** Sonnet
+**Dificultad:** Media
 
 **Justificacion:** Actualmente el backend no valida que el TOTPu enviado por el cliente sea correcto.
+
+**Analisis pre-implementacion (2025-12-17):**
+- Patron Stage bien establecido: 11 stages existentes con interfaz clara (`execute(ctx) → Promise<boolean>`)
+- `SessionKeyRepository.findByUserId()` ya implementado en dominio session/
+- Especificacion TOTP definida en `documents/03-especificaciones-tecnicas/14-decision-totp-session-key.md`
+- `DecryptStage` ya usa SessionKeyRepository como ejemplo de stage con I/O
+- Tests en `stages.test.ts` con patron claro (20 tests)
+- Libreria TOTP probada (otplib) - no implementacion custom
+
+**Escalacion a Opus si:** Problemas de timing attacks, clock skew en produccion, o cambios frontend requeridos.
 
 **Archivo:** `backend/attendance/application/validation-pipeline/stages/`
 
