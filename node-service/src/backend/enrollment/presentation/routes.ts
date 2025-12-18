@@ -120,7 +120,7 @@ export async function registerEnrollmentRoutes(fastify: FastifyInstance): Promis
         
         if (body.logs && Array.isArray(body.logs)) {
           for (const log of body.logs) {
-            const prefix = log.level === 'error' ? '❌' : log.level === 'warn' ? '⚠️' : log.level === 'success' ? '✅' : 'ℹ️';
+            const prefix = log.level === 'error' ? '[ERROR]' : log.level === 'warn' ? '[WARN]' : log.level === 'success' ? '[OK]' : '[INFO]';
             console.log(`${prefix} [${log.timestamp}] ${log.message}`);
             if (log.data) {
               console.log('   Data:', JSON.stringify(log.data, null, 2));

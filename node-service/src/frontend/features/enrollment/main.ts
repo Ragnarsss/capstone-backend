@@ -66,7 +66,7 @@ class EnrollmentApplication {
     }
     
     // Log inicial para confirmar que el script cargó
-    this.log('🚀 Enrollment inicializado', 'info');
+    this.log('Enrollment inicializado', 'info');
     this.log(`User Agent: ${navigator.userAgent.substring(0, 50)}...`, 'info');
     this.log(`WebAuthn soportado: ${window.PublicKeyCredential ? 'Sí' : 'No'}`, 'info');
     
@@ -141,7 +141,7 @@ class EnrollmentApplication {
       return;
     }
 
-    this.log('WebAuthn soportado ✓', 'success');
+    this.log('WebAuthn soportado', 'success');
 
     // Cargar lista de dispositivos para mostrar
     await this.loadDevicesList();
@@ -249,7 +249,7 @@ class EnrollmentApplication {
         throw new Error('No se recibieron opciones de registro del servidor');
       }
 
-      this.log('Opciones recibidas del servidor ✓', 'success');
+      this.log('Opciones recibidas del servidor', 'success');
       this.log('Challenge: ' + startResult.options.challenge?.substring(0, 20) + '...', 'info');
       this.log('RP: ' + JSON.stringify(startResult.options.rp), 'info');
       this.log('User ID: ' + startResult.options.user?.id, 'info');
@@ -277,7 +277,7 @@ class EnrollmentApplication {
       let credential;
       try {
         credential = await this.enrollmentService.createCredential(startResult.options);
-        this.log('Credencial creada exitosamente ✓', 'success');
+        this.log('Credencial creada exitosamente', 'success');
         this.log('Credential ID: ' + credential.id?.substring(0, 30) + '...', 'info');
         this.log('Type: ' + credential.type, 'info');
         this.remoteLogger.success('Paso 2: Credencial creada', { 
@@ -310,11 +310,11 @@ class EnrollmentApplication {
       }
 
       // Éxito
-      this.log('=== Enrollment Completado ✓ ===', 'success');
+      this.log('=== Enrollment Completado ===', 'success');
       this.log(`Device ID: ${finishResult.deviceId}`, 'success');
       this.remoteLogger.success('=== ENROLLMENT COMPLETADO ===', { deviceId: finishResult.deviceId });
       this.showEnrollmentMessage(
-        `✅ ¡Dispositivo registrado correctamente! ID: ${finishResult.deviceId}`,
+        `Dispositivo registrado correctamente. ID: ${finishResult.deviceId}`,
         'success'
       );
       this.updateStatus('Dispositivo registrado');
@@ -384,7 +384,7 @@ class EnrollmentApplication {
       // Guardar session key
       this.sessionKeyStore.storeSessionKey(loginResult.sessionKey!, loginResult.totpu!);
 
-      this.showLoginMessage('✅ Sesión iniciada correctamente', 'success');
+      this.showLoginMessage('Sesion iniciada correctamente', 'success');
 
       // Auto-continuacion: consultar estado y renderizar
       const state = await this.accessService.getState();
@@ -515,7 +515,7 @@ class EnrollmentApplication {
       case 'READY':
         this.updateStatus('Dispositivo listo');
         this.showEnrollmentMessage(
-          '✅ Tienes una sesión activa. Puedes ir al escáner de asistencia.',
+          'Tienes una sesion activa. Puedes ir al escaner de asistencia.',
           'success'
         );
         this.showGoToScannerButton();
