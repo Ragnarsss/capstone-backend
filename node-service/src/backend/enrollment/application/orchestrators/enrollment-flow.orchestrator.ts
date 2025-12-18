@@ -96,21 +96,21 @@ export class EnrollmentFlowOrchestrator {
   ) {}
 
   /**
-   * Attempts access for a user - main entry point
+   * Intenta acceso para un usuario - punto de entrada principal
    *
-   * Flow:
-   * 1. CheckEnrolado: Check if user has active enrolled device
-   * 2. If not enrolled: return REQUIRES_ENROLLMENT
-   * 3. If enrolled: EvaluarUnoAUno (evaluate 1:1 policy)
-   * 4. If 1:1 compliant: return ACCESS_GRANTED
-   * 5. If 1:1 violated: return REQUIRES_REENROLLMENT
+   * Flujo:
+   * 1. CheckEnrolado: Verifica si usuario tiene dispositivo activo enrolado
+   * 2. Si no enrolado: retornar REQUIRES_ENROLLMENT
+   * 3. Si enrolado: EvaluarUnoAUno (evaluar politica 1:1)
+   * 4. Si cumple 1:1: retornar ACCESS_GRANTED
+   * 5. Si viola 1:1: retornar REQUIRES_REENROLLMENT
    *
-   * @param userId - User attempting access
-   * @param deviceFingerprint - Current device fingerprint (for future use)
-   * @returns AttemptAccessOutput with result and context
+   * @param userId - Usuario intentando acceso
+   * @param deviceFingerprint - Huella del dispositivo actual
+   * @returns AttemptAccessOutput con resultado y contexto
    */
   async attemptAccess(userId: number, deviceFingerprint: string): Promise<AttemptAccessOutput> {
-    // 1. CheckEnrolado: Get user's active devices
+    // 1. CheckEnrolado: Obtener dispositivos activos del usuario
     const activeDevices = await this.deviceRepository.findByUserId(userId);
     const allDevices = await this.deviceRepository.findByUserIdIncludingInactive(userId);
 
