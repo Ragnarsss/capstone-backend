@@ -1,15 +1,6 @@
 import type { ISessionQuery, IRestrictionQuery } from '../../../shared/ports';
 import { EnrollmentFlowOrchestrator, AccessResult } from '../../../enrollment/application/orchestrators';
-
-/**
- * Estado agregado del sistema de acceso
- */
-export interface AccessState {
-  state: 'NOT_ENROLLED' | 'ENROLLED_NO_SESSION' | 'READY' | 'BLOCKED';
-  action: 'enroll' | 'login' | 'scan' | null;
-  device?: { credentialId: string; deviceId: number };
-  message?: string;
-}
+import type { AccessState } from '../../domain';
 
 /**
  * AccessGatewayService

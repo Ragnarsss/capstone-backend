@@ -1,1 +1,4 @@
-export { AccessGatewayService, type AccessState } from './access-gateway.service';
+export { AccessGatewayService } from './access-gateway.service';
+
+// Re-exportar tipos de dominio para compatibilidad con imports existentes
+export type { AccessState, AccessStateType, AccessAction, AccessDeviceInfo } from '../../domain';
