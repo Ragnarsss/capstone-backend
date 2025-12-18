@@ -2,7 +2,7 @@
 
 ## Sistema de Asistencia con Autenticación Criptográfica
 
-**Versión:** 1.2
+**Versión:** 1.3
 **Estado:** Ratificado – Estricto
 **Carácter:** Normativo, vinculante y no interpretativo
 
@@ -43,10 +43,20 @@ Eliminar el fraude en la validación de asistencia universitaria mediante verifi
 
 * Monolito modular (único modelo permitido).
 * Microservicios están prohibidos.
+* Cada módulo es autónomo: puede desarrollarse, probarse y modificarse sin afectar otros módulos.
 
-### 2.2 Segmentación vertical
+### 2.2 Segmentación vertical (Vertical Slicing)
 
-Cada módulo contiene: dominio, aplicación, infraestructura, presentación. Prohibidas capas técnicas transversales compartidas.
+Cada módulo contiene cuatro capas internas: dominio, aplicación, infraestructura, presentación.
+
+**Prohibido:**
+* Capas técnicas transversales compartidas.
+* Importar desde capas internas de otro módulo (solo desde su `index.ts` público).
+* Dependencias circulares entre módulos.
+
+**Obligatorio:**
+* Cada módulo expone una interfaz pública mínima.
+* Las dependencias entre módulos fluyen en una sola dirección.
 
 ### 2.3 Separación de responsabilidades
 
@@ -145,12 +155,63 @@ Las siguientes reglas son obligatorias:
 5. Migrar funcionalidad significa trasladar, no integrar.
 6. El código debe ser desacoplado, cohesivo e idempotente cuando aplique.
 
+### 7.1.1 Principios de diseño (obligatorios)
+
+Estos principios aplican tanto a módulos (alto nivel) como a funciones y clases (bajo nivel):
+
+**Separación de Responsabilidades (SoC):**
+* Cada unidad (módulo, clase, función) tiene una única razón para cambiar.
+* Si una función hace más de una cosa, dividirla.
+* Los efectos secundarios (I/O, persistencia) se aíslan en infraestructura.
+
+**No Repetirse (DRY):**
+* Extraer lógica duplicada a funciones o servicios reutilizables.
+* Centralizar constantes, configuraciones y validaciones.
+* Preferir composición sobre duplicación.
+
+**Cohesión Alta:**
+* Los elementos de una unidad deben estar relacionados semánticamente.
+* Si una clase tiene métodos que no usan sus propiedades, está mal cohesionada.
+* Agrupar por dominio, no por tipo técnico.
+
+**Acoplamiento Bajo:**
+* Depender de abstracciones (interfaces), no de implementaciones concretas.
+* Inyectar dependencias; no instanciarlas internamente.
+* Comunicación entre módulos solo via interfaces públicas definidas en `shared/ports/`.
+
+**Idempotencia:**
+* Operaciones de escritura deben producir el mismo resultado si se ejecutan múltiples veces.
+* Usar identificadores únicos para detectar duplicados.
+* Diseñar para tolerancia a reintentos.
+
+### 7.1.2 Patrones recomendados por contexto
+
+| Contexto | Patrón | Ejemplo |
+|----------|--------|---------|
+| Orquestación de flujos | Orchestrator | `EnrollmentFlowOrchestrator` |
+| Validación en cadena | Pipeline/Chain | `ValidationPipeline` con stages |
+| Acceso a datos | Repository | `DeviceRepository`, `SessionRepository` |
+| Creación compleja | Factory | `QRPayloadFactory` |
+| Operaciones cross-cutting | Decorator/Middleware | `RateLimitMiddleware` |
+| Estado con transiciones | State Machine | `EnrollmentFSM`, `SessionFSM` |
+| Notificación de eventos | Observer/Event Emitter | Notificar asistencia a PHP |
+
+**Prohibido:**
+* Singleton mutable (estado global compartido).
+* God objects (clases con demasiadas responsabilidades).
+* Herencia profunda (máximo 2 niveles).
+* Callbacks anidados (usar async/await).
+
 ### 7.2 Estilo de implementación
 
 1. Respetar flujos existentes antes de cambiarlos.
 2. Mantener patrones ya establecidos.
 3. Evitar soluciones ad-hoc.
 4. Preferir implementaciones simples y previsibles.
+5. Funciones pequeñas: máximo 30 líneas, una sola tarea.
+6. Nombres descriptivos: el código debe leerse como prosa técnica.
+7. Retorno temprano: evitar anidación profunda con early returns.
+8. Inmutabilidad por defecto: preferir `const`, evitar mutación de parámetros.
 
 ### 7.3 Comunicación técnica
 
