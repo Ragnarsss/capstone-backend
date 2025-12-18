@@ -287,14 +287,16 @@ access/
 **Rama:** `fase-22.2-session-binding`
 **Modelo:** Opus
 **Severidad:** CRITICA
+**Estado:** COMPLETADA (2025-12-18)
+**Commit:** 5c2c473
 
 **Criterio de éxito verificable:**
 
-- [ ] `grep -n "credentialId" node-service/src/backend/session/` encuentra derivación HKDF
-- [ ] Test: mismo sharedSecret + diferente credentialId → session_keys diferentes
-- [ ] Test: mismo sharedSecret + mismo credentialId → session_key idéntica
-- [ ] Frontend y backend derivan session_key con mismo algoritmo
-- [ ] Build y tests: X/X pasando
+- [x] `grep -n "credentialId" node-service/src/backend/session/` encuentra derivación HKDF
+- [x] Test: mismo sharedSecret + diferente credentialId → session_keys diferentes
+- [x] Test: mismo sharedSecret + mismo credentialId → session_key idéntica
+- [x] Frontend y backend derivan session_key con mismo algoritmo
+- [x] Build y tests: 161/161 pasando (6 nuevos)
 
 **Restricciones arquitectónicas:**
 
