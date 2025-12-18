@@ -21,7 +21,10 @@
 | ~~22.10.9~~ | ~~Traducir tests (AAA ya es estándar)~~ | **OMITIDA** |
 | **22.2** | **Session Key Binding (CRITICO)** | **COMPLETADA** |
 | **22.3** | **Validar AAGUID (CRITICO)** | **COMPLETADA** |
-| **22.3.1-22.3.4** | **Testing Critico Pre-Manual (Login, QR, HKDF, Decrypt)** | **PENDIENTE** |
+| **22.3.3** | **Test HKDF Compatibility (CRITICO)** | **COMPLETADA** |
+| **22.3.1** | **Test Login ECDH Use Case (CRITICO)** | **COMPLETADA** |
+| **22.3.2** | **Test QR Generator (MAYOR)** | **COMPLETADA** |
+| **22.3.4** | **Test Decrypt Stage (MAYOR)** | **PENDIENTE** |
 | **22.5** | **Stats + QR Lifecycle** | **PENDIENTE** |
 | ~~22.11-22.12~~ | ~~Deuda Tecnica Opcional~~ | **OMITIDAS** |
 | **23** | **Integracion PHP (Restriction + Puente)** | **PENDIENTE** |
