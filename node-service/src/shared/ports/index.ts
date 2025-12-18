@@ -7,8 +7,8 @@
  * 
  * Esto permite:
  * - Desacoplamiento entre módulos
- * - Testing con mocks
- * - Preparación para microservicios
+ * - Testing con mocks y stubs
+ * - Facilita el cambio de implementaciones sin afectar el dominio
  */
 
 export * from './qr-generator.port';
