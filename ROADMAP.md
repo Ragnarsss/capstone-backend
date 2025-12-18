@@ -599,6 +599,10 @@ graph TD
 - Naranja: Pendientes (próximas)
 - Gris: Opcionales (pueden postergarse)
 
+---
+
+## BLOQUE A: Validacion TOTPu
+
 ### 22.1: Validar TOTPu en Pipeline
 
 **Rama:** `fase-22.1-totp-validation`
@@ -644,8 +648,7 @@ graph TD
 
 ---
 
-
----
+## BLOQUE B: Features Criptograficas (Post-Arquitectura Limpia)
 
 ### 22.2: Session Key Binding con credentialId
 
@@ -717,15 +720,7 @@ graph TD
 
 ---
 
-## BLOQUE D: Deudas Técnicas Menores (Post-Hardening)
-
-**Objetivo:** Resolver deudas técnicas no críticas identificadas en auditoría antes de integración PHP.
-**Prioridad:** Media (pueden postergarse a Fase 25 si hay presión de tiempo)
-
----
-
-
----
+## BLOQUE C: Refactorizar Attendance
 
 ### 22.4: Extraer Persistencia de CompleteScanUseCase
 
@@ -926,8 +921,7 @@ CompleteScanUseCase
 
 ---
 
-
----
+## BLOQUE D: Eliminar Violations SoC
 
 ### 22.6: Inyectar ISessionKeyQuery en Pipeline
 
@@ -1098,8 +1092,7 @@ interface ISessionKeyQuery {
 
 ---
 
-
----
+## BLOQUE E: Auditoria daRulez
 
 ### 22.10: Mover WebSocketAuthMiddleware a Auth Domain
 
@@ -1312,8 +1305,10 @@ backend/auth/infrastructure/adapters/
 
 ---
 
+## BLOQUE F: Deudas Tecnicas Opcionales
 
----
+**Objetivo:** Resolver deudas técnicas no críticas identificadas en auditoría.
+**Prioridad:** Baja (pueden postergarse a Fase 25 si hay presión de tiempo)
 
 ### 22.11: Refactorizar ValidationErrorCode
 
