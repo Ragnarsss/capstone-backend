@@ -13,6 +13,7 @@ import {
   userIdKeyGenerator,
   jsonOnly,
 } from '../../../middleware';
+import { logger } from '../../../shared/infrastructure/logger';
 
 /**
  * Registra las rutas de enrollment
@@ -115,19 +116,27 @@ export async function registerEnrollmentRoutes(fastify: FastifyInstance): Promis
         const userId = (request as unknown as { userId?: number }).userId ?? 'unknown';
         const userAgent = request.headers['user-agent'] ?? 'unknown';
         
-        console.log('\n========== CLIENT LOGS ==========');
-        console.log(`User: ${userId} | UA: ${userAgent.substring(0, 50)}...`);
+        logger.info({ userId, userAgent: userAgent.substring(0, 50) }, 'Client logs received');
         
         if (body.logs && Array.isArray(body.logs)) {
           for (const log of body.logs) {
-            const prefix = log.level === 'error' ? '[ERROR]' : log.level === 'warn' ? '[WARN]' : log.level === 'success' ? '[OK]' : '[INFO]';
-            console.log(`${prefix} [${log.timestamp}] ${log.message}`);
-            if (log.data) {
-              console.log('   Data:', JSON.stringify(log.data, null, 2));
+            const logContext = { 
+              timestamp: log.timestamp, 
+              data: log.data 
+            };
+            
+            switch (log.level) {
+              case 'error':
+                logger.error(logContext, log.message);
+                break;
+              case 'warn':
+                logger.warn(logContext, log.message);
+                break;
+              default:
+                logger.info(logContext, log.message);
             }
           }
         }
-        console.log('=================================\n');
         
         return reply.send({ received: true });
       },
