@@ -2,7 +2,7 @@
 
 > Ultima actualizacion: 2025-12-18
 > Base: main consolidado desde fase-22.10.3
-> Build: OK | Tests: 178/178 pasando
+> Build: OK | Tests: 202/202 pasando
 
 ---
 
@@ -21,6 +21,7 @@
 | ~~22.10.9~~ | ~~Traducir tests (AAA ya es estándar)~~ | **OMITIDA** |
 | **22.2** | **Session Key Binding (CRITICO)** | **COMPLETADA** |
 | **22.3** | **Validar AAGUID (CRITICO)** | **COMPLETADA** |
+| **22.3.1-22.3.4** | **Testing Critico Pre-Manual (Login, QR, HKDF, Decrypt)** | **PENDIENTE** |
 | **22.5** | **Stats + QR Lifecycle** | **PENDIENTE** |
 | ~~22.11-22.12~~ | ~~Deuda Tecnica Opcional~~ | **OMITIDAS** |
 | **23** | **Integracion PHP (Restriction + Puente)** | **PENDIENTE** |
@@ -59,6 +60,15 @@ flowchart TB
         B1 --> B2
     end
 
+    subgraph BLOQUE_B2[B2: Testing Critico Pre-Manual]
+        direction LR
+        T1[22.3.3<br/>HKDF Compat]
+        T2[22.3.1<br/>Login ECDH]
+        T3[22.3.2<br/>QR Generator]
+        T4[22.3.4<br/>Decrypt Stage]
+        T1 --> T2 --> T3 --> T4
+    end
+
     subgraph BLOQUE_C[C: Arquitectura]
         direction LR
         C1[22.5<br/>Stats+Lifecycle]
@@ -77,7 +87,8 @@ flowchart TB
     end
 
     BLOQUE_A --> BLOQUE_B
-    BLOQUE_B --> BLOQUE_C
+    BLOQUE_B --> BLOQUE_B2
+    BLOQUE_B2 --> BLOQUE_C
     BLOQUE_C --> BLOQUE_D
     BLOQUE_D --> BLOQUE_E
 
@@ -88,6 +99,10 @@ flowchart TB
     style A5 fill:#90EE90
     style B1 fill:#90EE90
     style B2 fill:#90EE90
+    style T1 fill:#90EE90
+    style T2 fill:#90EE90
+    style T3 fill:#ffcc99
+    style T4 fill:#ffcc99
     style C1 fill:#ffcc99
     style D1 fill:#90EE90
     style E1 fill:#99ccff
@@ -361,6 +376,166 @@ access/
 
 ---
 
+## BLOQUE B2: Testing Critico Pre-Manual
+
+> Prerequisito para pruebas manuales con FIDO2. Verifica que los componentes criticos del flujo funcionan antes de testing manual.
+
+### Fase 22.3.1: Test unitario Login ECDH Use Case
+
+**Rama:** `fase-22.3.1-test-login-ecdh`
+**Modelo:** Sonnet
+**Severidad:** CRITICA
+**Referencia:** daRulez 7.1.1 - "Cada unidad tiene una unica razon para cambiar" (SoC)
+**Estado:** COMPLETADA (2025-12-18)
+**Commit:** 65f0168
+
+**Situacion resuelta:**
+
+El LoginEcdhUseCase ahora tiene cobertura completa de tests unitarios que verifican derivacion HKDF, almacenamiento en Valkey, manejo de errores y vinculacion 1:1.
+
+**Archivos creados:**
+
+- `node-service/src/backend/session/application/use-cases/__tests__/login-ecdh.use-case.test.ts` (15 tests)
+
+**Tareas:**
+
+- [x] Crear test: dispositivo no encontrado retorna error DEVICE_NOT_FOUND
+- [x] Crear test: dispositivo de otro usuario retorna error DEVICE_NOT_OWNED
+- [x] Crear test: dispositivo revocado retorna error SESSION_NOT_ALLOWED
+- [x] Crear test: flujo exitoso guarda session_key en Valkey con TTL 7200
+- [x] Crear test: mismo sharedSecret + diferente credentialId genera session_keys diferentes
+- [x] Crear test: actualiza last_used_at del dispositivo
+- [x] Validar estado del dispositivo: solo enrolled puede hacer login
+- [x] Verificar integracion ECDH + HKDF: sharedSecret -> session_key
+- [x] Verificar binding 1:1: session_key vinculada a userId + deviceId
+- [x] Build y tests: 202/202 pasando (15 nuevos)
+- [x] Commit atomico: 65f0168
+
+**Cobertura de tests:**
+
+| Categoria | Tests |
+|-----------|-------|
+| Casos de error | 4 |
+| Flujo exitoso | 6 |
+| Integracion ECDH+HKDF | 2 |
+| Validacion de estado | 2 |
+| Timestamps | 1 |
+
+**Criterio de exito:** CUMPLIDO - LoginEcdhUseCase tiene cobertura completa de errores y flujo exitoso.
+
+---
+
+### Fase 22.3.2: Test unitario QR Generator
+
+**Rama:** `fase-22.3.2-test-qr-generator`
+**Modelo:** Sonnet
+**Severidad:** MAYOR
+**Referencia:** daRulez 7.1.1 - "Operaciones de escritura deben producir el mismo resultado" (Idempotencia)
+**Estado:** PENDIENTE
+
+**Situacion actual:**
+
+El archivo `node-service/src/backend/qr-projection/domain/qr-generator.ts` genera payloads QR pero no tiene tests. No hay verificacion de:
+- Estructura correcta del payload V1
+- Encriptacion con AES-GCM funciona
+- QRs falsos (decoys) son indistinguibles de reales
+- Round counter incrementa correctamente
+
+**Archivos a crear:**
+
+- `node-service/src/backend/qr-projection/domain/__tests__/qr-generator.test.ts`
+
+**Tareas:**
+
+- [ ] Crear test: buildPayloadV1 genera estructura correcta (v, sid, uid, r, ts, n)
+- [ ] Crear test: nonce tiene 32 caracteres hex
+- [ ] Crear test: round counter incrementa por sesion
+- [ ] Crear test: resetRoundCounter reinicia contador
+- [ ] Crear test: encryptPayload genera formato iv.ciphertext.authTag
+- [ ] Crear test: encryptPayloadWithRandomKey genera formato valido pero indescifrable
+- [ ] Crear test: generateForStudent genera payload con round especifico
+- [ ] Build y tests: X/X pasando
+- [ ] Commit atomico
+
+**Criterio de exito:** QR Generator tiene tests unitarios que verifican generacion y encriptacion.
+
+---
+
+### Fase 22.3.3: Test compatibilidad HKDF Frontend-Backend
+
+**Rama:** `fase-22.3.3-test-hkdf-compatibility`
+**Modelo:** Opus
+**Severidad:** CRITICA
+**Referencia:** daRulez 1.4.1 - "Seguridad primero: no debilitar el modelo criptografico"
+**Estado:** COMPLETADA (2025-12-18)
+**Commit:** 9a2a24a
+
+**Situacion resuelta:**
+
+El frontend (`login.service.ts`) y backend (`hkdf.service.ts`) derivan `session_key` independientemente usando HKDF. Se creo test que verifica compatibilidad con vectores fijos.
+
+**Archivos creados:**
+
+- `node-service/src/backend/enrollment/infrastructure/crypto/__tests__/hkdf-compatibility.test.ts` (9 tests)
+
+**Tareas:**
+
+- [x] Crear test: dado sharedSecret fijo (hex) y credentialId fijo, derivar session_key en backend
+- [x] Documentar el resultado esperado (bytes hex de la session_key)
+- [x] Verificar que frontend usa mismo algoritmo: P-256 ECDH -> 256 bits -> HKDF-SHA256 -> AES-256-GCM
+- [x] Crear test: verificar que salt vacio y misma info producen clave identica
+- [x] Cubrir edge cases: credentialId largo, caracteres especiales Base64
+- [x] Build y tests: 187/187 pasando (9 nuevos)
+- [x] Commit atomico: 9a2a24a
+
+**Vector de compatibilidad documentado:**
+
+```
+sharedSecret (hex): a1b2c3d4e5f6071829304150617283940a1b2c3d4e5f6071829304150617283
+credentialId:       dGVzdC1jcmVkZW50aWFsLWZvci1oZGtmLWNvbXBhdA==
+info:               attendance-session-key-v1:dGVzdC1jcmVkZW50aWFsLWZvci1oZGtmLWNvbXBhdA==
+session_key (hex):  769ffc0d428712e1713c472d96ac321b43c8dc172e7d8a1e0cf2f3afdff99af9
+```
+
+**Criterio de exito:** CUMPLIDO - Test demuestra que backend deriva session_key deterministica y compatible.
+
+---
+
+### Fase 22.3.4: Test unitario Decrypt Stage
+
+**Rama:** `fase-22.3.4-test-decrypt-stage`
+**Modelo:** Sonnet
+**Severidad:** MAYOR
+**Referencia:** daRulez 7.1.1 - "Efectos secundarios (I/O, persistencia) se aislan en infraestructura"
+**Estado:** PENDIENTE
+
+**Situacion actual:**
+
+El archivo `node-service/src/backend/attendance/domain/validation-pipeline/stages/decrypt.stage.ts` es un I/O stage que:
+1. Obtiene session_key del estudiante via `ISessionKeyQuery`
+2. Desencripta payload con AES-GCM
+3. Maneja STUB_MODE para desarrollo
+
+No tiene tests dedicados.
+
+**Archivos a crear:**
+
+- `node-service/src/backend/attendance/domain/validation-pipeline/stages/__tests__/decrypt.stage.test.ts`
+
+**Tareas:**
+
+- [ ] Crear test: con session_key valida, desencripta correctamente
+- [ ] Crear test: sin session_key, usa fallback mock key
+- [ ] Crear test: formato invalido retorna error INVALID_FORMAT
+- [ ] Crear test: desencriptacion fallida retorna error DECRYPTION_FAILED
+- [ ] Crear test: en STUB_MODE, convierte QRPayloadV1 a StudentResponse
+- [ ] Build y tests: X/X pasando
+- [ ] Commit atomico
+
+**Criterio de exito:** Decrypt Stage tiene tests que verifican desencriptacion con session_key real y fallback.
+
+---
+
 ## BLOQUE C: Arquitectura
 
 ### Fase 22.5: Extraer Stats + QR Lifecycle
@@ -575,22 +750,28 @@ Ejecutar en orden estricto:
 2. [OK] **22.10.5** - Eliminar microservicios (commit f36ed52)
 3. [OK] **22.10.6** - Completar modulo access (commit d7b863b)
 4. [OK] **22.10.7-8** - Traducir comentarios (commit c0260dc)
-5. [OMITIDA] **22.10.9** - Tests ya usan convención AAA
+5. [OMITIDA] **22.10.9** - Tests ya usan convencion AAA
 6. [OK] **22.10.10** - Logger estructurado (commit 831c58d)
 
-**BLOQUE B - Seguridad Crítica (2-3 días):**
-6. [OK] **22.2** - Session Key Binding con credentialId (commit 5c2c473)
-7. [OK] **22.3** - AAGUID Validation con whitelist (commits 0844ede, 1296c0a)
+**BLOQUE B - Seguridad Critica:** [OK] COMPLETADO
+7. [OK] **22.2** - Session Key Binding con credentialId (commit 5c2c473)
+8. [OK] **22.3** - AAGUID Validation con whitelist (commits 0844ede, 1296c0a)
 
-**BLOQUE C - Arquitectura (1 día):**
-8. **22.5** - Stats + QR Lifecycle extraction
+**BLOQUE B2 - Testing Critico Pre-Manual (1-2 dias):**
+9. [OK] **22.3.3** - Test compatibilidad HKDF Frontend-Backend (commit 9a2a24a)
+10. [OK] **22.3.1** - Test unitario Login ECDH Use Case (commit 65f0168)
+11. **22.3.2** - Test unitario QR Generator (MAYOR)
+12. **22.3.4** - Test unitario Decrypt Stage (MAYOR)
 
-**BLOQUE E - Integración PHP (FINAL):**
-9. **23.1** - Restriction Integration
-10. **23.2** - Puente HTTP Node-PHP
+**BLOQUE C - Arquitectura (1 dia):**
+13. **22.5** - Stats + QR Lifecycle extraction
+
+**BLOQUE E - Integracion PHP (FINAL):**
+14. **23.1** - Restriction Integration
+15. **23.2** - Puente HTTP Node-PHP
 
 **Fases omitidas:**
-- ~~22.10.9~~ - Comentarios tests ya usan convención AAA estándar
+- ~~22.10.9~~ - Comentarios tests ya usan convencion AAA estandar
 - ~~22.11-22.12~~ - No hay flags legacy ni DI container
 
 ---
