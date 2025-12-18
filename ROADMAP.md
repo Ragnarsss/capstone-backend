@@ -282,106 +282,66 @@ access/
 
 ### Fase 22.2: Session Key Binding con credentialId
 
+**Objetivo:** Vincular la session_key al dispositivo físico incluyendo credentialId en la derivación HKDF, previniendo replay attacks con shared_secret robado.
+
 **Rama:** `fase-22.2-session-binding`
 **Modelo:** Opus
 **Severidad:** CRITICA
-**Referencia:** 
-- `Caracterizacion.md` seccion 5: "session_key derivada de ECDH + vinculacion de dispositivo"
-- `14-decision-totp-session-key.md`: "La session_key debe estar ligada al dispositivo"
 
-**Problema actual:**
+**Criterio de éxito verificable:**
 
-La `session_key` se deriva solo de ECDH shared secret. Si un atacante obtiene el shared secret, puede usarlo en cualquier dispositivo.
+- [ ] `grep -n "credentialId" node-service/src/backend/session/` encuentra derivación HKDF
+- [ ] Test: mismo sharedSecret + diferente credentialId → session_keys diferentes
+- [ ] Test: mismo sharedSecret + mismo credentialId → session_key idéntica
+- [ ] Frontend y backend derivan session_key con mismo algoritmo
+- [ ] Build y tests: X/X pasando
 
-**Verificacion:**
+**Restricciones arquitectónicas:**
 
-```bash
-grep -n "credentialId" node-service/src/backend/session/
-# Resultado: NO encontrado en HKDF derivation
-```
+- Info string HKDF debe incluir versión: `'attendance-session-key-v1:' + credentialId`
+- credentialId viene del enrollment, no se genera nuevo
+- Sesiones existentes deben invalidarse (re-login requerido)
 
-**Arquitectura objetivo:**
+**Entregables mínimos:**
 
-```typescript
-// Actual (inseguro)
-session_key = HKDF(shared_secret, info: "session")
+- Derivación HKDF modificada para incluir credentialId en backend
+- Derivación HKDF equivalente en frontend
+- Tests que verifiquen binding correcto
 
-// Objetivo (seguro)
-session_key = HKDF(shared_secret, info: "session:" + credentialId)
-```
-
-**Nota arquitectónica:** `HkdfService` está actualmente en `enrollment/infrastructure/crypto/` pero debería estar en `session/` ya que `session_key` es su responsabilidad principal. Considerar mover como parte de esta fase.
-
-**Tareas:**
-
-- [ ] **OPCIONAL:** Mover `HkdfService` de `enrollment/infrastructure/crypto/` a `session/infrastructure/crypto/`
-- [ ] Modificar `HkdfService.deriveSessionKey()` para incluir credentialId en info:
-  ```typescript
-  // Antes
-  async deriveSessionKey(sharedSecret: Buffer): Promise<Buffer>
-  // Después  
-  async deriveSessionKey(sharedSecret: Buffer, credentialId: string): Promise<Buffer>
-  ```
-- [ ] Actualizar info de HKDF: `'attendance-session-key-v1:' + credentialId`
-- [ ] Actualizar `LoginEcdhUseCase` para pasar credentialId
-- [ ] Actualizar frontend `session-key.store.ts` para derivar igual
-- [ ] Invalidar sesiones existentes (requieren re-login)
-- [ ] Agregar tests de binding
-- [ ] Verificar build y tests
-- [ ] Commit: `feat(session): agregar binding de session_key con credentialId`
-
-**Dependencias:** Requiere BLOQUE A completado.
-
-**Criterio de exito:** session_key diferente para diferentes credentialId.
+**Referencias:** `14-decision-totp-session-key.md`, `Caracterizacion.md` sección 5
 
 ---
 
 ### Fase 22.3: Validar AAGUID de dispositivo
 
+**Objetivo:** Rechazar enrollment de dispositivos FIDO2 no autorizados validando AAGUID contra whitelist configurable.
+
 **Rama:** `fase-22.3-aaguid-validation`
 **Modelo:** Opus
 **Severidad:** CRITICA
-**Referencia:** `Caracterizacion.md` seccion 4: "Subsistema de Enrolamiento - vinculacion fisica mediante FIDO2"
 
-**Estado actual:**
+**Criterio de éxito verificable:**
 
-- Columna `aaguid` en tabla `devices` existe
-- Se almacena durante enrollment
-- NO se valida contra whitelist
+- [ ] Enrollment con AAGUID no listado retorna HTTP 403
+- [ ] Enrollment con AAGUID válido procede normalmente
+- [ ] Variable de entorno `AAGUID_VALIDATION_ENABLED` permite desactivar (dev)
+- [ ] Logs muestran AAGUID rechazado/aceptado
+- [ ] Build y tests: X/X pasando
 
-**Problema:**
+**Restricciones arquitectónicas:**
 
-Cualquier dispositivo FIDO2 puede enrollarse, incluyendo emuladores o dispositivos no autorizados.
+- Whitelist debe ser configurable (no hardcodeada en código)
+- Validación debe ocurrir ANTES de persistir dispositivo
+- Default: habilitado en producción, deshabilitado en desarrollo
 
-**Arquitectura objetivo:**
+**Entregables mínimos:**
 
-```typescript
-// config/aaguid-whitelist.ts
-export const ALLOWED_AAGUIDS = [
-  'de1e552d-db1d-4423-a619-566b625cdc84', // Windows Hello
-  '6028b017-b1d4-4c02-b4b3-afcdafc96bb2', // Android Keystore
-  // etc.
-];
+- Whitelist de AAGUIDs autorizados (mínimo: Windows Hello, Android, iOS)
+- Validación integrada en flujo de finish-enrollment
+- Tests de aceptación y rechazo
+- Documentación: cómo agregar nuevos AAGUIDs
 
-// Durante enrollment
-if (!ALLOWED_AAGUIDS.includes(aaguid)) {
-  throw new Error('Dispositivo no autorizado');
-}
-```
-
-**Tareas:**
-
-- [ ] Crear `shared/config/aaguid-whitelist.ts` con lista inicial
-- [ ] Crear `enrollment/domain/services/aaguid-validator.service.ts`
-- [ ] Integrar validacion en `FinishEnrollmentController`
-- [ ] Agregar variable de entorno `AAGUID_VALIDATION_ENABLED` (default: true en prod)
-- [ ] Crear tests
-- [ ] Documentar como agregar nuevos AAGUIDs
-- [ ] Commit: `feat(enrollment): validar AAGUID contra whitelist`
-
-**Dependencias:** Requiere 22.2 completada.
-
-**Criterio de exito:** Dispositivos con AAGUID no autorizado son rechazados.
+**Referencias:** `Caracterizacion.md` sección 4, FIDO2 spec para AAGUIDs conocidos
 
 ---
 
@@ -389,42 +349,34 @@ if (!ALLOWED_AAGUIDS.includes(aaguid)) {
 
 ### Fase 22.5: Extraer Stats + QR Lifecycle
 
+**Objetivo:** Desacoplar cálculo de estadísticas y generación de QR de `CompleteScanUseCase`, delegando a servicios dedicados que usen ports existentes.
+
 **Rama:** `fase-22.5-stats-qr-lifecycle`
 **Modelo:** Opus
 **Severidad:** MAYOR
-**Referencia:** 
-- `spec-qr-validation.md` seccion "Calculo de Certeza"
-- `Caracterizacion.md` seccion 8: "Pipeline de Validacion - Response Time y certeza"
 
-**Problema actual:**
+**Criterio de éxito verificable:**
 
-`CompleteScanUseCase` tiene acoplamiento directo con:
-- `calculateStats()` - importa funcion directamente
-- `generateNextQR()` - recibe callback, pero logica interna
+- [ ] `grep -n "calculateStats\|generateNextQR" node-service/src/backend/attendance/application/complete-scan` no encuentra imports directos
+- [ ] `CompleteScanUseCase` recibe servicios por inyección, no los instancia
+- [ ] Tests de UseCase mockean servicios (no lógica real)
+- [ ] Tests unitarios existen para cada servicio extraído
+- [ ] Build y tests: X/X pasando
 
-**Arquitectura objetivo:**
+**Restricciones arquitectónicas:**
 
-```
-CompleteScanUseCase
-  → IAttendanceStatsService (calcular certeza)
-  → IQRLifecycleService (generar siguiente QR via ports)
-```
+- Usar `IQRGenerator` y `IPoolBalancer` existentes (fase 22.7) - NO crear nuevos
+- Stats pertenece a domain/, lifecycle a application/
+- Interface de stats debe estar en shared/ports/
 
-**Tareas:**
+**Entregables mínimos:**
 
-- [ ] Crear `attendance/domain/services/stats.service.ts` con `IAttendanceStatsService`
-- [ ] Crear `shared/ports/attendance-stats.port.ts` con interface
-- [ ] Crear `attendance/application/services/qr-lifecycle.service.ts`
-- [ ] Usar `IQRGenerator` y `IPoolBalancer` existentes (22.7)
-- [ ] Refactorizar `CompleteScanUseCase` para usar servicios inyectados
-- [ ] Actualizar `complete-scan-deps.factory.ts`
-- [ ] Crear tests unitarios para cada servicio
-- [ ] Verificar build y tests
-- [ ] Commit: `refactor(attendance): extraer stats y lifecycle a servicios (SoC)`
+- Servicio de estadísticas (certeza, fraude, response time)
+- Servicio de lifecycle QR (encapsula generación)
+- UseCase simplificado (orquestación pura, delega a servicios)
+- Tests unitarios de cada servicio
 
-**Dependencias:** Requiere BLOQUE B completado.
-
-**Criterio de exito:** CompleteScanUseCase no importa directamente de qr-projection/.
+**Referencias:** `spec-qr-validation.md` sección "Cálculo de Certeza"
 
 ---
 
@@ -448,56 +400,76 @@ CompleteScanUseCase
 
 ### Fase 23.1: Implementar Restriction Service
 
+**Objetivo:** Conectar RestrictionService (actualmente stub) con PHP via HTTP para consultar restricciones reales de usuarios, con cache y fallback fail-open.
+
 **Rama:** `fase-23.1-restriction-integration`
 **Modelo:** Opus
-**Referencia:** 
-- `spec-architecture.md` seccion "Dominio: Restriction (stub)"
-- `Caracterizacion.md` seccion 3: "Control de Acceso - estado BLOCKED"
+**Severidad:** MAYOR
 
-**Estado actual:** Stub que siempre retorna `{ blocked: false }`
+**Criterio de éxito verificable:**
 
-**Arquitectura objetivo:**
+- [ ] `RestrictionService.checkRestrictions()` hace request HTTP a PHP (no es stub)
+- [ ] Cache en Valkey reduce requests repetidos (observable en logs)
+- [ ] Si PHP no responde (timeout 3s), retorna `{ blocked: false }` (fail-open)
+- [ ] Tests con mock HTTP verifican: cache hit, cache miss, timeout, error
+- [ ] Contrato HTTP documentado y acordado con equipo PHP
+- [ ] Build y tests: X/X pasando
 
-```typescript
-// Conectar con PHP via HTTP interno
-async isBlocked(userId: number): Promise<RestrictionResult> {
-  const response = await fetch(`http://php-service/api/restrictions/${userId}`);
-  return response.json();
-}
-```
+**Restricciones arquitectónicas:**
 
-**Tareas:**
+- Endpoint PHP: `GET /api/restrictions/{userId}` (acordar con equipo PHP)
+- Cache TTL: 5 minutos (configurar en Valkey)
+- Fallback: fail-open (si PHP cae, no bloquear usuarios)
+- Autenticación interna: API key en header (compartida Node↔PHP)
 
-- [ ] Definir contrato HTTP con PHP: `GET /api/restrictions/{userId}`
-- [ ] Implementar `RestrictionService.checkRestrictions()` real
-- [ ] Agregar timeout y fallback (si PHP no responde: no bloquear)
-- [ ] Agregar cache en Valkey (TTL 5 min)
-- [ ] Tests con mock de PHP
-- [ ] Documentar endpoints requeridos en PHP
-- [ ] Commit: `feat(restriction): implementar integracion con PHP`
+**Entregables mínimos:**
 
-**Dependencias:** Requiere BLOQUE C completado + coordinacion con equipo PHP.
+- RestrictionService real que consulta PHP
+- Cache en Valkey para reducir carga
+- Fallback que permite acceso si PHP no responde
+- Documentación del contrato HTTP (request/response)
+
+**Dependencias:** Requiere BLOQUE C + coordinación con equipo PHP
+
+**Referencias:** `spec-architecture.md` sección "Dominio: Restriction"
 
 ---
 
 ### Fase 23.2: Puente HTTP Node-PHP
 
+**Objetivo:** Establecer comunicación bidireccional completa Node↔PHP: notificar asistencias a PHP, consultar datos maestros desde PHP, health checks mutuos.
+
 **Rama:** `fase-23.2-node-php-bridge`
 **Modelo:** Opus
-**Referencia:** `spec-architecture.md` seccion 2.3: "PHP: autenticacion, usuarios, cursos, proxy HTTP"
+**Severidad:** MAYOR
 
-**Objetivo:** Establecer comunicacion bidireccional Node ↔ PHP para:
-- Restricciones (PHP → Node)
-- Notificaciones de asistencia (Node → PHP)
-- Sincronizacion de cursos/sesiones
+**Criterio de éxito verificable:**
 
-**Tareas:**
+- [ ] Al completar asistencia, Node notifica a PHP (fire-and-forget)
+- [ ] Node puede consultar detalles de sesión desde PHP (con cache)
+- [ ] Endpoint `/health` en Node verifica conectividad con PHP
+- [ ] Cliente HTTP tiene retry logic y timeouts configurables
+- [ ] Documentación completa de todos los endpoints Node↔PHP
+- [ ] Build y tests: X/X pasando
 
-- [ ] Documentar todos los endpoints requeridos
-- [ ] Implementar cliente HTTP en Node con retry logic
-- [ ] Implementar autenticacion interna (JWT interno o API key)
-- [ ] Tests de integracion
-- [ ] Runbook de troubleshooting
+**Restricciones arquitectónicas:**
+
+- Notificación: fire-and-forget (no bloquear pipeline de attendance)
+- Master data sync: cachear en Valkey (sesiones no cambian frecuentemente)
+- Autenticación: misma API key que 23.1
+- Retry: backoff exponencial (500ms, 1s, 2s)
+
+**Entregables mínimos:**
+
+- Servicio notificador de asistencia (Node→PHP)
+- Repository de datos maestros (PHP→Node con cache)
+- Cliente HTTP robusto con retry y timeout
+- Health check bidireccional
+- Documentación de integración y runbook de troubleshooting
+
+**Dependencias:** Requiere 23.1 + endpoints PHP implementados
+
+**Referencias:** `spec-architecture.md` sección 2.3
 
 ---
 
@@ -505,17 +477,33 @@ async isBlocked(userId: number): Promise<RestrictionResult> {
 
 ### Fase 24: Infraestructura y Operaciones
 
-- [ ] Configuracion de produccion (secrets management)
-- [ ] Monitoring y alertas
-- [ ] Backup y recuperacion
-- [ ] Documentacion de despliegue
+**Objetivo:** Preparar sistema para producción con gestión de secretos, monitoreo y procedimientos de recuperación.
+
+**Modelo:** Opus
+**Severidad:** MAYOR
+
+**Criterio de éxito verificable:**
+
+- [ ] Secretos gestionados via vault o equivalente (no en archivos)
+- [ ] Alertas configuradas para errores críticos
+- [ ] Procedimiento de backup probado y documentado
+- [ ] Runbook de despliegue completo
+
+---
 
 ### Fase 25: Testing E2E y Calidad
 
-- [ ] Tests E2E con Playwright
-- [ ] Tests de carga
-- [ ] Auditoria de seguridad final
-- [ ] Documentacion de usuario
+**Objetivo:** Validar flujos completos end-to-end, medir rendimiento bajo carga, y completar auditoría de seguridad.
+
+**Modelo:** Opus
+**Severidad:** MAYOR
+
+**Criterio de éxito verificable:**
+
+- [ ] Tests E2E cubren: enrollment → login → escaneo → asistencia registrada
+- [ ] Tests de carga: sistema soporta X usuarios concurrentes sin degradación
+- [ ] Auditoría de seguridad: 0 vulnerabilidades críticas
+- [ ] Documentación de usuario completa
 
 ---
 
