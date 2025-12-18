@@ -17,6 +17,7 @@ vi.mock('../../../../../shared/config', () => ({
     aaguid: {
       validationEnabled: true,
       allowNull: false,
+      allowUnknown: false,
     },
   },
 }));
@@ -50,6 +51,7 @@ describe('AaguidValidationService', () => {
           aaguid: {
             validationEnabled: true,
             allowNull: false,
+            allowUnknown: false,
           },
         },
       }));
@@ -137,6 +139,7 @@ describe('AaguidValidationService', () => {
           aaguid: {
             validationEnabled: false,
             allowNull: false,
+            allowUnknown: false,
           },
         },
       }));
@@ -170,6 +173,7 @@ describe('AaguidValidationService', () => {
           aaguid: {
             validationEnabled: true,
             allowNull: true,
+            allowUnknown: false,
           },
         },
       }));
@@ -188,6 +192,46 @@ describe('AaguidValidationService', () => {
       const result = service.validate('12345678-1234-1234-1234-123456789012');
 
       expect(result.valid).toBe(false);
+    });
+  });
+
+  describe('when allowUnknown is true (permissive mode)', () => {
+    beforeEach(async () => {
+      vi.doMock('../../../../../shared/config', () => ({
+        config: {
+          aaguid: {
+            validationEnabled: true,
+            allowNull: false,
+            allowUnknown: true,
+          },
+        },
+      }));
+      const module = await import('../aaguid-validation.service');
+      service = new module.AaguidValidationService();
+    });
+
+    it('accepts unknown AAGUID with permissive mode enabled', () => {
+      const unknownAaguid = 'ffffffff-1111-2222-3333-444455556666';
+      const result = service.validate(unknownAaguid);
+
+      expect(result.valid).toBe(true);
+      expect(result.authenticatorName).toBe('Desconocido (modo permisivo)');
+    });
+
+    it('still validates known AAGUIDs normally', () => {
+      // Use Apple iCloud Keychain AAGUID
+      const appleAaguid = 'dd4ec289-e01d-41c9-bb89-70fa845d4bf2';
+      const result = service.validate(appleAaguid);
+
+      expect(result.valid).toBe(true);
+      expect(result.authenticatorName).toContain('iCloud');
+    });
+
+    it('still rejects NULL AAGUID when allowNull is false', () => {
+      const result = service.validate('00000000-0000-0000-0000-000000000000');
+
+      expect(result.valid).toBe(false);
+      expect(result.reason).toContain('sin attestation');
     });
   });
 });

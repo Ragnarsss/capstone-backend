@@ -96,5 +96,8 @@ export const config = {
     // Permitir NULL AAGUID (00000000-0000-0000-0000-000000000000)
     // false por defecto para rechazar autenticadores desconocidos
     allowNull: process.env.AAGUID_ALLOW_NULL === 'true',
+    // Modo permisivo: permitir AAGUIDs desconocidos pero loggear
+    // Util en fase de transicion para identificar dispositivos faltantes
+    allowUnknown: process.env.AAGUID_ALLOW_UNKNOWN === 'true',
   },
 } as const;

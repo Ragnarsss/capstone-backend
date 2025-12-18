@@ -49,6 +49,30 @@ const AUTHORIZED_AAGUIDS: Record<string, string> = {
   // === Thales (SDK biometrico) ===
   '66a0ccb3-bd6a-191f-ee06-e375c50b9846': 'Thales Bio iOS SDK',
   '8836336a-f590-0921-301d-46427531eee6': 'Thales Bio Android SDK',
+
+  // === Huawei ===
+  'bada5566-a7aa-401f-bd96-45619a55120d': 'Huawei Authenticator',
+
+  // === 1Password ===
+  'bdb505bc-8c1e-bbe6-f31f-42e5f59975b4': '1Password',
+
+  // === Bitwarden ===
+  'd548826e-79b4-db40-a3d8-11116f7e8349': 'Bitwarden',
+
+  // === Dashlane ===
+  '1ab5725f-1ae5-56a1-aaaa-bbbb12345678': 'Dashlane',
+
+  // === Microsoft Authenticator ===
+  'de1e552d-db1d-4423-a619-566b625cdc84': 'Microsoft Authenticator',
+
+  // === Chrome on Android ===
+  'b5397048-5a7c-11e9-8647-d663bd873d93': 'Chrome on Android',
+
+  // === Credential Manager (Android 14+) ===
+  '0ea242b4-43c4-4a1b-8b17-dd6d0b6baec6': 'Android Credential Manager',
+
+  // === Firefox ===
+  'e1a96183-5016-4f24-b55b-e3ae23614cc6': 'Firefox',
 };
 
 /**
@@ -66,12 +90,14 @@ export interface AaguidValidationResult {
 export class AaguidValidationService {
   private readonly enabled: boolean;
   private readonly allowNullAaguid: boolean;
+  private readonly allowUnknown: boolean;
   private readonly authorizedAaguids: Map<string, string>;
 
   constructor() {
     // Usar configuracion centralizada
     this.enabled = config.aaguid.validationEnabled;
     this.allowNullAaguid = config.aaguid.allowNull;
+    this.allowUnknown = config.aaguid.allowUnknown;
 
     // Cargar whitelist en memoria para busqueda O(1)
     this.authorizedAaguids = new Map(Object.entries(AUTHORIZED_AAGUIDS));
@@ -79,6 +105,7 @@ export class AaguidValidationService {
     logger.info('[AaguidValidationService] Inicializado', {
       enabled: this.enabled,
       allowNullAaguid: this.allowNullAaguid,
+      allowUnknown: this.allowUnknown,
       authorizedCount: this.authorizedAaguids.size,
     });
   }
@@ -135,6 +162,18 @@ export class AaguidValidationService {
     }
 
     // AAGUID no encontrado en whitelist
+    // Si modo permisivo esta habilitado, permitir con warning
+    if (this.allowUnknown) {
+      logger.warn('[AaguidValidationService] AAGUID desconocido permitido (modo permisivo)', {
+        aaguid: normalizedAaguid,
+        hint: 'Considere agregar este AAGUID a la whitelist',
+      });
+      return {
+        valid: true,
+        authenticatorName: 'Desconocido (modo permisivo)',
+      };
+    }
+
     logger.warn('[AaguidValidationService] AAGUID rechazado - no autorizado', {
       aaguid: normalizedAaguid,
     });
