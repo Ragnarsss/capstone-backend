@@ -1,9 +1,9 @@
 # ROADMAP - Plan de Implementacion
 
 > Fuente de verdad para tareas pendientes.
-> Ultima actualizacion: 2025-12-17
+> Ultima actualizacion: 2025-12-18
 
-**Ultimo commit consolidado:** 2a91b21 (fase-22.4-extract-persistence)
+**Ultimo commit consolidado:** 91f8d24 (fase-22.10-move-websocket-auth)
 
 **Estado actual del proyecto:**
 - COMPLETADA: Todas las fases 21 completadas (21.1→21.1.3→21.2→21.3)
@@ -11,10 +11,12 @@
 - COMPLETADA: Fase 22.1 (TOTP validation) completada
 - COMPLETADA: Fase 22.4 (AttendancePersistenceService) completada
 - COMPLETADA: Fase 22.8 (Decompose ParticipationService) completada
+- COMPLETADA: Fase 22.10 (mover WebSocketAuthMiddleware a auth/presentation)
 - EN PROGRESO: Pendiente merge de branches 22.x a main
-- **SIGUIENTE: Fase 22.10 (mover WebSocketAuthMiddleware) - PRIORIDAD CRÍTICA**
-- **DESPUÉS: Fase 22.5 AMPLIADA (stats + QR lifecycle)**
-- Tests: 155 pasando (12 nuevos en fase 22.4)
+- **SIGUIENTE: Fase 22.10.1 (Eliminar generacion JWT) - BLOQUEANTE PRODUCCION**
+- **DESPUES: Fase 22.10.2 (Eliminar emoji en logs)**
+- **LUEGO: Fase 22.5 AMPLIADA (stats + QR lifecycle)**
+- Tests: 155 pasando
 
 ---
 
@@ -35,7 +37,10 @@
 | **22.7** | **Crear Puertos para QR-Projection** | COMPLETADA |
 | **22.9** | **Eliminar endpoints /dev/** | COMPLETADA |
 | **22.4** | **Extraer Persistencia de CompleteScanUseCase** | COMPLETADA |
-| **22.10** | **Mover WebSocketAuthMiddleware** | PENDIENTE |
+| **22.10** | **Mover WebSocketAuthMiddleware** | COMPLETADA |
+| **22.10.1** | **Eliminar generacion JWT (CRITICA)** | PENDIENTE (BLOQUEANTE) |
+| **22.10.2** | **Eliminar emoji en logs** | PENDIENTE |
+| **22.10.3** | **Resolver TODO de Zod** | PENDIENTE |
 | **22.5** | **Extraer Stats + QR Lifecycle** | PENDIENTE (AMPLIADA) |
 | **22.8** | **Descomponer ParticipationService** | COMPLETADA |
 | **22.2** | **Session Key Binding con credentialId** | PENDIENTE |
@@ -1066,7 +1071,8 @@ interface ISessionKeyQuery {
 **Rama:** `fase-22.10-move-websocket-auth`
 **Modelo:** Sonnet
 **Dificultad:** Media
-**Estado:** PENDIENTE
+**Estado:** COMPLETADA
+**Commit:** 91f8d24
 **Recordatorio:** Comandos npm DEBEN ejecutarse dentro del contenedor Node (daRulez.md Art. 3.2)
 
 **Justificacion:** `WebSocketAuthMiddleware` en `middleware/` importa directamente de `backend/auth/domain/`. Un middleware transversal NO DEBE depender de módulos específicos. Viola arquitectura hexagonal y Separation of Concerns.
@@ -1112,17 +1118,17 @@ backend/auth/infrastructure/adapters/
 
 **Tareas:**
 
-- [ ] Verificar estado del repositorio: `git status`
-- [ ] Crear rama: `git checkout -b fase-22.10-move-websocket-auth`
-- [ ] Mover `middleware/websocket-auth.middleware.ts` a `backend/auth/presentation/`
-- [ ] Actualizar `middleware/index.ts`: eliminar export
-- [ ] Actualizar `backend/auth/presentation/index.ts`: agregar export
-- [ ] Actualizar `websocket-controller.ts`: cambiar import path
-- [ ] Actualizar `app.ts`: cambiar import path
-- [ ] Verificar que NO hay otros imports del middleware antiguo: `grep -r "middleware/websocket-auth" node-service/src/`
-- [ ] Verificar tests: `podman exec asistencia-node npm run test` (155/155)
-- [ ] Verificar build: `podman exec asistencia-node npm run build`
-- [ ] Commit con mensaje descriptivo
+- [x] Verificar estado del repositorio: `git status`
+- [x] Crear rama: `git checkout -b fase-22.10-move-websocket-auth`
+- [x] Mover `middleware/websocket-auth.middleware.ts` a `backend/auth/presentation/`
+- [x] Actualizar `middleware/index.ts`: eliminar export
+- [x] Actualizar `backend/auth/presentation/index.ts`: agregar export (creado nuevo)
+- [x] Actualizar `websocket-controller.ts`: cambiar import path
+- [x] Actualizar `app.ts`: cambiar import path
+- [x] Verificar que NO hay otros imports del middleware antiguo: `grep -r "middleware/websocket-auth" node-service/src/`
+- [x] Verificar tests: `podman exec asistencia-node npm run test` (155/155)
+- [x] Verificar build: `podman exec asistencia-node npm run build` (302 modulos)
+- [x] Commit con mensaje descriptivo: 91f8d24
 
 **Criterio de exito:**
 - `middleware/` NO contiene lógica de dominio específica
