@@ -784,11 +784,11 @@ Ejecutar en orden estricto:
 7. [OK] **22.2** - Session Key Binding con credentialId (commit 5c2c473)
 8. [OK] **22.3** - AAGUID Validation con whitelist (commits 0844ede, 1296c0a)
 
-**BLOQUE B2 - Testing Critico Pre-Manual (1-2 dias):**
+**BLOQUE B2 - Testing Critico Pre-Manual:** [OK] COMPLETADO
 9. [OK] **22.3.3** - Test compatibilidad HKDF Frontend-Backend (commit 9a2a24a)
 10. [OK] **22.3.1** - Test unitario Login ECDH Use Case (commit 65f0168)
-11. **22.3.2** - Test unitario QR Generator (MAYOR)
-12. **22.3.4** - Test unitario Decrypt Stage (MAYOR)
+11. [OK] **22.3.2** - Test unitario QR Generator (commit b8b3f1d)
+12. [OK] **22.3.4** - Test unitario Decrypt Stage (commit 1f1fcdf)
 
 **BLOQUE C - Arquitectura (1 dia):**
 13. **22.5** - Stats + QR Lifecycle extraction
