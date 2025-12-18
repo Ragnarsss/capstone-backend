@@ -8,6 +8,31 @@ export {
   DEFAULT_MIN_POOL_SIZE,
 } from './attendance.defaults';
 
+/**
+ * Valida que las variables de entorno criticas esten definidas
+ * Lanza error descriptivo si falta alguna variable requerida
+ */
+function validateRequiredEnvVars(): void {
+  const requiredVars = [
+    'POSTGRES_PASSWORD',
+    'JWT_SECRET',
+    'SERVER_MASTER_SECRET',
+  ];
+
+  const missing = requiredVars.filter(varName => !process.env[varName]);
+
+  if (missing.length > 0) {
+    throw new Error(
+      `Faltan variables de entorno requeridas: ${missing.join(', ')}.\n` +
+      `Verifica que exista el archivo .env en la raiz del proyecto.\n` +
+      `Puedes copiar .env.example como punto de partida: cp .env.example .env`
+    );
+  }
+}
+
+// Validar variables criticas al importar este modulo
+validateRequiredEnvVars();
+
 export const config = {
   env: {
     isDevelopment: process.env.NODE_ENV !== 'production',
@@ -31,7 +56,7 @@ export const config = {
     port: parseInt(process.env.POSTGRES_PORT || '5432', 10),
     database: process.env.POSTGRES_DB || 'asistencia',
     user: process.env.POSTGRES_USER || 'asistencia',
-    password: process.env.POSTGRES_PASSWORD || 'asistencia_dev_password',
+    password: process.env.POSTGRES_PASSWORD as string, // Validado en validateRequiredEnvVars()
     // Pool configuration
     poolMax: parseInt(process.env.POSTGRES_POOL_MAX || '10', 10),
     idleTimeout: parseInt(process.env.POSTGRES_IDLE_TIMEOUT || '30000', 10),
@@ -46,8 +71,7 @@ export const config = {
   },
   jwt: {
     // Secret para validar JWT desde PHP (debe coincidir con JWT_SECRET de PHP)
-    // En produccion, usar variable de entorno segura
-    secret: process.env.JWT_SECRET || 'CAMBIAR_EN_PRODUCCION_SECRET_KEY_COMPARTIDO_PHP_NODE',
+    secret: process.env.JWT_SECRET as string, // Validado en validateRequiredEnvVars()
     // Tiempo de expiracion del token (5 minutos)
     expiresIn: '5m',
     // Issuer del token
@@ -57,8 +81,8 @@ export const config = {
   },
   // Configuración criptográfica para enrollment y asistencia
   crypto: {
-    // Master secret para derivación de claves (DEBE cambiar en producción)
-    masterSecret: process.env.SERVER_MASTER_SECRET || 'CAMBIAR_EN_PRODUCCION_MASTER_SECRET_32_BYTES',
+    // Master secret para derivación de claves
+    masterSecret: process.env.SERVER_MASTER_SECRET as string, // Validado en validateRequiredEnvVars()
     // Relying Party para WebAuthn
     rpName: process.env.WEBAUTHN_RP_NAME || 'Sistema Asistencia UCN',
     rpId: process.env.WEBAUTHN_RP_ID || 'localhost',
