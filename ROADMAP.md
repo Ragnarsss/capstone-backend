@@ -35,18 +35,18 @@
 | **21.2** | **qr-reader usa Access Gateway** | COMPLETADA |
 | **21.3** | **Eliminar feature guest/** | COMPLETADA |
 | **22.1** | **Validar TOTPu en Pipeline** | COMPLETADA |
+| **22.2** | **Session Key Binding con credentialId** | PENDIENTE |
+| **22.3** | **Validar AAGUID de dispositivo** | PENDIENTE |
+| **22.4** | **Extraer Persistencia de CompleteScanUseCase** | COMPLETADA |
+| **22.5** | **Extraer Stats + QR Lifecycle** | PENDIENTE (AMPLIADA) |
 | **22.6** | **Inyectar ISessionKeyQuery en Pipeline** | COMPLETADA |
 | **22.7** | **Crear Puertos para QR-Projection** | COMPLETADA |
+| **22.8** | **Descomponer ParticipationService** | COMPLETADA |
 | **22.9** | **Eliminar endpoints /dev/** | COMPLETADA |
-| **22.4** | **Extraer Persistencia de CompleteScanUseCase** | COMPLETADA |
 | **22.10** | **Mover WebSocketAuthMiddleware** | COMPLETADA |
 | **22.10.1** | **Eliminar generacion JWT (CRITICA)** | COMPLETADA |
 | **22.10.2** | **Eliminar emoji en logs** | COMPLETADA |
 | **22.10.3** | **Resolver TODO de Zod** | COMPLETADA |
-| **22.5** | **Extraer Stats + QR Lifecycle** | PENDIENTE (AMPLIADA) |
-| **22.8** | **Descomponer ParticipationService** | COMPLETADA |
-| **22.2** | **Session Key Binding con credentialId** | PENDIENTE |
-| **22.3** | **Validar AAGUID de dispositivo** | PENDIENTE |
 | **22.11** | **Refactorizar ValidationErrorCode** | PENDIENTE (opcional) |
 | **22.12** | **Refactorizar FinishEnrollmentController** | PENDIENTE (opcional) |
 | **23** | **Puente PHP Produccion** | PENDIENTE |
@@ -522,29 +522,82 @@ node-service/src/frontend/features/guest/
 **Modelo recomendado global:** Opus (excepto 22.1 - ver justificacion individual)
 **Recordatorio:** Comandos npm DEBEN ejecutarse dentro del contenedor Node (daRulez.md Art. 3.2)
 
-### ORDEN OPTIMIZADO (Decisión 2025-12-17)
+### Diagrama de Dependencias - Orden de Ejecución
 
-**Justificación:** Constitution Article 2.3 (Separation of Concerns) es principio INMUTABLE. Implementar features de seguridad (22.2-22.3) sobre código con violations arquitectónicas perpetúa deuda técnica. Se reordena para lograr arquitectura limpia ANTES de agregar lógica crítica.
+**Justificación:** Constitution Article 2.3 (Separation of Concerns) es principio INMUTABLE. Las fases se ejecutan en orden optimizado para lograr arquitectura limpia ANTES de agregar lógica crítica.
 
-**Secuencia de ejecución:**
-
-```text
-BLOQUE A: Eliminar Violations SoC (PRIMERO)
-  22.6 → Inyectar ISessionKeyQuery en Pipeline (elimina lazy imports)
-  22.7 → Puertos QR-Projection (independencia de dominios)
-  22.9 → Eliminar endpoints /dev/ (cleanup seguridad)
-
-BLOQUE B: Refactorizar Attendance
-  22.4 → Extraer Persistencia de CompleteScanUseCase
-  22.5 → Extraer Cálculo de Estadísticas
-  22.8 → Descomponer ParticipationService (facade pattern)
-
-BLOQUE C: Features Criptográficas (SOBRE CÓDIGO LIMPIO)
-  22.2 → Session Key Binding con credentialId
-  22.3 → Validar AAGUID de dispositivo
+```mermaid
+graph TD
+    %% BLOQUE A: Eliminar Violations SoC
+    22.1[22.1 TOTP Validation]
+    22.6[22.6 ISessionKeyQuery en Pipeline]
+    22.7[22.7 Puertos QR-Projection]
+    22.9[22.9 Eliminar /dev/]
+    
+    %% BLOQUE B: Refactorizar Attendance
+    22.4[22.4 Extraer Persistencia]
+    22.5[22.5 Stats + QR Lifecycle]
+    22.8[22.8 Descomponer ParticipationService]
+    
+    %% BLOQUE C: Auditoria daRulez
+    22.10[22.10 Mover WebSocketAuth]
+    22.10.1[22.10.1 Eliminar JWT generation]
+    22.10.2[22.10.2 Eliminar emojis]
+    22.10.3[22.10.3 Resolver TODO Zod]
+    
+    %% BLOQUE D: Features Criptográficas
+    22.2[22.2 Session Key Binding]
+    22.3[22.3 Validar AAGUID]
+    
+    %% BLOQUE E: Deudas Técnicas Opcionales
+    22.11[22.11 ValidationErrorCode]
+    22.12[22.12 FinishEnrollmentController]
+    
+    %% Dependencias BLOQUE A
+    22.1 --> 22.6
+    22.6 --> 22.7
+    22.7 --> 22.9
+    
+    %% Dependencias BLOQUE B
+    22.9 --> 22.4
+    22.4 --> 22.8
+    
+    %% Dependencias BLOQUE C (después de arquitectura limpia)
+    22.8 --> 22.10
+    22.10 --> 22.10.1
+    22.10.1 --> 22.10.2
+    22.10.2 --> 22.10.3
+    
+    %% BLOQUE D depende de arquitectura limpia
+    22.10.3 --> 22.5
+    22.5 --> 22.2
+    22.2 --> 22.3
+    
+    %% BLOQUE E es opcional y puede ejecutarse después
+    22.3 -.-> 22.11
+    22.11 -.-> 22.12
+    
+    style 22.1 fill:#90EE90
+    style 22.4 fill:#90EE90
+    style 22.6 fill:#90EE90
+    style 22.7 fill:#90EE90
+    style 22.8 fill:#90EE90
+    style 22.9 fill:#90EE90
+    style 22.10 fill:#90EE90
+    style 22.10.1 fill:#90EE90
+    style 22.10.2 fill:#90EE90
+    style 22.10.3 fill:#90EE90
+    style 22.2 fill:#FFE4B5
+    style 22.3 fill:#FFE4B5
+    style 22.5 fill:#FFE4B5
+    style 22.11 fill:#E0E0E0
+    style 22.12 fill:#E0E0E0
 ```
 
-**Beneficio:** Tests de 22.2-22.3 verificarán contratos (interfaces), no implementaciones.
+**Leyenda:**
+- Verde: Completadas
+- Naranja: Pendientes (próximas)
+- Gris: Opcionales (pueden postergarse)
 
 ---
 
