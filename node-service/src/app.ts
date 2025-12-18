@@ -8,10 +8,10 @@ import {
   securityHeadersMiddleware,
   corsMiddleware,
   requestLoggerMiddleware,
-  WebSocketAuthMiddleware,
   rateLimitMiddleware,
   errorHandlerMiddleware,
 } from './middleware';
+import { WebSocketAuthMiddleware } from './backend/auth/presentation';
 import { WebSocketController } from './backend/qr-projection/presentation/websocket-controller';
 import { registerEnrollmentRoutes } from './backend/enrollment/presentation/routes';
 import { registerSessionModule } from './backend/session/session.module';
