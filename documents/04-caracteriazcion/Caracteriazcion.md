@@ -67,6 +67,23 @@ Este slice gestiona la vinculación física mediante FIDO2 y asegura la invarian
    1. **Vinculación:** Se crea el nuevo nexo exclusivo `userId` $\leftrightarrow$ `credentialId` (FIDO2).
    1. **Persistencia:** La operación es atómica; el sistema nunca queda en un estado intermedio (relaciones N:M).
 
+### 4.1 Capas de Proteccion Anti-Compartir
+
+La invariante 1:1 se implementa mediante tres capas tecnicas complementarias:
+
+| Capa | Mecanismo | Proteccion |
+|------|-----------|------------|
+| **Platform Authenticator** | `authenticatorAttachment: 'platform'` | Solo acepta autenticadores integrados (Secure Enclave, TPM). Rechaza llaves USB o roaming authenticators. |
+| **Non-Syncable Credential** | `residentKey: 'discouraged'` | Evita que la credencial se sincronice via iCloud Keychain o Google Password Manager. |
+| **Device Fingerprint Binding** | `deviceFingerprint` en BD | Valida que el navegador coincida con el dispositivo enrolado. |
+
+**Implicacion:** Un estudiante NO puede:
+- Usar una llave de seguridad USB (bloqueado en capa 1)
+- Compartir credencial via passkey sincronizada (bloqueado en capa 2)
+- Iniciar sesion desde otro navegador/dispositivo (bloqueado en capa 3)
+
+**Nota:** La fase 22.3 (AAGUID Validation) agrega una cuarta capa: whitelist de modelos de autenticador permitidos, rechazando emuladores o dispositivos no autorizados.
+
 ## 5. Concepto: Gestión de Sesión Criptográfica (Session Slice)
 
 Este módulo transforma la validación de identidad en capacidad operativa segura mediante criptografía efímera (ECDH) y vinculación de dispositivo (FIDO2).
