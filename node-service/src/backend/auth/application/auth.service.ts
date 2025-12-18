@@ -24,10 +24,6 @@ export class AuthService {
     return this.mapToAuthenticatedUser(payload);
   }
 
-  generateToken(user: Omit<AuthenticatedUser, 'userId' | 'username'> & { userId: number; username: string }): string {
-    return this.jwtUtils.generate(user);
-  }
-
   private mapToAuthenticatedUser(payload: JWTPayload): AuthenticatedUser {
     return {
       userId: UserId.create(payload.userId),
