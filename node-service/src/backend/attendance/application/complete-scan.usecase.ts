@@ -18,6 +18,7 @@ import { calculateStats } from '../domain/stats-calculator';
 import type { QRPayloadV1 } from '../../../shared/types';
 import type { ValidationRepository, ResultRepository, RegistrationRepository } from '../infrastructure/repositories';
 import { FraudMetricsRepository, type FraudType } from '../infrastructure/fraud-metrics.repository';
+import { AttendancePersistenceService } from './services/attendance-persistence.service';
 import { DEFAULT_QR_TTL_SECONDS, DEFAULT_MAX_ROUNDS } from '../../../shared/config';
 import { logger } from '../../../shared/infrastructure/logger';
 
@@ -51,6 +52,7 @@ export interface PersistenceDependencies {
   validationRepo?: ValidationRepository;
   resultRepo?: ResultRepository;
   registrationRepo?: RegistrationRepository;
+  persistenceService?: AttendancePersistenceService;
 }
 
 /**
@@ -124,6 +126,7 @@ export class CompleteScanUseCase {
   private readonly config: Config;
   private readonly persistence: PersistenceDependencies;
   private readonly fraudMetrics: FraudMetricsDependencies;
+  private readonly persistenceService?: AttendancePersistenceService;
 
   constructor(
     private readonly deps: CompleteScanDependencies,
@@ -135,6 +138,7 @@ export class CompleteScanUseCase {
     this.config = { ...DEFAULT_CONFIG, ...config };
     this.persistence = persistence ?? {};
     this.fraudMetrics = fraudMetrics ?? {};
+    this.persistenceService = persistence?.persistenceService;
   }
 
   /**
@@ -228,8 +232,27 @@ export class CompleteScanUseCase {
       
       logger.debug(`[CompleteScan] Asistencia completada para student=${studentId}, session=${sessionId}`);
 
-      // Persistir resultado en PostgreSQL si hay repositorios
-      await this.persistResult(sessionId, studentId, payload.r, responseTime, stats, validatedAt);
+      // Persistir resultado completo en PostgreSQL usando servicio
+      if (this.persistenceService) {
+        await this.persistenceService.saveCompleteAttendance(
+          {
+            sessionId,
+            studentId,
+            round: payload.r,
+            responseTime,
+            validatedAt,
+          },
+          {
+            sessionId,
+            studentId,
+            round: payload.r,
+            responseTime,
+            stats,
+            validatedAt,
+            maxRounds: this.config.maxRounds,
+          }
+        );
+      }
 
       return {
         valid: true,
@@ -244,8 +267,16 @@ export class CompleteScanUseCase {
       };
     }
 
-    // Persistir validación parcial en PostgreSQL
-    await this.persistValidation(sessionId, studentId, payload.r, responseTime, validatedAt);
+    // Persistir validación parcial en PostgreSQL usando servicio
+    if (this.persistenceService) {
+      await this.persistenceService.saveValidationAttempt({
+        sessionId,
+        studentId,
+        round: payload.r,
+        responseTime,
+        validatedAt,
+      });
+    }
 
     // 5. Generar siguiente QR
     try {
@@ -285,143 +316,7 @@ export class CompleteScanUseCase {
     }
   }
 
-  /**
-   * Persiste una validación exitosa en PostgreSQL
-   * Solo si registrationRepo y validationRepo están configurados
-   */
-  private async persistValidation(
-    sessionId: string,
-    studentId: number,
-    roundNumber: number,
-    responseTimeMs: number,
-    validatedAt: number
-  ): Promise<void> {
-    const { validationRepo, registrationRepo } = this.persistence;
-    
-    if (!validationRepo || !registrationRepo) {
-      return;
-    }
 
-    try {
-      // Obtener registrationId desde sessionId y studentId
-      const sessionIdNum = parseInt(sessionId, 10);
-      if (isNaN(sessionIdNum)) {
-        logger.warn(`[CompleteScan] sessionId no es numérico: ${sessionId}, omitiendo persistencia`);
-        return;
-      }
-
-      const registration = await registrationRepo.getBySessionAndUser(sessionIdNum, studentId);
-      
-      if (!registration) {
-        logger.warn(`[CompleteScan] No se encontró registro para session=${sessionId}, student=${studentId}`);
-        return;
-      }
-
-      // Verificar si ya existe validación para este round
-      const existing = await validationRepo.getByRound(registration.registrationId, roundNumber);
-      
-      if (existing) {
-        // Completar validación existente
-        await validationRepo.complete(registration.registrationId, roundNumber, {
-          responseReceivedAt: new Date(validatedAt),
-          responseTimeMs,
-          validationStatus: 'success',
-        });
-      } else {
-        // Crear nueva validación
-        const validation = await validationRepo.create({
-          registrationId: registration.registrationId,
-          roundNumber,
-          qrGeneratedAt: new Date(validatedAt - responseTimeMs),
-        });
-        
-        await validationRepo.complete(registration.registrationId, roundNumber, {
-          responseReceivedAt: new Date(validatedAt),
-          responseTimeMs,
-          validationStatus: 'success',
-        });
-      }
-
-      logger.debug(`[CompleteScan] Validación persistida: registration=${registration.registrationId}, round=${roundNumber}`);
-    } catch (error) {
-      logger.error('[CompleteScan] Error persistiendo validación:', error);
-      // No lanzamos error, la persistencia es opcional
-    }
-  }
-
-  /**
-   * Persiste el resultado final en PostgreSQL
-   * Solo si todos los repositorios están configurados
-   */
-  private async persistResult(
-    sessionId: string,
-    studentId: number,
-    roundNumber: number,
-    responseTimeMs: number,
-    stats: { avg: number; stdDev: number; min: number; max: number; certainty: number },
-    validatedAt: number
-  ): Promise<void> {
-    const { validationRepo, resultRepo, registrationRepo } = this.persistence;
-    
-    if (!validationRepo || !resultRepo || !registrationRepo) {
-      return;
-    }
-
-    try {
-      const sessionIdNum = parseInt(sessionId, 10);
-      if (isNaN(sessionIdNum)) {
-        logger.warn(`[CompleteScan] sessionId no es numérico: ${sessionId}, omitiendo persistencia`);
-        return;
-      }
-
-      const registration = await registrationRepo.getBySessionAndUser(sessionIdNum, studentId);
-      
-      if (!registration) {
-        logger.warn(`[CompleteScan] No se encontró registro para session=${sessionId}, student=${studentId}`);
-        return;
-      }
-
-      // Persistir última validación
-      await this.persistValidation(sessionId, studentId, roundNumber, responseTimeMs, validatedAt);
-
-      // Verificar si ya existe resultado
-      const existingResult = await resultRepo.getByRegistration(registration.registrationId);
-      if (existingResult) {
-        logger.debug(`[CompleteScan] Resultado ya existe para registration=${registration.registrationId}`);
-        return;
-      }
-
-      // Obtener estadísticas de response time desde la BD
-      const rtStats = await validationRepo.getResponseTimeStats(registration.registrationId);
-      const successCount = await validationRepo.countSuccessful(registration.registrationId);
-
-      // Determinar estado final
-      const finalStatus = stats.certainty >= 70 ? 'PRESENT' : stats.certainty >= 40 ? 'DOUBTFUL' : 'ABSENT';
-
-      // Crear resultado
-      await resultRepo.create({
-        registrationId: registration.registrationId,
-        totalRounds: this.config.maxRounds,
-        successfulRounds: successCount,
-        failedRounds: this.config.maxRounds - successCount,
-        avgResponseTimeMs: rtStats.avg ?? stats.avg,
-        stdDevResponseTime: rtStats.stdDev ?? stats.stdDev,
-        minResponseTimeMs: rtStats.min ?? stats.min,
-        maxResponseTimeMs: rtStats.max ?? stats.max,
-        medianResponseTimeMs: rtStats.median ?? undefined,
-        certaintyScore: stats.certainty,
-        finalStatus,
-      });
-
-      // Actualizar estado del registro a completado
-      await registrationRepo.updateStatus(registration.registrationId, { status: 'completed' });
-
-      logger.debug(`[CompleteScan] Resultado persistido: registration=${registration.registrationId}, status=${finalStatus}, certainty=${stats.certainty}`);
-    } catch (error) {
-      logger.error('[CompleteScan] Error persistiendo resultado:', error);
-      // No lanzamos error, la persistencia es opcional
-    }
-  }
 
   /**
    * Mapea códigos de error del pipeline a tipos de fraude

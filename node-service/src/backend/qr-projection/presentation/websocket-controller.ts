@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import type { WebSocket } from 'ws';
 import { QRProjectionService, type ProjectionCallbacks, type ProjectionContext } from '../application/qr-projection.service';
 import type { CountdownMessageDTO, QRUpdateMessageDTO } from './types';
-import { WebSocketAuthMiddleware } from '../../../middleware';
+import { WebSocketAuthMiddleware } from '../../auth/presentation';
 import type { AuthenticatedUser } from '../../auth/domain/models';
 import { ActiveSessionRepository } from '../../../shared/infrastructure/valkey';
 import { logger } from '../../../shared/infrastructure/logger';

@@ -24,9 +24,10 @@ import { LegacyBridge } from '../../shared/services/legacy-bridge.service';
 import { LegacyContextStore } from '../../shared/stores/legacy-context.store';
 import {
   EnrollmentService,
-  type GetDevicesResult,
   LoginService,
   SessionKeyStore,
+  AccessService,
+  type AccessState,
 } from '../../shared/services/enrollment';
 
 // Exponer helpers de debug en desarrollo
@@ -49,6 +50,7 @@ class QRReaderApplication {
   private enrollmentService: EnrollmentService;
   private loginService: LoginService;
   private sessionKeyStore: SessionKeyStore;
+  private accessService: AccessService;
   
   // UI Elements - Enrollment
   private enrollmentSection: HTMLElement | null = null;
@@ -73,8 +75,9 @@ class QRReaderApplication {
     this.legacyBridge = new LegacyBridge(this.authClient, this.contextStore);
     this.attendanceApi = new AttendanceApiClient();
     this.enrollmentService = new EnrollmentService();
-    this.loginService = new LoginService();
+    this.loginService = new LoginService(this.authClient);
     this.sessionKeyStore = new SessionKeyStore();
+    this.accessService = new AccessService(() => this.authClient.getToken());
     const component = new CameraViewComponent();
     const cameraManager = new CameraManager('camera-feed');
     this.scanService = new QRScanService(component, cameraManager, this.authClient, this.attendanceApi);
@@ -112,11 +115,12 @@ class QRReaderApplication {
     // Iniciar autenticacion
     this.authClient.initialize();
 
-    if (this.authClient.isUserAuthenticated()) {
-      this.handleAuthReady();
-    } else {
-      this.authClient.onAuthenticated(() => this.handleAuthReady());
-    }
+    // SIEMPRE esperar al evento AUTH_TOKEN del host PHP.
+    // El sessionStorage puede tener un token obsoleto de otro usuario.
+    // El host PHP enviará el token del usuario ACTUAL via postMessage.
+    // El callback se dispara cuando llega AUTH_TOKEN, momento en que
+    // AuthClient ya habrá detectado cambio de usuario y limpiado el estado anterior.
+    this.authClient.onAuthenticated(() => this.handleAuthReady());
 
     // Registrar helpers de debug en desarrollo
     if (import.meta.env.DEV) {
@@ -151,6 +155,9 @@ class QRReaderApplication {
 
   /**
    * Verifica estado de enrollment y muestra UI apropiada
+   * 
+   * REFACTORIZADO (Fase 21.2): Usa Access Gateway en lugar de verificacion local
+   * El Access Gateway valida deviceFingerprint y politica 1:1 automaticamente
    */
   private async checkEnrollmentStatus(): Promise<void> {
     try {
@@ -162,23 +169,42 @@ class QRReaderApplication {
         return;
       }
 
-      // Consultar dispositivos
-      const devices = await this.enrollmentService.getDevices();
-      console.log('[QRReader] Devices:', devices);
+      // Consultar Access Gateway con deviceFingerprint
+      const accessState = await this.accessService.getState();
+      console.log('[QRReader] Access Gateway state:', accessState);
 
-      // Verificar si tiene session_key almacenada
-      const hasSessionKey = this.sessionKeyStore.hasSessionKey();
-      console.log('[QRReader] Has session_key:', hasSessionKey);
+      // Mapear estado del Access Gateway a UI
+      switch (accessState.state) {
+        case 'NOT_ENROLLED':
+          // Usuario no tiene dispositivo enrollado O dispositivo actual pertenece a otro usuario
+          this.showEnrollmentSection();
+          if (accessState.message) {
+            this.showEnrollmentMessage(accessState.message, 'info');
+          }
+          break;
 
-      if (hasSessionKey) {
-        // Tiene session_key → puede registrar asistencia
-        this.showReadyState();
-      } else if (devices.deviceCount > 0) {
-        // Tiene dispositivos pero no session_key → necesita login ECDH
-        this.showLoginSection(devices);
-      } else {
-        // No tiene dispositivos → necesita enrollment
-        this.showEnrollmentSection();
+        case 'ENROLLED_NO_SESSION':
+          // Usuario enrollado pero sin session_key → necesita login ECDH
+          this.showLoginSection(accessState.device);
+          break;
+
+        case 'READY':
+          // Usuario listo para registrar asistencia
+          this.showReadyState();
+          break;
+
+        case 'BLOCKED':
+          // Usuario bloqueado por restricciones
+          this.updateStatus('Acceso bloqueado');
+          this.showEnrollmentSection();
+          this.showEnrollmentMessage(
+            accessState.message || 'Tu cuenta esta temporalmente bloqueada',
+            'error'
+          );
+          break;
+
+        default:
+          throw new Error(`Estado desconocido: ${accessState.state}`);
       }
     } catch (error) {
       console.error('[QRReader] Error verificando enrollment:', error);
@@ -205,7 +231,7 @@ class QRReaderApplication {
   /**
    * Muestra seccion de login ECDH
    */
-  private showLoginSection(result?: GetDevicesResult): void {
+  private showLoginSection(device?: { credentialId: string; deviceId: number }): void {
     this.hideAllSections();
     if (this.loginSection) {
       this.loginSection.style.display = 'block';
@@ -213,8 +239,8 @@ class QRReaderApplication {
     if (this.loginBtn) {
       this.loginBtn.disabled = false;
       // Guardar credentialId para login
-      if (result?.devices && result.devices.length > 0) {
-        this.loginBtn.dataset.credentialId = result.devices[0].credentialId;
+      if (device?.credentialId) {
+        this.loginBtn.dataset.credentialId = device.credentialId;
       }
     }
     this.updateStatus('Inicia sesion para continuar');

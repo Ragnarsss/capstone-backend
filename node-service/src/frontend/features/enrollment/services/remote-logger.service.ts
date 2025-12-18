@@ -51,7 +51,7 @@ export class RemoteLoggerService {
     this.logs.push(entry);
     
     // También log a consola local
-    const prefix = level === 'error' ? '❌' : level === 'warn' ? '⚠️' : level === 'success' ? '✅' : 'ℹ️';
+    const prefix = level === 'error' ? '[ERROR]' : level === 'warn' ? '[WARN]' : level === 'success' ? '[OK]' : '[INFO]';
     console.log(`${prefix} [RemoteLog] ${message}`, data ?? '');
     
     // Flush inmediato para errores

@@ -1,18 +1,8 @@
 import type { RegisterParticipationResult, GetStatusResult } from '../domain/models';
-import { StudentSessionRepository } from '../infrastructure/student-session.repository';
-import { ProjectionPoolRepository } from '../../../shared/infrastructure/valkey';
-import { QRPayloadRepository } from '../../qr-projection/infrastructure/qr-payload.repository';
-import { QRGenerator } from '../../qr-projection/domain/qr-generator';
-import type { IQRGenerator, IPoolBalancer, IQRPayloadRepository } from '../../../shared/ports';
-import { AesGcmService } from '../../../shared/infrastructure/crypto';
-import { PoolBalancer } from '../../qr-projection/application/services';
-import {
-  DEFAULT_MAX_ROUNDS,
-  DEFAULT_MAX_ATTEMPTS,
-  DEFAULT_QR_TTL_SECONDS,
-  DEFAULT_MIN_POOL_SIZE,
-} from '../../../shared/config';
+import type { StoredPayload } from '../../../shared/ports';
+import { DEFAULT_MAX_ROUNDS, DEFAULT_MAX_ATTEMPTS, DEFAULT_QR_TTL_SECONDS } from '../../../shared/config';
 import { logger } from '../../../shared/infrastructure/logger';
+import { StudentStateService, QRLifecycleService } from './services';
 
 /**
  * Configuración del servicio
@@ -23,10 +13,6 @@ interface ParticipationServiceConfig {
   qrTTL: number;
   /** ID del host (mock por ahora) */
   mockHostUserId: number;
-  /** Habilitar balanceo automatico de QRs falsos */
-  enableFakeQRBalancing: boolean;
-  /** Tamano minimo del pool (para PoolBalancer) */
-  minPoolSize: number;
 }
 
 const DEFAULT_CONFIG: ParticipationServiceConfig = {
@@ -34,8 +20,6 @@ const DEFAULT_CONFIG: ParticipationServiceConfig = {
   maxAttempts: DEFAULT_MAX_ATTEMPTS,
   qrTTL: DEFAULT_QR_TTL_SECONDS,
   mockHostUserId: 1,
-  enableFakeQRBalancing: true,
-  minPoolSize: DEFAULT_MIN_POOL_SIZE,
 };
 
 /**
@@ -51,52 +35,18 @@ const DEFAULT_CONFIG: ParticipationServiceConfig = {
  * 5. Se retorna el estado al estudiante
  */
 export class ParticipationService {
-  private readonly studentRepo: StudentSessionRepository;
-  private readonly poolRepo: ProjectionPoolRepository;
-  private readonly payloadRepo: IQRPayloadRepository;
-  private readonly qrGenerator: IQRGenerator;
-  private readonly poolBalancer: IPoolBalancer | null;
+  private readonly studentState: StudentStateService;
+  private readonly qrLifecycle: QRLifecycleService;
   private readonly config: ParticipationServiceConfig;
 
   constructor(
-    studentRepo?: StudentSessionRepository,
-    poolRepo?: ProjectionPoolRepository,
-    payloadRepo?: IQRPayloadRepository,
-    aesGcmService?: AesGcmService,
-    config?: Partial<ParticipationServiceConfig>,
-    poolBalancer?: IPoolBalancer
+    studentState: StudentStateService,
+    qrLifecycle: QRLifecycleService,
+    config?: Partial<ParticipationServiceConfig>
   ) {
-    this.studentRepo = studentRepo ?? new StudentSessionRepository();
-    this.poolRepo = poolRepo ?? new ProjectionPoolRepository();
-    this.payloadRepo = payloadRepo ?? new QRPayloadRepository(config?.qrTTL ?? DEFAULT_CONFIG.qrTTL);
-    this.qrGenerator = new QRGenerator(aesGcmService ?? new AesGcmService());
+    this.studentState = studentState;
+    this.qrLifecycle = qrLifecycle;
     this.config = { ...DEFAULT_CONFIG, ...config };
-    
-    // Inicializar PoolBalancer si el balanceo esta habilitado
-    if (this.config.enableFakeQRBalancing) {
-      this.poolBalancer = poolBalancer ?? new PoolBalancer(
-        undefined,  // aesGcmService - usa default
-        this.poolRepo,
-        { minPoolSize: this.config.minPoolSize }
-      );
-    } else {
-      this.poolBalancer = null;
-    }
-  }
-
-  /**
-   * Balancea el pool de QRs falsos para una sesion
-   * Llamado automaticamente despues de registrar un estudiante
-   */
-  private async balanceFakeQRs(sessionId: string): Promise<void> {
-    if (!this.poolBalancer) return;
-    
-    try {
-      await this.poolBalancer.balance(sessionId);
-    } catch (error) {
-      // No fallar el registro si el balanceo falla
-      logger.error('[Participation] Error balancing fake QRs:', error);
-    }
   }
 
   /**
@@ -109,7 +59,7 @@ export class ParticipationService {
   ): Promise<RegisterParticipationResult> {
     try {
       // 1. Obtener o crear estado del estudiante
-      const state = await this.studentRepo.registerStudent(sessionId, studentId, {
+      const state = await this.studentState.registerStudent(sessionId, studentId, {
         maxRounds: this.config.maxRounds,
         maxAttempts: this.config.maxAttempts,
         qrTTL: this.config.qrTTL,
@@ -132,25 +82,20 @@ export class ParticipationService {
         };
       }
 
-      // 3. Generar QR para el round actual
-      const { payload, encrypted } = this.qrGenerator.generateForStudent({
+      // 3. Generar, almacenar y proyectar QR para el round actual
+      const { payload, encrypted } = await this.qrLifecycle.generateAndProject({
         sessionId,
-        userId: studentId,
+        studentId,
         round: state.currentRound,
         hostUserId: this.config.mockHostUserId,
+        ttl: this.config.qrTTL,
       });
 
-      // 4. Almacenar payload para validación posterior
-      await this.payloadRepo.store(payload, encrypted, this.config.qrTTL);
+      // 4. Actualizar estado con QR activo
+      await this.studentState.setActiveQR(sessionId, studentId, payload.n);
 
-      // 5. Actualizar estado con QR activo
-      await this.studentRepo.setActiveQR(sessionId, studentId, payload.n);
-
-      // 6. Agregar QR al pool de proyección
-      await this.poolRepo.upsertStudentQR(sessionId, studentId, encrypted, state.currentRound);
-
-      // 7. Balancear QRs falsos en el pool
-      await this.balanceFakeQRs(sessionId);
+      // 5. Balancear QRs falsos en el pool
+      await this.qrLifecycle.balancePool(sessionId);
 
       logger.debug(`[Participation] Registered student=${studentId} session=${sessionId.substring(0, 8)}... round=${state.currentRound}`);
 
@@ -184,7 +129,7 @@ export class ParticipationService {
     studentId: number
   ): Promise<RegisterParticipationResult> {
     try {
-      const state = await this.studentRepo.getState(sessionId, studentId);
+      const state = await this.studentState.getState(sessionId, studentId);
 
       if (!state) {
         return {
@@ -197,8 +142,8 @@ export class ParticipationService {
       if (state.status !== 'active') {
         return {
           success: false,
-          reason: state.status === 'completed' 
-            ? 'Ya completaste la asistencia' 
+          reason: state.status === 'completed'
+            ? 'Ya completaste la asistencia'
             : 'Sin intentos restantes',
           errorCode: state.status === 'completed' ? 'ALREADY_COMPLETED' : 'NO_ATTEMPTS_LEFT',
         };
@@ -206,7 +151,7 @@ export class ParticipationService {
 
       // Verificar si el QR anterior sigue válido
       if (state.activeQRNonce) {
-        const existing = await this.payloadRepo.findByNonce(state.activeQRNonce);
+        const existing = await this.qrLifecycle.getStoredPayload(state.activeQRNonce);
         if (existing && !existing.consumed) {
           // QR aún válido, retornarlo
           return {
@@ -224,7 +169,7 @@ export class ParticipationService {
       }
 
       // QR expiró o no existe - esto cuenta como fallo del round
-      const { state: newState, canRetry } = await this.studentRepo.failRound(
+      const { state: newState, canRetry } = await this.studentState.failRound(
         sessionId,
         studentId,
         'QR_EXPIRED'
@@ -239,18 +184,15 @@ export class ParticipationService {
       }
 
       // Generar nuevo QR para round 1 del nuevo intento
-      const { payload, encrypted } = this.qrGenerator.generateForStudent({
+      const { payload, encrypted } = await this.qrLifecycle.generateAndProject({
         sessionId,
-        userId: studentId,
+        studentId,
         round: newState.currentRound,
         hostUserId: this.config.mockHostUserId,
+        ttl: this.config.qrTTL,
       });
 
-      await this.payloadRepo.store(payload, encrypted, this.config.qrTTL);
-      await this.studentRepo.setActiveQR(sessionId, studentId, payload.n);
-      
-      // Actualizar QR en el pool de proyección
-      await this.poolRepo.upsertStudentQR(sessionId, studentId, encrypted, newState.currentRound);
+      await this.studentState.setActiveQR(sessionId, studentId, payload.n);
 
       return {
         success: true,
@@ -259,23 +201,25 @@ export class ParticipationService {
           totalRounds: newState.maxRounds,
           currentAttempt: newState.currentAttempt,
           maxAttempts: newState.maxAttempts,
-        qrPayload: encrypted,
-        qrTTL: this.config.qrTTL,
-      },
-    };
-  } catch (error) {
-    logger.error('[Participation] Error requesting new QR:', error);
-    return {
-      success: false,
-      reason: 'Error interno al solicitar nuevo QR',
-      errorCode: 'INTERNAL_ERROR',
-    };
+          qrPayload: encrypted,
+          qrTTL: this.config.qrTTL,
+        },
+      };
+    } catch (error) {
+      logger.error('[Participation] Error requesting new QR:', error);
+      return {
+        success: false,
+        reason: 'Error interno al solicitar nuevo QR',
+        errorCode: 'INTERNAL_ERROR',
+      };
+    }
   }
-}  /**
+
+  /**
    * Consulta el estado actual del estudiante en la sesión
    */
   async getStatus(sessionId: string, studentId: number): Promise<GetStatusResult> {
-    const state = await this.studentRepo.getState(sessionId, studentId);
+    const state = await this.studentState.getState(sessionId, studentId);
 
     if (!state) {
       return { registered: false };
@@ -285,7 +229,7 @@ export class ParticipationService {
     let qrTTLRemaining: number | undefined;
 
     if (state.activeQRNonce) {
-      const stored = await this.payloadRepo.findByNonce(state.activeQRNonce);
+      const stored: StoredPayload | null = await this.qrLifecycle.getStoredPayload(state.activeQRNonce);
       if (stored && !stored.consumed) {
         qrPayload = stored.encrypted;
         // Calcular TTL restante aproximado

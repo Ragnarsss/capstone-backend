@@ -279,6 +279,22 @@ export class DeviceRepository {
   }
 
   /**
+   * Busca dispositivos activos por deviceFingerprint
+   * Usado para política 1:1: detectar si otro usuario tiene el mismo dispositivo físico
+   * @returns Array de dispositivos activos con ese fingerprint
+   */
+  async findActiveByDeviceFingerprint(deviceFingerprint: string): Promise<Device[]> {
+    const query = `
+      SELECT * FROM enrollment.devices
+      WHERE device_fingerprint = $1 AND is_active = TRUE
+      ORDER BY enrolled_at DESC
+    `;
+
+    const result = await this.pool.query<DeviceRow>(query, [deviceFingerprint]);
+    return result.rows.map((row: DeviceRow) => this.mapRowToDevice(row));
+  }
+
+  /**
    * Mapea row de PostgreSQL a entidad Device
    */
   private mapRowToDevice(row: DeviceRow): Device {

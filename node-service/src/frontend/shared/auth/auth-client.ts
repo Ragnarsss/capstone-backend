@@ -42,7 +42,10 @@ export class AuthClient {
     const storedToken = this.tokenStorage.get();
     if (storedToken) {
       this.isAuthenticated = true;
-      console.log('[Auth] Token recuperado de sessionStorage');
+      // Extraer userId del token almacenado para poder detectar cambios de usuario
+      this.cachedUserId = this.extractUserIdFromToken(storedToken);
+      this.cachedUserName = this.extractUserNameFromToken(storedToken);
+      console.log('[Auth] Token recuperado de sessionStorage para userId:', this.cachedUserId);
     }
 
     this.setupMessageListener();
@@ -68,12 +71,41 @@ export class AuthClient {
   }
 
   private handleAuthToken(token: string): void {
+    // Extraer userId del nuevo token
+    const newUserId = this.extractUserIdFromToken(token);
+    
+    // Si hay un token anterior y el userId cambió, limpiar estado
+    if (this.cachedUserId !== null && newUserId !== null && this.cachedUserId !== newUserId) {
+      console.log('[Auth] Usuario cambió de', this.cachedUserId, 'a', newUserId, '- Limpiando estado anterior');
+      this.clearAuthState();
+    }
+    
     this.tokenStorage.save(token);
     this.isAuthenticated = true;
-    this.cachedUserId = this.extractUserIdFromToken(token);
+    this.cachedUserId = newUserId;
     this.cachedUserName = this.extractUserNameFromToken(token);
-    console.log('[Auth] Token recibido y almacenado');
+    console.log('[Auth] Token recibido y almacenado para userId:', newUserId);
     this.notifyAuthentication();
+  }
+
+  /**
+   * Limpia todo el estado de autenticación cuando el usuario cambia
+   */
+  private clearAuthState(): void {
+    // Limpiar token antiguo
+    this.tokenStorage.clear();
+    
+    // Limpiar SOLO session_key de sessionStorage (no todo el sessionStorage)
+    // El session_key está vinculado al JWT anterior y no será válido con el nuevo JWT
+    sessionStorage.removeItem('session_key');
+    
+    // Limpiar cookies relacionadas con autenticación
+    document.cookie.split(';').forEach(cookie => {
+      const name = cookie.split('=')[0].trim();
+      document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+    });
+    
+    console.log('[Auth] Estado de autenticación limpiado (JWT y session_key removidos)');
   }
 
   private handleTokenRefresh(token: string): void {
@@ -112,11 +144,19 @@ export class AuthClient {
     }
   }
 
+  /**
+   * Registra un callback que se ejecutará cuando se reciba un token via postMessage.
+   * 
+   * NOTA: El callback se dispara SOLO cuando llega un AUTH_TOKEN via postMessage,
+   * NO inmediatamente si hay un token en sessionStorage. Esto evita race conditions
+   * donde el sessionStorage tiene un token obsoleto de otro usuario.
+   * 
+   * @param callback - Función a ejecutar cuando se reciba el token
+   */
   onAuthenticated(callback: AuthCallback): void {
     this.onAuthCallbacks.push(callback);
-    if (this.isAuthenticated) {
-      callback();
-    }
+    // NO disparar inmediatamente - esperar siempre al postMessage
+    // Esto evita usar tokens obsoletos del sessionStorage
   }
 
   private notifyAuthentication(): void {

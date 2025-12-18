@@ -10,6 +10,7 @@ import type {
 } from '@simplewebauthn/types';
 import { startRegistration } from '@simplewebauthn/browser';
 import { AuthClient } from '../../../shared/auth/auth-client';
+import { DeviceFingerprintGenerator } from './access.service';
 
 export interface DeviceInfo {
   deviceId: number;
@@ -300,28 +301,11 @@ export class EnrollmentService {
   }
 
   /**
-   * Genera un fingerprint simple del dispositivo
-   * Usado para identificar el dispositivo en logs y UI
+   * Genera un fingerprint estable del dispositivo
+   * Usa DeviceFingerprintGenerator compartido (optimizado para móviles)
    */
   private async generateDeviceFingerprint(): Promise<string> {
-    const components = [
-      navigator.userAgent,
-      navigator.language,
-      screen.width,
-      screen.height,
-      screen.colorDepth,
-      new Date().getTimezoneOffset(),
-    ];
-
-    const text = components.join('|');
-    const encoder = new TextEncoder();
-    const data = encoder.encode(text);
-
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const hashHex = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
-
-    return hashHex.substring(0, 32);
+    return DeviceFingerprintGenerator.generateAsync();
   }
 
   private getAuthHeaders(): Record<string, string> {

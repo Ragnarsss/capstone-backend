@@ -114,12 +114,9 @@ async function validateWithZod(
   context: string
 ): Promise<ValidationResult> {
   try {
-    // Intentar importar Zod dinámicamente
-    // TODO: Instalar Zod: npm install zod (dentro del contenedor)
-    // const { z } = await import('zod');
-    
-    // Por ahora, asumir que el schema ya tiene el método safeParse
-    // (como los schemas manuales en validation-schemas.ts)
+    // Nota: Este middleware funciona sin instalar Zod como dependencia.
+    // Los schemas manuales (CommonSchemas) implementan la interfaz safeParse compatible.
+    // Si en el futuro se requiere Zod completo, instalarlo con: npm install zod
     const result = schema.safeParse(data);
     
     if (result.success) {

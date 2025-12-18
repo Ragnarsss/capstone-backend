@@ -2,6 +2,7 @@ import type { FastifyRequest, FastifyReply } from 'fastify';
 import type { RegistrationResponseJSON } from '@simplewebauthn/types';
 import { FinishEnrollmentUseCase } from '../../application/use-cases';
 import type { FinishEnrollmentInput } from '../../application/use-cases';
+import type { OneToOnePolicyService, RevokeResult } from '../../domain/services';
 import { logger } from '../../../../shared/infrastructure/logger';
 
 /**
@@ -14,10 +15,20 @@ interface FinishEnrollmentRequestDTO {
 
 /**
  * Controller para POST /api/enrollment/finish
- * Responsabilidad: Completar proceso de enrollment FIDO2
+ * 
+ * Responsabilidad: Orquestar proceso de enrollment FIDO2
+ * 
+ * Flujo según spec-architecture.md:
+ * 1. Validar request
+ * 2. ANTES de persistir: Ejecutar revokeViolations() para mantener política 1:1
+ * 3. Ejecutar use case (verificar WebAuthn + persistir)
+ * 4. Retornar éxito
  */
 export class FinishEnrollmentController {
-  constructor(private readonly useCase: FinishEnrollmentUseCase) {}
+  constructor(
+    private readonly useCase: FinishEnrollmentUseCase,
+    private readonly policyService: OneToOnePolicyService
+  ) {}
 
   async handle(
     request: FastifyRequest<{ Body: FinishEnrollmentRequestDTO }>,
@@ -41,14 +52,40 @@ export class FinishEnrollmentController {
         return;
       }
 
-      // Preparar input para el use case
+      const userId = user.userId.toNumber();
+
+      // PASO 1: Ejecutar revocación automática 1:1 ANTES de persistir
+      // Esto revoca dispositivos conflictivos según política 1:1:
+      // - Otro usuario con el mismo deviceFingerprint → desenrolar
+      // - Este usuario con otros dispositivos → desenrolar
+      let revokeResult: RevokeResult | undefined;
+      try {
+        revokeResult = await this.policyService.revokeViolations(userId, deviceFingerprint);
+        
+        if (revokeResult.previousUserUnlinked || revokeResult.ownDevicesRevoked > 0) {
+          logger.info('[FinishEnrollmentController] Revocación automática 1:1 ejecutada', {
+            userId,
+            deviceFingerprint: deviceFingerprint.substring(0, 8) + '...',
+            previousUserUnlinked: revokeResult.previousUserUnlinked?.userId,
+            ownDevicesRevoked: revokeResult.ownDevicesRevoked,
+          });
+        }
+      } catch (revokeError) {
+        logger.error('[FinishEnrollmentController] Error en revocación automática:', {
+          error: revokeError instanceof Error ? revokeError.message : revokeError,
+          userId,
+        });
+        // Continuar con enrollment - la revocación es best-effort
+      }
+
+      // PASO 2: Preparar input para el use case
       const input: FinishEnrollmentInput = {
-        userId: user.userId.toNumber(),
+        userId,
         credential,
         deviceFingerprint,
       };
 
-      // Ejecutar use case
+      // PASO 3: Ejecutar use case (verificar WebAuthn + persistir nuevo dispositivo)
       const output = await this.useCase.execute(input);
 
       // Retornar resultado exitoso

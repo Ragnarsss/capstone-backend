@@ -46,14 +46,6 @@ export class JWTUtils {
     }
   }
 
-  generate(payload: Omit<JWTPayload, 'iat' | 'exp' | 'iss' | 'aud'>): string {
-    return jwt.sign(payload, this.config.secret, {
-      expiresIn: this.config.expiresIn,
-      issuer: this.config.issuer,
-      audience: this.config.audience,
-    });
-  }
-
   extractFromHeader(authHeader: string | undefined): string {
     if (!authHeader) {
       throw new Error('Header Authorization no proporcionado');

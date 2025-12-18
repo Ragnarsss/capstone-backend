@@ -14,7 +14,7 @@ export interface StudentResponse {
   original: QRPayloadV1;
   studentId: number;
   receivedAt: number;
-  // TODO: totp cuando se integre enrollment
+  totpu?: string; // TOTP derivado de session_key (se valida en pipeline)
 }
 
 /**

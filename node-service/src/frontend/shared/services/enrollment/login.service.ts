@@ -47,11 +47,12 @@ export class LoginService {
       this.baseUrl = baseUrl;
     } else {
       // Auto-detectar si estamos embebidos en PHP o acceso directo a Node
+      // NOTA: Login ECDH esta en dominio session, no enrollment (fase 19.2)
       const isEmbeddedInPhp =
         window.location.port === '9500' ||
         window.location.port === '9505' ||
         window.location.port === '';
-      this.baseUrl = isEmbeddedInPhp ? '/minodo-api/enrollment' : '/api/enrollment';
+      this.baseUrl = isEmbeddedInPhp ? '/minodo-api/session' : '/api/session';
     }
   }
 
