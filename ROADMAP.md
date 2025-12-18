@@ -104,7 +104,7 @@ flowchart TB
     style B2 fill:#90EE90
     style T1 fill:#90EE90
     style T2 fill:#90EE90
-    style T3 fill:#ffcc99
+    style T3 fill:#90EE90
     style T4 fill:#ffcc99
     style C1 fill:#ffcc99
     style D1 fill:#90EE90
