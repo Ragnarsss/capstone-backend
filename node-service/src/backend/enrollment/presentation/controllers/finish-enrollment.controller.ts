@@ -143,6 +143,16 @@ export class FinishEnrollmentController {
           });
           return;
         }
+
+        // AAGUID no autorizado (fase 22.3)
+        if (error.message.startsWith('AAGUID_NOT_AUTHORIZED')) {
+          reply.code(403).send({
+            error: 'AAGUID_NOT_AUTHORIZED',
+            message: 'Este tipo de autenticador no está autorizado para enrollment',
+            details: error.message.replace('AAGUID_NOT_AUTHORIZED: ', ''),
+          });
+          return;
+        }
       }
 
       // Error genérico

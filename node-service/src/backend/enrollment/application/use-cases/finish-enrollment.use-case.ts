@@ -1,5 +1,6 @@
 import type { RegistrationResponseJSON } from '@simplewebauthn/types';
 import { Fido2Service, DeviceRepository, EnrollmentChallengeRepository, HkdfService } from '../../infrastructure';
+import { AaguidValidationService } from '../../domain/services';
 import type { CreateDeviceDto } from '../../domain/entities';
 
 /**
@@ -41,17 +42,19 @@ export interface FinishEnrollmentOutput {
  * 1. Recuperar challenge almacenado en Valkey
  * 2. Verificar respuesta WebAuthn
  * 3. Extraer credentialId, publicKey, aaguid
- * 4. Derivar handshake_secret con HKDF
- * 5. Guardar dispositivo en PostgreSQL
- * 6. Eliminar challenge de Valkey
- * 7. Retornar deviceId y metadata
+ * 4. Validar AAGUID contra whitelist (fase 22.3)
+ * 5. Derivar handshake_secret con HKDF
+ * 6. Guardar dispositivo en PostgreSQL
+ * 7. Eliminar challenge de Valkey
+ * 8. Retornar deviceId y metadata
  */
 export class FinishEnrollmentUseCase {
   constructor(
     private readonly fido2Service: Fido2Service,
     private readonly deviceRepository: DeviceRepository,
     private readonly challengeRepository: EnrollmentChallengeRepository,
-    private readonly hkdfService: HkdfService
+    private readonly hkdfService: HkdfService,
+    private readonly aaguidValidationService: AaguidValidationService
   ) {}
 
   async execute(input: FinishEnrollmentInput): Promise<FinishEnrollmentOutput> {
@@ -90,14 +93,21 @@ export class FinishEnrollmentUseCase {
     // 3. Extraer información de la credencial verificada
     const credentialInfo = this.fido2Service.extractCredentialInfo(verificationResult);
 
-    // 4. Derivar handshake_secret con HKDF
+    // 4. Validar AAGUID contra whitelist (fase 22.3)
+    const aaguidResult = this.aaguidValidationService.validate(credentialInfo.aaguid);
+    if (!aaguidResult.valid) {
+      await this.challengeRepository.delete(userId);
+      throw new Error(`AAGUID_NOT_AUTHORIZED: ${aaguidResult.reason}`);
+    }
+
+    // 5. Derivar handshake_secret con HKDF
     const handshakeSecretBuffer = await this.hkdfService.deriveHandshakeSecret(
       credentialInfo.credentialId,
       userId
     );
     const handshakeSecret = handshakeSecretBuffer.toString('base64');
 
-    // 5. Guardar dispositivo en PostgreSQL
+    // 6. Guardar dispositivo en PostgreSQL
     const deviceDto: CreateDeviceDto = {
       userId,
       credentialId: credentialInfo.credentialId,
@@ -112,10 +122,10 @@ export class FinishEnrollmentUseCase {
 
     const device = await this.deviceRepository.create(deviceDto);
 
-    // 6. Eliminar challenge de Valkey (ya fue consumido)
+    // 7. Eliminar challenge de Valkey (ya fue consumido)
     await this.challengeRepository.delete(userId);
 
-    // 7. Retornar información del dispositivo enrolado
+    // 8. Retornar información del dispositivo enrolado
     return {
       deviceId: device.deviceId,
       credentialId: device.credentialId,

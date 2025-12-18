@@ -9,3 +9,8 @@ export {
   type RevokeResult,
   type IDeviceRepositoryForPolicy,
 } from './one-to-one-policy.service';
+
+export {
+  AaguidValidationService,
+  type AaguidValidationResult,
+} from './aaguid-validation.service';

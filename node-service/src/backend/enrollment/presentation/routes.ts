@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { StartEnrollmentController, FinishEnrollmentController, RevokeDeviceController } from './controllers';
 import { StartEnrollmentUseCase, FinishEnrollmentUseCase, GetDevicesUseCase, RevokeDeviceUseCase } from '../application/use-cases';
 import { Fido2Service, DeviceRepository, EnrollmentChallengeRepository, HkdfService, PenaltyService } from '../infrastructure';
-import { OneToOnePolicyService } from '../domain/services';
+import { OneToOnePolicyService, AaguidValidationService } from '../domain/services';
 import { AuthMiddleware } from '../../auth/presentation/auth-middleware';
 import { AuthService } from '../../auth/application/auth.service';
 import { JWTUtils } from '../../auth/domain/jwt-utils';
@@ -29,6 +29,9 @@ export async function registerEnrollmentRoutes(fastify: FastifyInstance): Promis
   const valkeyClient = ValkeyClient.getInstance();
   const penaltyService = new PenaltyService(valkeyClient);
 
+  // Servicio de validación AAGUID (fase 22.3)
+  const aaguidValidationService = new AaguidValidationService();
+
   // Instanciar use cases
   const startEnrollmentUseCase = new StartEnrollmentUseCase(
     fido2Service,
@@ -40,7 +43,8 @@ export async function registerEnrollmentRoutes(fastify: FastifyInstance): Promis
     fido2Service,
     deviceRepository,
     challengeRepository,
-    hkdfService
+    hkdfService,
+    aaguidValidationService
   );
 
   const getDevicesUseCase = new GetDevicesUseCase(deviceRepository);

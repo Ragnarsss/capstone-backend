@@ -89,4 +89,12 @@ export const config = {
     // Origen esperado para validación WebAuthn
     origin: process.env.WEBAUTHN_ORIGIN || 'http://localhost:9500',
   },
+  // Configuración de validación AAGUID (fase 22.3)
+  aaguid: {
+    // Habilitar validación de AAGUID (true por defecto en producción)
+    validationEnabled: process.env.AAGUID_VALIDATION_ENABLED !== 'false',
+    // Permitir NULL AAGUID (00000000-0000-0000-0000-000000000000)
+    // false por defecto para rechazar autenticadores desconocidos
+    allowNull: process.env.AAGUID_ALLOW_NULL === 'true',
+  },
 } as const;

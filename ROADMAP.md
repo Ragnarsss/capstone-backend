@@ -1,8 +1,8 @@
 # ROADMAP - Fuente de Verdad del Proyecto
 
-> Ultima actualizacion: 2025-12-19
+> Ultima actualizacion: 2025-12-18
 > Base: main consolidado desde fase-22.10.3
-> Build: OK | Tests: 161/161 pasando
+> Build: OK | Tests: 175/175 pasando
 
 ---
 
@@ -20,7 +20,7 @@
 | 22.10.4-22.10.10 | Correcciones Auditoria daRulez (secretos, access, traducciones, logger) | COMPLETADA |
 | ~~22.10.9~~ | ~~Traducir tests (AAA ya es estándar)~~ | **OMITIDA** |
 | **22.2** | **Session Key Binding (CRITICO)** | **COMPLETADA** |
-| **22.3** | **Validar AAGUID (CRITICO)** | **PENDIENTE** |
+| **22.3** | **Validar AAGUID (CRITICO)** | **COMPLETADA** |
 | **22.5** | **Stats + QR Lifecycle** | **PENDIENTE** |
 | ~~22.11-22.12~~ | ~~Deuda Tecnica Opcional~~ | **OMITIDAS** |
 | **23** | **Integracion PHP (Restriction + Puente)** | **PENDIENTE** |
@@ -87,7 +87,7 @@ flowchart TB
     style A4 fill:#90EE90
     style A5 fill:#90EE90
     style B1 fill:#90EE90
-    style B2 fill:#ff6666
+    style B2 fill:#90EE90
     style C1 fill:#ffcc99
     style D1 fill:#90EE90
     style E1 fill:#99ccff
@@ -321,27 +321,40 @@ access/
 **Rama:** `fase-22.3-aaguid-validation`
 **Modelo:** Opus
 **Severidad:** CRITICA
+**Estado:** COMPLETADA (2025-12-18)
+**Commit:** 1860618
 
 **Criterio de éxito verificable:**
 
-- [ ] Enrollment con AAGUID no listado retorna HTTP 403
-- [ ] Enrollment con AAGUID válido procede normalmente
-- [ ] Variable de entorno `AAGUID_VALIDATION_ENABLED` permite desactivar (dev)
-- [ ] Logs muestran AAGUID rechazado/aceptado
-- [ ] Build y tests: X/X pasando
+- [x] Enrollment con AAGUID no listado retorna HTTP 403
+- [x] Enrollment con AAGUID válido procede normalmente
+- [x] Variable de entorno `AAGUID_VALIDATION_ENABLED` permite desactivar (dev)
+- [x] Logs muestran AAGUID rechazado/aceptado
+- [x] Build y tests: 175/175 pasando
 
 **Restricciones arquitectónicas:**
 
-- Whitelist debe ser configurable (no hardcodeada en código)
-- Validación debe ocurrir ANTES de persistir dispositivo
-- Default: habilitado en producción, deshabilitado en desarrollo
+- [x] Whitelist debe ser configurable (no hardcodeada en código) - via config + env vars
+- [x] Validación debe ocurrir ANTES de persistir dispositivo - paso 4 del flujo
+- [x] Default: habilitado en producción, deshabilitado en desarrollo - AAGUID_VALIDATION_ENABLED
 
 **Entregables mínimos:**
 
-- Whitelist de AAGUIDs autorizados (mínimo: Windows Hello, Android, iOS)
-- Validación integrada en flujo de finish-enrollment
-- Tests de aceptación y rechazo
-- Documentación: cómo agregar nuevos AAGUIDs
+- [x] Whitelist de AAGUIDs autorizados (Windows Hello x3, Google, Apple x3, Samsung, Thales x2)
+- [x] Validación integrada en flujo de finish-enrollment (paso 4)
+- [x] Tests de aceptación y rechazo (14 tests)
+- [x] Documentación: cómo agregar nuevos AAGUIDs (en aaguid-validation.service.ts)
+
+**Archivos creados/modificados:**
+
+- `node-service/src/backend/enrollment/domain/services/aaguid-validation.service.ts` (NUEVO)
+- `node-service/src/backend/enrollment/domain/services/index.ts` (export)
+- `node-service/src/backend/enrollment/application/use-cases/finish-enrollment.use-case.ts` (integración)
+- `node-service/src/backend/enrollment/presentation/controllers/finish-enrollment.controller.ts` (HTTP 403)
+- `node-service/src/backend/enrollment/presentation/routes.ts` (instanciación)
+- `node-service/src/shared/config/index.ts` (config.aaguid)
+- `.env.example` (AAGUID_VALIDATION_ENABLED, AAGUID_ALLOW_NULL)
+- `domain/services/__tests__/aaguid-validation.service.test.ts` (14 tests)
 
 **Referencias:** `Caracterizacion.md` sección 4, FIDO2 spec para AAGUIDs conocidos
 
