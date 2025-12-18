@@ -3,7 +3,7 @@
 > Fuente de verdad para tareas pendientes.
 > Ultima actualizacion: 2025-12-18
 
-**Ultimo commit consolidado:** 91f8d24 (fase-22.10-move-websocket-auth)
+**Ultimo commit consolidado:** 562328f (fase-22.10.1-remove-jwt-generation)
 
 **Estado actual del proyecto:**
 - COMPLETADA: Todas las fases 21 completadas (21.1→21.1.3→21.2→21.3)
@@ -12,11 +12,13 @@
 - COMPLETADA: Fase 22.4 (AttendancePersistenceService) completada
 - COMPLETADA: Fase 22.8 (Decompose ParticipationService) completada
 - COMPLETADA: Fase 22.10 (mover WebSocketAuthMiddleware a auth/presentation)
+- COMPLETADA: Fase 22.10.1 (Eliminar generacion JWT - daRulez 6.2)
 - EN PROGRESO: Pendiente merge de branches 22.x a main
-- **SIGUIENTE: Fase 22.10.1 (Eliminar generacion JWT) - BLOQUEANTE PRODUCCION**
-- **DESPUES: Fase 22.10.2 (Eliminar emoji en logs)**
+- **SIGUIENTE: Fase 22.10.2 (Eliminar emoji en logs) - daRulez 7.3**
+- **DESPUES: Fase 22.10.3 (Resolver TODO de Zod)**
 - **LUEGO: Fase 22.5 AMPLIADA (stats + QR lifecycle)**
 - Tests: 155 pasando
+- **Cumplimiento daRulez.md:** 95% (violacion 6.2 resuelta)
 
 ---
 
@@ -38,7 +40,7 @@
 | **22.9** | **Eliminar endpoints /dev/** | COMPLETADA |
 | **22.4** | **Extraer Persistencia de CompleteScanUseCase** | COMPLETADA |
 | **22.10** | **Mover WebSocketAuthMiddleware** | COMPLETADA |
-| **22.10.1** | **Eliminar generacion JWT (CRITICA)** | PENDIENTE (BLOQUEANTE) |
+| **22.10.1** | **Eliminar generacion JWT (CRITICA)** | COMPLETADA |
 | **22.10.2** | **Eliminar emoji en logs** | PENDIENTE |
 | **22.10.3** | **Resolver TODO de Zod** | PENDIENTE |
 | **22.5** | **Extraer Stats + QR Lifecycle** | PENDIENTE (AMPLIADA) |
@@ -1136,6 +1138,48 @@ backend/auth/infrastructure/adapters/
 - Imports actualizados correctamente
 - Tests pasan sin regresiones (155/155)
 - Build exitoso
+
+---
+
+### 22.10.1: Eliminar generacion de JWT en Node.js (Auditoria Critica)
+
+**Rama:** `fase-22.10.1-remove-jwt-generation`
+**Modelo:** Opus
+**Dificultad:** Critica
+**Estado:** COMPLETADA
+**Commit:** 562328f
+**Recordatorio:** Comandos npm DEBEN ejecutarse dentro del contenedor Node (daRulez.md Art. 3.2)
+
+**Justificacion:** Auditoria de cumplimiento de daRulez.md detecto que el modulo `auth/` en Node.js contenia metodos `generate()` y `generateToken()` que violan **daRulez.md Seccion 6.2**: "El modulo Node solo valida fichas JWT (tokens JSON Web), nunca las emite."
+
+**Problema detectado:**
+- `JWTUtils.generate()` existia en `node-service/src/backend/auth/domain/jwt-utils.ts:49-55`
+- `AuthService.generateToken()` existia en `node-service/src/backend/auth/application/auth.service.ts:26-28`
+- Violacion directa: Node.js podia emitir tokens, rompiendo el modelo de seguridad
+- Riesgo arquitectonico: Dos fuentes de verdad para emision de JWT
+
+**Analisis realizado:**
+- Busqueda de invocaciones en codigo de produccion: 0 encontradas
+- Busqueda de usos en tests: 0 encontradas
+- Conclusion: Metodos eran codigo muerto pero representaban riesgo de seguridad
+
+**Tareas:**
+
+- [x] Verificar estado del repositorio: `git status`
+- [x] Crear rama: `git checkout -b fase-22.10.1-remove-jwt-generation`
+- [x] Buscar usos de `generateToken` en produccion: ninguno encontrado
+- [x] Buscar usos de `jwtUtils.generate` en produccion: ninguno encontrado
+- [x] Eliminar metodo `generate()` de `JWTUtils` en jwt-utils.ts
+- [x] Eliminar metodo `generateToken()` de `AuthService` en auth.service.ts
+- [x] Verificar compilacion: `podman exec asistencia-node npm run build` (exitoso, 302 modulos)
+- [x] Verificar tests: `podman exec asistencia-node npm run test` (155/155 passed)
+- [x] Commit: 562328f
+
+**Criterio de exito:** COMPLETADO
+- Node.js solo puede validar JWT (metodo `verify()`)
+- Node.js NO puede emitir JWT (metodo `generate()` eliminado)
+- Cumplimiento daRulez.md Seccion 6.2: 100%
+- Tests pasan sin regresiones (155/155)
 
 ---
 
