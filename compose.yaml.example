@@ -15,6 +15,8 @@ services:
       context: ./php-service
       dockerfile: Containerfile
     container_name: asistencia-php
+    env_file:
+      - .env
     environment:
       # Variables JWT para modulo asistencia-node-integration
       - JWT_SECRET=${JWT_SECRET:-change_this_secret_in_production}
@@ -36,20 +38,24 @@ services:
       context: ./node-service
       dockerfile: Containerfile
     container_name: asistencia-node
+    env_file:
+      - .env
     environment:
       - HOST=0.0.0.0
       - PORT=3000
       - VALKEY_HOST=valkey
       - VALKEY_PORT=6379
       # PostgreSQL connection (nombres internos de la red Podman)
-      - POSTGRES_HOST=postgres
-      - POSTGRES_PORT=5432
-      - POSTGRES_DB=asistencia_db
-      - POSTGRES_USER=asistencia
-      - POSTGRES_PASSWORD=asistencia_pass
+      - POSTGRES_HOST=${POSTGRES_HOST:-postgres}
+      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
+      - POSTGRES_DB=${POSTGRES_DB:-asistencia_db}
+      - POSTGRES_USER=${POSTGRES_USER:-asistencia}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-asistencia_pass}
       # Variables JWT para validacion de tokens desde PHP
       - JWT_SECRET=${JWT_SECRET:-change_this_secret_in_production}
       - JWT_SECRET_INTERNAL=${JWT_SECRET_INTERNAL:-change_this_internal_secret_in_production}
+      # Variables criptograficas
+      - SERVER_MASTER_SECRET=${SERVER_MASTER_SECRET:-change_this_master_secret_in_production}
     depends_on:
       valkey:
         condition: service_healthy
@@ -64,10 +70,12 @@ services:
   postgres:
     image: postgres:18-alpine
     container_name: asistencia-postgres
+    env_file:
+      - .env
     environment:
-      - POSTGRES_USER=asistencia
-      - POSTGRES_PASSWORD=asistencia_pass
-      - POSTGRES_DB=asistencia_db
+      - POSTGRES_USER=${POSTGRES_USER:-asistencia}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-asistencia_pass}
+      - POSTGRES_DB=${POSTGRES_DB:-asistencia_db}
     networks:
       - asistencia-network
     volumes:

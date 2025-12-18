@@ -13,6 +13,8 @@ services:
   php-service:
     environment:
       - NODE_ENV=development
+      # TTL más largo para JWT en desarrollo (1 hora)
+      - JWT_TTL=3600
     volumes:
       # Monta codigo PHP para cambios en vivo
       # :z para compatibilidad SELinux en Podman (shared access)
@@ -24,12 +26,20 @@ services:
       target: development
     environment:
       - NODE_ENV=development
+      # Nivel de log para desarrollo (debug, info, warn, error)
+      - LOG_LEVEL=debug
+      # Habilitar logs verbosos incluso si se olvidara setear LOG_LEVEL
+      - ENABLE_VERBOSE_LOGS=true
       # STUB MODE: Bypass enrollment para desarrollo de flujo asistencia
+      # Cambiar a false para probar enrollment real
       - ENROLLMENT_STUB_MODE=true
       # Habilitar persistencia PostgreSQL para validaciones
       - ENABLE_POSTGRES_PERSISTENCE=true
       # Habilitar endpoints de desarrollo (fakes, fraud, pool)
       - DEV_ENDPOINTS=true
+      # WebAuthn - usar localhost para desarrollo con ADB reverse
+      - WEBAUTHN_RP_ID=localhost
+      - WEBAUTHN_ORIGIN=https://localhost:9505
     ports:
       # Puerto expuesto para debug/testing directo (bypass proxy PHP)
       - "9503:3000"
