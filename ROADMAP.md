@@ -2,7 +2,7 @@
 
 > Ultima actualizacion: 2025-12-18
 > Base: main consolidado desde fase-22.10.3
-> Build: OK | Tests: 231/231 pasando
+> Build: OK | Tests: 243/243 pasando
 
 ---
 
@@ -24,7 +24,7 @@
 | **22.3.3** | **Test HKDF Compatibility (CRITICO)** | **COMPLETADA** |
 | **22.3.1** | **Test Login ECDH Use Case (CRITICO)** | **COMPLETADA** |
 | **22.3.2** | **Test QR Generator (MAYOR)** | **COMPLETADA** |
-| **22.3.4** | **Test Decrypt Stage (MAYOR)** | **PENDIENTE** |
+| **22.3.4** | **Test Decrypt Stage (MAYOR)** | **COMPLETADA** |
 | **22.5** | **Stats + QR Lifecycle** | **PENDIENTE** |
 | ~~22.11-22.12~~ | ~~Deuda Tecnica Opcional~~ | **OMITIDAS** |
 | **23** | **Integracion PHP (Restriction + Puente)** | **PENDIENTE** |
@@ -68,7 +68,7 @@ flowchart TB
         T1[22.3.3<br/>HKDF Compat]:::done
         T2[22.3.1<br/>Login ECDH]:::done
         T3[22.3.2<br/>QR Generator]:::done
-        T4[22.3.4<br/>Decrypt Stage]
+        T4[22.3.4<br/>Decrypt Stage]:::done
         T1 --> T2 --> T3 --> T4
     end
 
@@ -105,7 +105,7 @@ flowchart TB
     style T1 fill:#90EE90
     style T2 fill:#90EE90
     style T3 fill:#90EE90
-    style T4 fill:#ffcc99
+    style T4 fill:#90EE90
     style C1 fill:#ffcc99
     style D1 fill:#90EE90
     style E1 fill:#99ccff
@@ -525,32 +525,41 @@ session_key (hex):  769ffc0d428712e1713c472d96ac321b43c8dc172e7d8a1e0cf2f3afdff9
 **Modelo:** Sonnet
 **Severidad:** MAYOR
 **Referencia:** daRulez 7.1.1 - "Efectos secundarios (I/O, persistencia) se aislan en infraestructura"
-**Estado:** PENDIENTE
+**Estado:** COMPLETADA (2025-12-18)
+**Commit:** 1f1fcdf
 
-**Situacion actual:**
+**Situacion resuelta:
 
-El archivo `node-service/src/backend/attendance/domain/validation-pipeline/stages/decrypt.stage.ts` es un I/O stage que:
-1. Obtiene session_key del estudiante via `ISessionKeyQuery`
-2. Desencripta payload con AES-GCM
-3. Maneja STUB_MODE para desarrollo
+El DecryptStage ahora tiene cobertura completa de tests unitarios que verifican desencriptacion con session_key real, fallback a mock key, manejo de errores y modo STUB_MODE.
 
-No tiene tests dedicados.
+**Archivos creados:**
 
-**Archivos a crear:**
-
-- `node-service/src/backend/attendance/domain/validation-pipeline/stages/__tests__/decrypt.stage.test.ts`
+- `node-service/src/backend/attendance/domain/validation-pipeline/stages/__tests__/decrypt.stage.test.ts` (12 tests)
 
 **Tareas:**
 
-- [ ] Crear test: con session_key valida, desencripta correctamente
-- [ ] Crear test: sin session_key, usa fallback mock key
-- [ ] Crear test: formato invalido retorna error INVALID_FORMAT
-- [ ] Crear test: desencriptacion fallida retorna error DECRYPTION_FAILED
-- [ ] Crear test: en STUB_MODE, convierte QRPayloadV1 a StudentResponse
-- [ ] Build y tests: X/X pasando
-- [ ] Commit atomico
+- [x] Crear test: con session_key valida, desencripta correctamente
+- [x] Crear test: sin session_key, usa fallback mock key
+- [x] Crear test: formato invalido retorna error INVALID_FORMAT
+- [x] Crear test: desencriptacion fallida retorna error DECRYPTION_FAILED
+- [x] Crear test: JSON no parseable retorna error DECRYPTION_FAILED
+- [x] Crear test: en STUB_MODE, convierte QRPayloadV1 a StudentResponse
+- [x] Crear test: verifica llamada a findByUserId con studentId correcto
+- [x] Crear test: crea AesGcmService con session_key especifica
+- [x] Build y tests: 243/243 pasando (12 nuevos)
+- [x] Commit atomico: 1f1fcdf
 
-**Criterio de exito:** Decrypt Stage tiene tests que verifican desencriptacion con session_key real y fallback.
+**Cobertura de tests:**
+
+| Categoria | Tests |
+|-----------|-------|
+| Desencriptacion con session_key real | 2 |
+| Fallback a mock key | 2 |
+| Manejo de errores | 3 |
+| Modo STUB_MODE | 3 |
+| Integracion SessionKeyQuery | 2 |
+
+**Criterio de exito:** CUMPLIDO - Decrypt Stage tiene cobertura completa de desencriptacion, fallback y errores.
 
 ---
 
