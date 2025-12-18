@@ -1,17 +1,56 @@
 /**
  * Servicio de ciclo de vida de QRs: generar, almacenar y proyectar.
+ * 
+ * Implementa IQRLifecycleManager para permitir inyección en CompleteScanUseCase.
  */
-import type { IQRGenerator, IQRPayloadRepository, IPoolBalancer, StoredPayload } from '../../../../shared/ports';
+import type { 
+  IQRGenerator, 
+  IQRPayloadRepository, 
+  IPoolBalancer, 
+  StoredPayload,
+  IQRLifecycleManager,
+  NextQROptions,
+  NextQRResult
+} from '../../../../shared/ports';
 import type { QRPayloadV1 } from '../../../../shared/types';
 import { ProjectionPoolRepository } from '../../../../shared/infrastructure/valkey';
+import { logger } from '../../../../shared/infrastructure/logger';
 
-export class QRLifecycleService {
+export class QRLifecycleService implements IQRLifecycleManager {
   constructor(
     private readonly qrGenerator: IQRGenerator,
     private readonly payloadRepo: IQRPayloadRepository,
     private readonly poolRepo: ProjectionPoolRepository = new ProjectionPoolRepository(),
-    private readonly poolBalancer: IPoolBalancer | null = null
+    private readonly poolBalancer: IPoolBalancer | null = null,
+    private readonly defaultHostUserId: number = 1
   ) {}
+
+  /**
+   * Implementación de IQRLifecycleManager.generateAndPublish
+   * Genera y publica el siguiente QR para un estudiante
+   */
+  async generateAndPublish(options: NextQROptions): Promise<NextQRResult> {
+    const { sessionId, studentId, round, qrTTL } = options;
+
+    logger.debug(`[QRLifecycle] Generando QR para student=${studentId}, session=${sessionId}, round=${round}`);
+
+    const { payload, encrypted } = await this.generateAndProject({
+      sessionId,
+      studentId,
+      round,
+      hostUserId: this.defaultHostUserId,
+      ttl: qrTTL,
+    });
+
+    logger.debug(`[QRLifecycle] QR publicado: nonce=${payload.n.substring(0, 8)}...`);
+
+    return {
+      encrypted,
+      nonce: payload.n,
+      round,
+      qrTTL,
+    };
+  }
 
   async generateAndProject(options: {
     sessionId: string;

@@ -8,13 +8,13 @@
  * 2. Si inválido: registrar intento en métricas de fraude
  * 3. Si válido: marcar QR como consumido
  * 4. Registrar round completado
- * 5. Si no completó todos los rounds: generar siguiente QR
- * 6. Si completó: calcular estadísticas
+ * 5. Si no completó todos los rounds: generar siguiente QR (via IQRLifecycleManager)
+ * 6. Si completó: calcular estadísticas (via IAttendanceStatsCalculator)
  * 7. Persistir en PostgreSQL (si repositorios están configurados)
  */
 
 import { ValidateScanUseCase, type ValidateScanDependencies } from './validate-scan.usecase';
-import { calculateStats } from '../domain/stats-calculator';
+import type { IAttendanceStatsCalculator, IQRLifecycleManager } from '../../../shared/ports';
 import type { QRPayloadV1 } from '../../../shared/types';
 import type { ValidationRepository, ResultRepository, RegistrationRepository } from '../infrastructure/repositories';
 import { FraudMetricsRepository, type FraudType } from '../infrastructure/fraud-metrics.repository';
@@ -34,15 +34,16 @@ export interface CompleteScanDependencies extends ValidateScanDependencies {
     validatedAt: number;
     nonce: string;
   }) => Promise<{ currentRound: number; isComplete: boolean; roundsCompleted: Array<{ responseTime: number }> }>;
-  /** Genera el siguiente QR */
-  generateNextQR: (sessionId: string, studentId: number, round: number) => Promise<{
-    encrypted: string;
-    nonce: string;
-  }>;
-  /** Guarda el QR activo del estudiante */
-  setActiveQR: (sessionId: string, studentId: number, nonce: string) => Promise<void>;
-  /** Actualiza el QR en el pool de proyección */
-  updatePoolQR: (sessionId: string, studentId: number, encrypted: string, round: number) => Promise<void>;
+}
+
+/**
+ * Dependencias de servicios inyectados (via ports)
+ */
+export interface ServiceDependencies {
+  /** Calculador de estadísticas de asistencia */
+  statsCalculator: IAttendanceStatsCalculator;
+  /** Gestor del ciclo de vida de QRs */
+  qrLifecycleManager: IQRLifecycleManager;
 }
 
 /**
@@ -127,14 +128,17 @@ export class CompleteScanUseCase {
   private readonly persistence: PersistenceDependencies;
   private readonly fraudMetrics: FraudMetricsDependencies;
   private readonly persistenceService?: AttendancePersistenceService;
+  private readonly services: ServiceDependencies;
 
   constructor(
     private readonly deps: CompleteScanDependencies,
+    services: ServiceDependencies,
     config?: Partial<Config>,
     persistence?: PersistenceDependencies,
     fraudMetrics?: FraudMetricsDependencies
   ) {
     this.validateUseCase = new ValidateScanUseCase(deps);
+    this.services = services;
     this.config = { ...DEFAULT_CONFIG, ...config };
     this.persistence = persistence ?? {};
     this.fraudMetrics = fraudMetrics ?? {};
@@ -228,7 +232,13 @@ export class CompleteScanUseCase {
     // 4. Si completó todos los rounds
     if (roundResult.isComplete) {
       const responseTimes = roundResult.roundsCompleted.map(r => r.responseTime);
-      const stats = calculateStats(responseTimes);
+      const statsResult = this.services.statsCalculator.calculate({
+        responseTimes,
+        maxRounds: this.config.maxRounds,
+        sessionId,
+        studentId,
+      });
+      const stats = statsResult.stats;
       
       logger.debug(`[CompleteScan] Asistencia completada para student=${studentId}, session=${sessionId}`);
 
@@ -278,15 +288,14 @@ export class CompleteScanUseCase {
       });
     }
 
-    // 5. Generar siguiente QR
+    // 5. Generar siguiente QR usando el servicio de lifecycle
     try {
-      const nextQR = await this.deps.generateNextQR(sessionId, studentId, roundResult.currentRound);
-      
-      // Guardar como QR activo
-      await this.deps.setActiveQR(sessionId, studentId, nextQR.nonce);
-      
-      // Actualizar en pool de proyección
-      await this.deps.updatePoolQR(sessionId, studentId, nextQR.encrypted, roundResult.currentRound);
+      const nextQR = await this.services.qrLifecycleManager.generateAndPublish({
+        sessionId,
+        studentId,
+        round: roundResult.currentRound,
+        qrTTL: this.config.qrTTL,
+      });
 
       return {
         valid: true,
@@ -294,9 +303,9 @@ export class CompleteScanUseCase {
         sessionId,
         validatedAt,
         nextRound: {
-          round: roundResult.currentRound,
+          round: nextQR.round,
           qrPayload: nextQR.encrypted,
-          qrTTL: this.config.qrTTL,
+          qrTTL: nextQR.qrTTL,
         },
       };
     } catch (error) {

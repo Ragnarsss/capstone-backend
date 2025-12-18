@@ -93,10 +93,10 @@ export async function registerAttendanceRoutes(
   // UseCase completo (validación + side effects)
   // Habilitar persistencia PostgreSQL si ENABLE_POSTGRES_PERSISTENCE=true
   const enablePostgresPersistence = process.env.ENABLE_POSTGRES_PERSISTENCE === 'true';
-  const { deps: completeScanDeps, persistence } = createCompleteScanDepsWithPersistence({
+  const { deps: completeScanDeps, services, persistence } = createCompleteScanDepsWithPersistence({
     enablePostgresPersistence,
   });
-  const completeScanUseCase = new CompleteScanUseCase(completeScanDeps, {}, persistence);
+  const completeScanUseCase = new CompleteScanUseCase(completeScanDeps, services, {}, persistence);
 
   /**
    * GET /asistencia/api/attendance/active-session

@@ -5,8 +5,10 @@
  * conectando los repositorios existentes.
  */
 
-import type { CompleteScanDependencies, PersistenceDependencies } from '../../application/complete-scan.usecase';
+import type { CompleteScanDependencies, PersistenceDependencies, ServiceDependencies } from '../../application/complete-scan.usecase';
 import { AttendancePersistenceService } from '../../application/services/attendance-persistence.service';
+import { QRLifecycleService } from '../../application/services/qr-lifecycle.service';
+import { AttendanceStatsCalculator } from '../../domain/services/attendance-stats-calculator.service';
 import { AesGcmService } from '../../../../shared/infrastructure/crypto';
 import { QRPayloadRepository } from '../../../qr-projection/infrastructure/qr-payload.repository';
 import { StudentSessionRepository } from '../student-session.repository';
@@ -40,16 +42,19 @@ const DEFAULT_CONFIG: FactoryConfig = {
  */
 export interface CompleteScanDepsResult {
   deps: CompleteScanDependencies;
+  services: ServiceDependencies;
   persistence?: PersistenceDependencies;
 }
 
 /**
- * Crea todas las dependencias para CompleteScanUseCase
+ * Crea todas las dependencias para CompleteScanUseCase (deps + services)
+ * @deprecated Use createCompleteScanDepsWithPersistence para acceso a todas las dependencias
  */
 export function createCompleteScanDependencies(
   config?: Partial<FactoryConfig>
-): CompleteScanDependencies {
-  return createCompleteScanDepsWithPersistence(config).deps;
+): { deps: CompleteScanDependencies; services: ServiceDependencies } {
+  const result = createCompleteScanDepsWithPersistence(config);
+  return { deps: result.deps, services: result.services };
 }
 
 /**
@@ -100,31 +105,21 @@ export function createCompleteScanDepsWithPersistence(
         })),
       };
     },
+  };
 
-    generateNextQR: async (sessionId: string, studentId: number, round: number) => {
-      const { payload, encrypted } = qrGenerator.generateForStudent({
-        sessionId,
-        userId: studentId,
-        round,
-        hostUserId: cfg.mockHostUserId,
-      });
-
-      // Almacenar el payload para validación futura
-      await payloadRepo.store(payload, encrypted, cfg.qrTTL);
-
-      return {
-        encrypted,
-        nonce: payload.n,
-      };
-    },
-
-    setActiveQR: async (sessionId: string, studentId: number, nonce: string) => {
-      await studentRepo.setActiveQR(sessionId, studentId, nonce);
-    },
-
-    updatePoolQR: async (sessionId: string, studentId: number, encrypted: string, round: number) => {
-      await poolRepo.upsertStudentQR(sessionId, studentId, encrypted, round);
-    },
+  // Servicios inyectados (extraídos del UseCase)
+  const statsCalculator = new AttendanceStatsCalculator();
+  const qrLifecycleManager = new QRLifecycleService(
+    qrGenerator,
+    payloadRepo,
+    poolRepo,
+    null,
+    cfg.mockHostUserId
+  );
+  
+  const services: ServiceDependencies = {
+    statsCalculator,
+    qrLifecycleManager,
   };
 
   // Crear dependencias de persistencia si está habilitado
@@ -149,5 +144,5 @@ export function createCompleteScanDepsWithPersistence(
     logger.debug('[CompleteScanDeps] Persistencia PostgreSQL habilitada con servicio');
   }
 
-  return { deps, persistence };
+  return { deps, services, persistence };
 }
