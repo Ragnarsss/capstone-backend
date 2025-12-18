@@ -2,7 +2,7 @@
 
 > Ultima actualizacion: 2025-12-18
 > Base: main consolidado desde fase-22.10.3
-> Build: OK | Tests: 202/202 pasando
+> Build: OK | Tests: 231/231 pasando
 
 ---
 
@@ -62,9 +62,9 @@ flowchart TB
 
     subgraph BLOQUE_B2[B2: Testing Critico Pre-Manual]
         direction LR
-        T1[22.3.3<br/>HKDF Compat]
-        T2[22.3.1<br/>Login ECDH]
-        T3[22.3.2<br/>QR Generator]
+        T1[22.3.3<br/>HKDF Compat]:::done
+        T2[22.3.1<br/>Login ECDH]:::done
+        T3[22.3.2<br/>QR Generator]:::done
         T4[22.3.4<br/>Decrypt Stage]
         T1 --> T2 --> T3 --> T4
     end
@@ -431,33 +431,48 @@ El LoginEcdhUseCase ahora tiene cobertura completa de tests unitarios que verifi
 **Modelo:** Sonnet
 **Severidad:** MAYOR
 **Referencia:** daRulez 7.1.1 - "Operaciones de escritura deben producir el mismo resultado" (Idempotencia)
-**Estado:** PENDIENTE
+**Estado:** COMPLETADA (2025-12-18)
+**Commit:** b8b3f1d
 
-**Situacion actual:**
+**Situacion resuelta:**
 
-El archivo `node-service/src/backend/qr-projection/domain/qr-generator.ts` genera payloads QR pero no tiene tests. No hay verificacion de:
-- Estructura correcta del payload V1
-- Encriptacion con AES-GCM funciona
-- QRs falsos (decoys) son indistinguibles de reales
-- Round counter incrementa correctamente
+El QRGenerator ahora tiene cobertura completa de tests unitarios que verifican generacion de nonce, estructura de payload, round counter, encriptacion AES-GCM y QRs decoy.
 
-**Archivos a crear:**
+**Archivos creados:**
 
-- `node-service/src/backend/qr-projection/domain/__tests__/qr-generator.test.ts`
+- `node-service/src/backend/qr-projection/domain/__tests__/qr-generator.test.ts` (29 tests)
 
 **Tareas:**
 
-- [ ] Crear test: buildPayloadV1 genera estructura correcta (v, sid, uid, r, ts, n)
-- [ ] Crear test: nonce tiene 32 caracteres hex
-- [ ] Crear test: round counter incrementa por sesion
-- [ ] Crear test: resetRoundCounter reinicia contador
-- [ ] Crear test: encryptPayload genera formato iv.ciphertext.authTag
-- [ ] Crear test: encryptPayloadWithRandomKey genera formato valido pero indescifrable
-- [ ] Crear test: generateForStudent genera payload con round especifico
-- [ ] Build y tests: X/X pasando
-- [ ] Commit atomico
+- [x] Crear test: buildPayloadV1 genera estructura correcta (v, sid, uid, r, ts, n)
+- [x] Crear test: nonce es string hexadecimal de 32 caracteres
+- [x] Crear test: nonces generados son unicos
+- [x] Crear test: round counter incrementa por sesion
+- [x] Crear test: round counters son independientes por sessionId
+- [x] Crear test: resetRoundCounter reinicia contador
+- [x] Crear test: encryptPayload genera formato iv.ciphertext.authTag
+- [x] Crear test: encryptPayloadWithRandomKey genera formato valido pero indescifrable
+- [x] Crear test: generateForStudent genera payload con round especifico
+- [x] Crear test: toQRString encripta y retorna formato iv.ciphertext.authTag
+- [x] Crear test: generateV1 integra nonce, payload, encriptacion
+- [x] Crear test: QRs decoy son indistinguibles de reales (mismo formato)
+- [x] Build y tests: 231/231 pasando (29 nuevos)
+- [x] Commit atomico: b8b3f1d
 
-**Criterio de exito:** QR Generator tiene tests unitarios que verifican generacion y encriptacion.
+**Cobertura de tests:**
+
+| Categoria | Tests |
+|-----------|-------|
+| Generacion de nonce | 2 |
+| Construccion de payload V1 | 7 |
+| Round counter | 4 |
+| Conversion a string JSON | 2 |
+| Encriptacion con AES-GCM | 3 |
+| Encriptacion con clave aleatoria/decoys | 3 |
+| generateV1 metodo principal | 4 |
+| generateForStudent implementacion | 4 |
+
+**Criterio de exito:** CUMPLIDO - QR Generator tiene cobertura completa de generacion, encriptacion y decoys.
 
 ---
 
