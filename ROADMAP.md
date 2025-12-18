@@ -599,8 +599,6 @@ graph TD
 - Naranja: Pendientes (próximas)
 - Gris: Opcionales (pueden postergarse)
 
----
-
 ### 22.1: Validar TOTPu en Pipeline
 
 **Rama:** `fase-22.1-totp-validation`
@@ -646,6 +644,9 @@ graph TD
 
 ---
 
+
+---
+
 ### 22.2: Session Key Binding con credentialId
 
 **Rama:** `fase-22.2-session-binding`
@@ -680,6 +681,9 @@ graph TD
 - Opcion B: Periodo de transicion con ambos metodos (complejo)
 
 **Criterio de exito:** session_key diferente para diferentes credentialId.
+
+---
+
 
 ---
 
@@ -720,86 +724,6 @@ graph TD
 
 ---
 
-### 22.11: Refactorizar ValidationErrorCode
-
-**Rama:** `fase-22.11-validation-error-code`
-**Modelo:** Sonnet
-**Dificultad:** Baja
-**Estado:** PENDIENTE (opcional, puede postergarse)
-
-**Justificacion:** `ValidationErrorCode` está definido en `attendance/domain/models.ts` pero se usa en contratos públicos (API responses). Debe estar en capa compartida para evitar acoplamiento.
-
-**Problema actual:**
-- Enum local se expone en contrato público
-- Si se agregan errores, impacta múltiples capas
-- Frontend debe importar desde domain interno
-
-**Arquitectura objetivo:**
-```
-shared/types/validation-errors.ts
-  └── ValidationErrorCode (enum compartido)
-```
-
-**Archivos a crear:**
-- `shared/types/validation-errors.ts`
-
-**Archivos a modificar:**
-- `backend/attendance/domain/models.ts` → Re-exportar desde shared
-- `frontend/features/qr-reader/types.ts` → Importar desde shared types
-
-**Tareas:**
-
-- [ ] Mover `ValidationErrorCode` a `shared/types/validation-errors.ts`
-- [ ] Actualizar imports en attendance/domain/models.ts
-- [ ] Actualizar imports en frontend (si existen)
-- [ ] Verificar tests: `podman exec asistencia-node npm run test`
-- [ ] Commit: `refactor(shared): mover ValidationErrorCode a tipos compartidos`
-
-**Criterio de exito:** Enum compartido, sin duplicación.
-
----
-
-### 22.12: Refactorizar FinishEnrollmentController
-
-**Rama:** `fase-22.12-finish-enrollment-controller-soc`
-**Modelo:** Sonnet
-**Dificultad:** Baja
-**Estado:** PENDIENTE (opcional, puede postergarse)
-
-**Justificacion:** `FinishEnrollmentController` instancia `OneToOnePolicyService` directamente. Debe recibir por inyección de dependencias para mejorar testabilidad.
-
-**Problema actual:**
-```typescript
-// routes.ts
-const policyService = new OneToOnePolicyService(deviceRepository);
-const controller = new FinishEnrollmentController(useCase, policyService);
-```
-
-**Arquitectura objetivo:**
-```typescript
-// Controller no conoce implementación, solo contrato
-class FinishEnrollmentController {
-  constructor(
-    private readonly useCase: FinishEnrollmentUseCase,
-    private readonly orchestrator: IEnrollmentOrchestrator  // ← Usa orchestrator
-  ) {}
-}
-```
-
-**Archivos a modificar:**
-- `backend/enrollment/presentation/controllers/finish-enrollment.controller.ts`
-- `backend/enrollment/presentation/routes.ts`
-
-**Tareas:**
-
-- [ ] Modificar controller para recibir orchestrator en lugar de policyService
-- [ ] Delegar revocación a `orchestrator.revokeViolations()` (si no existe, agregarlo)
-- [ ] Actualizar routes.ts para inyectar orchestrator
-- [ ] Actualizar tests de controller (mock orchestrator)
-- [ ] Verificar tests: `podman exec asistencia-node npm run test`
-- [ ] Commit: `refactor(enrollment): mejorar SoC en FinishEnrollmentController`
-
-**Criterio de exito:** Controller agnóstico a implementación de política 1:1.
 
 ---
 
@@ -893,6 +817,9 @@ CompleteScanUseCase → AttendancePersistenceService
 - Operación atómica `saveCompleteAttendance()` ejecuta 3 operaciones en secuencia
 - 12 tests nuevos con cobertura de casos normales, edge cases y errores
 - Factory actualizado con inyección de dependencias correcta
+
+---
+
 
 ---
 
@@ -999,6 +926,9 @@ CompleteScanUseCase
 
 ---
 
+
+---
+
 ### 22.6: Inyectar ISessionKeyQuery en Pipeline
 
 **Rama:** `fase-22.6-inject-session-query`
@@ -1054,6 +984,9 @@ interface ISessionKeyQuery {
 
 ---
 
+
+---
+
 ### 22.7: Crear Puertos para QR-Projection
 
 **Rama:** `fase-22.7-qr-projection-ports`
@@ -1083,6 +1016,50 @@ interface ISessionKeyQuery {
 - ParticipationService es agnóstica a la implementación concreta de generación/balanceo de QR
 - Tests pasan sin cambios (143/143)
 - SoC mejorado: attendance depende solo de interfaces públicas
+
+---
+
+
+---
+
+### 22.8: Descomponer ParticipationService
+
+**Rama:** `fase-22.8-decompose-participation`
+**Modelo:** Opus
+**Dificultad:** Alta
+
+**Justificacion:** `ParticipationService` tiene múltiples responsabilidades. Aplicar patrón Facade para delegar a servicios especializados.
+
+**Archivos a crear:**
+
+- `backend/attendance/application/services/student-state.service.ts`
+- `backend/attendance/application/services/qr-lifecycle.service.ts`
+- `backend/attendance/application/services/index.ts`
+
+**Archivos a modificar:**
+
+- `backend/attendance/application/participation.service.ts`
+- `backend/attendance/presentation/routes.ts`
+
+**Tareas:**
+
+- [x] Verificar estado del repositorio
+- [x] Crear rama: `git checkout -b fase-22.8-decompose-participation`
+- [x] Crear `StudentStateService` extrayendo lógica de estado
+- [x] Crear `QRLifecycleService` extrayendo lógica de generación/almacenamiento
+- [x] Refactorizar `ParticipationService` como Facade (inyecta servicios)
+- [x] Verificar tests: `podman exec asistencia-node npm run test` (143/143)
+- [x] Commit con mensaje descriptivo (`refactor(attendance): descomponer ParticipationService (fase 22.8)`, f0c73e9)
+
+**Criterio de exito:**
+
+- `ParticipationService` delega a servicios especializados (estado y ciclo de vida QR)
+- Servicios nuevos encapsulan responsabilidades únicas
+- Build y tests verdes (143/143)
+
+---
+
+
 
 ---
 
@@ -1118,6 +1095,9 @@ interface ISessionKeyQuery {
 - No hay imports innecesarios
 - Build y tests exitosos
 - API más segura: sin backdoors de testing en producción
+
+---
+
 
 ---
 
@@ -1194,6 +1174,9 @@ backend/auth/infrastructure/adapters/
 
 ---
 
+
+---
+
 ### 22.10.1: Eliminar generacion de JWT en Node.js (Auditoria Critica)
 
 **Rama:** `fase-22.10.1-remove-jwt-generation`
@@ -1236,6 +1219,9 @@ backend/auth/infrastructure/adapters/
 
 ---
 
+
+---
+
 ### 22.10.2: Eliminar emojis en logs
 
 **Rama:** `fase-22.10.2-remove-emoji-logs`
@@ -1275,6 +1261,9 @@ backend/auth/infrastructure/adapters/
 - Prefijos de nivel reemplazados por texto plano
 - Cumplimiento daRulez.md Seccion 7.3.1: 100%
 - Tests pasan sin regresiones (155/155)
+
+---
+
 
 ---
 
@@ -1323,42 +1312,95 @@ backend/auth/infrastructure/adapters/
 
 ---
 
-### 22.8: Descomponer ParticipationService
 
-**Rama:** `fase-22.8-decompose-participation`
-**Modelo:** Opus
-**Dificultad:** Alta
+---
 
-**Justificacion:** `ParticipationService` tiene múltiples responsabilidades. Aplicar patrón Facade para delegar a servicios especializados.
+### 22.11: Refactorizar ValidationErrorCode
+
+**Rama:** `fase-22.11-validation-error-code`
+**Modelo:** Sonnet
+**Dificultad:** Baja
+**Estado:** PENDIENTE (opcional, puede postergarse)
+
+**Justificacion:** `ValidationErrorCode` está definido en `attendance/domain/models.ts` pero se usa en contratos públicos (API responses). Debe estar en capa compartida para evitar acoplamiento.
+
+**Problema actual:**
+- Enum local se expone en contrato público
+- Si se agregan errores, impacta múltiples capas
+- Frontend debe importar desde domain interno
+
+**Arquitectura objetivo:**
+```
+shared/types/validation-errors.ts
+  └── ValidationErrorCode (enum compartido)
+```
 
 **Archivos a crear:**
-
-- `backend/attendance/application/services/student-state.service.ts`
-- `backend/attendance/application/services/qr-lifecycle.service.ts`
-- `backend/attendance/application/services/index.ts`
+- `shared/types/validation-errors.ts`
 
 **Archivos a modificar:**
-
-- `backend/attendance/application/participation.service.ts`
-- `backend/attendance/presentation/routes.ts`
+- `backend/attendance/domain/models.ts` → Re-exportar desde shared
+- `frontend/features/qr-reader/types.ts` → Importar desde shared types
 
 **Tareas:**
 
-- [x] Verificar estado del repositorio
-- [x] Crear rama: `git checkout -b fase-22.8-decompose-participation`
-- [x] Crear `StudentStateService` extrayendo lógica de estado
-- [x] Crear `QRLifecycleService` extrayendo lógica de generación/almacenamiento
-- [x] Refactorizar `ParticipationService` como Facade (inyecta servicios)
-- [x] Verificar tests: `podman exec asistencia-node npm run test` (143/143)
-- [x] Commit con mensaje descriptivo (`refactor(attendance): descomponer ParticipationService (fase 22.8)`, f0c73e9)
+- [ ] Mover `ValidationErrorCode` a `shared/types/validation-errors.ts`
+- [ ] Actualizar imports en attendance/domain/models.ts
+- [ ] Actualizar imports en frontend (si existen)
+- [ ] Verificar tests: `podman exec asistencia-node npm run test`
+- [ ] Commit: `refactor(shared): mover ValidationErrorCode a tipos compartidos`
 
-**Criterio de exito:**
-
-- `ParticipationService` delega a servicios especializados (estado y ciclo de vida QR)
-- Servicios nuevos encapsulan responsabilidades únicas
-- Build y tests verdes (143/143)
+**Criterio de exito:** Enum compartido, sin duplicación.
 
 ---
+
+
+---
+
+### 22.12: Refactorizar FinishEnrollmentController
+
+**Rama:** `fase-22.12-finish-enrollment-controller-soc`
+**Modelo:** Sonnet
+**Dificultad:** Baja
+**Estado:** PENDIENTE (opcional, puede postergarse)
+
+**Justificacion:** `FinishEnrollmentController` instancia `OneToOnePolicyService` directamente. Debe recibir por inyección de dependencias para mejorar testabilidad.
+
+**Problema actual:**
+```typescript
+// routes.ts
+const policyService = new OneToOnePolicyService(deviceRepository);
+const controller = new FinishEnrollmentController(useCase, policyService);
+```
+
+**Arquitectura objetivo:**
+```typescript
+// Controller no conoce implementación, solo contrato
+class FinishEnrollmentController {
+  constructor(
+    private readonly useCase: FinishEnrollmentUseCase,
+    private readonly orchestrator: IEnrollmentOrchestrator  // ← Usa orchestrator
+  ) {}
+}
+```
+
+**Archivos a modificar:**
+- `backend/enrollment/presentation/controllers/finish-enrollment.controller.ts`
+- `backend/enrollment/presentation/routes.ts`
+
+**Tareas:**
+
+- [ ] Modificar controller para recibir orchestrator en lugar de policyService
+- [ ] Delegar revocación a `orchestrator.revokeViolations()` (si no existe, agregarlo)
+- [ ] Actualizar routes.ts para inyectar orchestrator
+- [ ] Actualizar tests de controller (mock orchestrator)
+- [ ] Verificar tests: `podman exec asistencia-node npm run test`
+- [ ] Commit: `refactor(enrollment): mejorar SoC en FinishEnrollmentController`
+
+**Criterio de exito:** Controller agnóstico a implementación de política 1:1.
+
+---
+
 
 ## Fase 23: Puente PHP Produccion
 
