@@ -44,11 +44,16 @@ export class HkdfService {
    * Deriva session_key a partir del shared_secret ECDH
    * Esta clave es efímera y se usa para encriptar comunicación
    * 
+   * La session_key está vinculada al dispositivo específico mediante credentialId
+   * en el info string de HKDF, previniendo replay attacks con shared_secret robado.
+   * 
    * @param sharedSecret - Resultado del key exchange ECDH
+   * @param credentialId - ID único de la credencial FIDO2 (Base64) para binding
    * @returns Buffer de 32 bytes (session_key)
    */
-  async deriveSessionKey(sharedSecret: Buffer): Promise<Buffer> {
-    const info = Buffer.from('attendance-session-key-v1', 'utf-8');
+  async deriveSessionKey(sharedSecret: Buffer, credentialId: string): Promise<Buffer> {
+    // Info incluye credentialId para vincular session_key al dispositivo específico
+    const info = Buffer.from('attendance-session-key-v1:' + credentialId, 'utf-8');
     const salt = Buffer.alloc(0);
 
     return await this.hkdf(sharedSecret, salt, info, 32);

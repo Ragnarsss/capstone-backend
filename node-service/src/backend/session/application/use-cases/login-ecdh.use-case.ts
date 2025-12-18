@@ -84,9 +84,10 @@ export class LoginEcdhUseCase {
     // 4. Realizar ECDH key exchange
     const keyExchangeResult = this.ecdhService.performKeyExchange(clientPublicKey);
 
-    // 5. Derivar session_key con HKDF
+    // 5. Derivar session_key con HKDF (vinculada al credentialId para prevenir replay attacks)
     const sessionKeyBuffer = await this.hkdfService.deriveSessionKey(
-      keyExchangeResult.sharedSecret
+      keyExchangeResult.sharedSecret,
+      credentialId
     );
 
     // 6. Guardar session_key en Valkey (TTL 2 horas)

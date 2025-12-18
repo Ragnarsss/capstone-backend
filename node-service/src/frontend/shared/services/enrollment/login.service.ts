@@ -105,8 +105,8 @@ export class LoginService {
       // 5. Derivar shared secret usando ECDH
       const sharedSecret = await this.deriveSharedSecret(keyPair.privateKey, serverPublicKey);
 
-      // 6. Derivar session_key usando HKDF
-      const sessionKey = await this.deriveSessionKey(sharedSecret);
+      // 6. Derivar session_key usando HKDF (vinculada al credentialId)
+      const sessionKey = await this.deriveSessionKey(sharedSecret, credentialId);
 
       // 7. Almacenar automáticamente en SessionKeyStore
       await this.sessionKeyStore.storeSessionKey(sessionKey, data.totpu, data.deviceId);
@@ -198,8 +198,12 @@ export class LoginService {
 
   /**
    * Deriva session_key desde shared secret usando HKDF
+   * La session_key está vinculada al credentialId para prevenir replay attacks
+   * 
+   * @param sharedSecret - Resultado del ECDH key exchange
+   * @param credentialId - ID único de la credencial FIDO2 para binding
    */
-  private async deriveSessionKey(sharedSecret: ArrayBuffer): Promise<CryptoKey> {
+  private async deriveSessionKey(sharedSecret: ArrayBuffer, credentialId: string): Promise<CryptoKey> {
     const baseKey = await crypto.subtle.importKey(
       'raw',
       sharedSecret,
@@ -208,7 +212,8 @@ export class LoginService {
       ['deriveKey']
     );
 
-    const info = new TextEncoder().encode('attendance-session-key-v1');
+    // Info incluye credentialId para vincular session_key al dispositivo específico
+    const info = new TextEncoder().encode('attendance-session-key-v1:' + credentialId);
 
     return await crypto.subtle.deriveKey(
       {
