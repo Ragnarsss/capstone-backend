@@ -2,7 +2,7 @@
 
 > Ultima actualizacion: 2025-12-18
 > Base: main consolidado desde fase-22.10.3
-> Build: OK | Tests: 175/175 pasando
+> Build: OK | Tests: 178/178 pasando
 
 ---
 
@@ -322,7 +322,7 @@ access/
 **Modelo:** Opus
 **Severidad:** CRITICA
 **Estado:** COMPLETADA (2025-12-18)
-**Commit:** 1860618
+**Commit:** 0844ede, 1296c0a (expansión whitelist + modo permisivo)
 
 **Criterio de éxito verificable:**
 
@@ -330,7 +330,7 @@ access/
 - [x] Enrollment con AAGUID válido procede normalmente
 - [x] Variable de entorno `AAGUID_VALIDATION_ENABLED` permite desactivar (dev)
 - [x] Logs muestran AAGUID rechazado/aceptado
-- [x] Build y tests: 175/175 pasando
+- [x] Build y tests: 178/178 pasando
 
 **Restricciones arquitectónicas:**
 
@@ -340,9 +340,10 @@ access/
 
 **Entregables mínimos:**
 
-- [x] Whitelist de AAGUIDs autorizados (Windows Hello x3, Google, Apple x3, Samsung, Thales x2)
+- [x] Whitelist de AAGUIDs autorizados (~20: Windows Hello, Google, Apple, Samsung, Huawei, 1Password, Bitwarden, etc.)
 - [x] Validación integrada en flujo de finish-enrollment (paso 4)
-- [x] Tests de aceptación y rechazo (14 tests)
+- [x] Tests de aceptación y rechazo (17 tests)
+- [x] Modo permisivo `AAGUID_ALLOW_UNKNOWN` para fase de transición
 - [x] Documentación: cómo agregar nuevos AAGUIDs (en aaguid-validation.service.ts)
 
 **Archivos creados/modificados:**
@@ -579,7 +580,7 @@ Ejecutar en orden estricto:
 
 **BLOQUE B - Seguridad Crítica (2-3 días):**
 6. [OK] **22.2** - Session Key Binding con credentialId (commit 5c2c473)
-7. **22.3** - AAGUID Validation con whitelist (CRÍTICO)
+7. [OK] **22.3** - AAGUID Validation con whitelist (commits 0844ede, 1296c0a)
 
 **BLOQUE C - Arquitectura (1 día):**
 8. **22.5** - Stats + QR Lifecycle extraction
