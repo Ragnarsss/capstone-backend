@@ -2,7 +2,7 @@
 
 > Ultima actualizacion: 2025-12-18
 > Base: main consolidado desde fase-22.10.3
-> Build: OK | Tests: 243/243 pasando
+> Build: OK | Tests: 262/262 pasando
 
 ---
 
@@ -25,7 +25,7 @@
 | **22.3.1** | **Test Login ECDH Use Case (CRITICO)** | **COMPLETADA** |
 | **22.3.2** | **Test QR Generator (MAYOR)** | **COMPLETADA** |
 | **22.3.4** | **Test Decrypt Stage (MAYOR)** | **COMPLETADA** |
-| **22.5** | **Stats + QR Lifecycle** | **PENDIENTE** |
+| **22.5** | **Stats + QR Lifecycle** | **COMPLETADA** |
 | ~~22.11-22.12~~ | ~~Deuda Tecnica Opcional~~ | **OMITIDAS** |
 | **23** | **Integracion PHP (Restriction + Puente)** | **PENDIENTE** |
 | 24 | Infraestructura y Operaciones | PENDIENTE |
@@ -106,7 +106,7 @@ flowchart TB
     style T2 fill:#90EE90
     style T3 fill:#90EE90
     style T4 fill:#90EE90
-    style C1 fill:#ffcc99
+    style C1 fill:#90EE90
     style D1 fill:#90EE90
     style E1 fill:#99ccff
     style E2 fill:#99ccff
@@ -565,36 +565,40 @@ El DecryptStage ahora tiene cobertura completa de tests unitarios que verifican 
 
 ## BLOQUE C: Arquitectura
 
-### Fase 22.5: Extraer Stats + QR Lifecycle
+### Fase 22.5: Extraer Stats + QR Lifecycle - COMPLETADO ✅
 
 **Objetivo:** Desacoplar cálculo de estadísticas y generación de QR de `CompleteScanUseCase`, delegando a servicios dedicados que usen ports existentes.
 
 **Rama:** `fase-22.5-stats-qr-lifecycle`
 **Modelo:** Opus
 **Severidad:** MAYOR
+**Fecha completado:** 2025-12-18
 
 **Criterio de éxito verificable:**
 
-- [ ] `grep -n "calculateStats\|generateNextQR" node-service/src/backend/attendance/application/complete-scan` no encuentra imports directos
-- [ ] `CompleteScanUseCase` recibe servicios por inyección, no los instancia
-- [ ] Tests de UseCase mockean servicios (no lógica real)
-- [ ] Tests unitarios existen para cada servicio extraído
-- [ ] Build y tests: X/X pasando
+- [x] `grep -n "calculateStats\|generateNextQR" node-service/src/backend/attendance/application/complete-scan` no encuentra imports directos ✅
+- [x] `CompleteScanUseCase` recibe servicios por inyección, no los instancia ✅
+- [x] Tests de UseCase mockean servicios (no lógica real) ✅
+- [x] Tests unitarios existen para cada servicio extraído ✅ (19 tests)
+- [x] Build y tests: 262/262 pasando ✅
 
-**Restricciones arquitectónicas:**
+**Entregables completados:**
 
-- Usar `IQRGenerator` y `IPoolBalancer` existentes (fase 22.7) - NO crear nuevos
-- Stats pertenece a domain/, lifecycle a application/
-- Interface de stats debe estar en shared/ports/
+| Artefacto | Ubicación |
+|-----------|-----------|
+| IAttendanceStatsCalculator port | shared/ports/attendance-stats.port.ts |
+| IQRLifecycleManager port | shared/ports/qr-lifecycle.port.ts |
+| AttendanceStatsCalculator service | attendance/domain/services/attendance-stats-calculator.service.ts |
+| QRLifecycleService (actualizado) | attendance/application/services/qr-lifecycle.service.ts |
+| Tests stats calculator | 11 tests en domain/services/__tests__/ |
+| Tests QR lifecycle | 8 tests en application/services/__tests__/ |
 
-**Entregables mínimos:**
+**Cambios arquitectónicos:**
 
-- Servicio de estadísticas (certeza, fraude, response time)
-- Servicio de lifecycle QR (encapsula generación)
-- UseCase simplificado (orquestación pura, delega a servicios)
-- Tests unitarios de cada servicio
-
-**Referencias:** `spec-qr-validation.md` sección "Cálculo de Certeza"
+- `CompleteScanUseCase` ahora recibe `ServiceDependencies` en constructor
+- Factory `createCompleteScanDepsWithPersistence` crea e inyecta servicios
+- Stats calculation delegado a `IAttendanceStatsCalculator`
+- QR generation/storage/projection delegado a `IQRLifecycleManager`
 
 ---
 
@@ -763,7 +767,8 @@ git branch -d fase-21.1.3-auto-revoke-enrollment
 git branch -d fase-21.1.2-access-gateway-orchestrator
 git branch -d fase-21.1.1-fix-login-service-authclient
 git branch -d fase-21.1-shared-enrollment-services
-git branch -D fase-22.5-extract-stats-and-qr-lifecycle  # Incompatible
+git branch -d fase-22.5-stats-qr-lifecycle
+git branch -D fase-22.5-extract-stats-and-qr-lifecycle  # Incompatible (rama antigua)
 ```
 
 ---
@@ -790,8 +795,8 @@ Ejecutar en orden estricto:
 11. [OK] **22.3.2** - Test unitario QR Generator (commit b8b3f1d)
 12. [OK] **22.3.4** - Test unitario Decrypt Stage (commit 1f1fcdf)
 
-**BLOQUE C - Arquitectura (1 dia):**
-13. **22.5** - Stats + QR Lifecycle extraction
+**BLOQUE C - Arquitectura:** [OK] COMPLETADO
+13. [OK] **22.5** - Stats + QR Lifecycle extraction (commit 0755ca1)
 
 **BLOQUE E - Integracion PHP (FINAL):**
 14. **23.1** - Restriction Integration
