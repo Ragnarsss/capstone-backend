@@ -3,7 +3,7 @@
 > Fuente de verdad para tareas pendientes.
 > Ultima actualizacion: 2025-12-18
 
-**Ultimo commit consolidado:** a3dd9a3 (fase-22.10.2-remove-emoji-logs)
+**Ultimo commit consolidado:** b9d7583 (fase-22.10.3-resolve-zod-todos)
 
 **Estado actual del proyecto:**
 - COMPLETADA: Todas las fases 21 completadas (21.1→21.1.3→21.2→21.3)
@@ -14,11 +14,11 @@
 - COMPLETADA: Fase 22.10 (mover WebSocketAuthMiddleware a auth/presentation)
 - COMPLETADA: Fase 22.10.1 (Eliminar generacion JWT - daRulez 6.2)
 - COMPLETADA: Fase 22.10.2 (Eliminar emojis en logs - daRulez 7.3.1)
+- COMPLETADA: Fase 22.10.3 (Resolver TODO de Zod)
 - EN PROGRESO: Pendiente merge de branches 22.x a main
-- **SIGUIENTE: Fase 22.10.3 (Resolver TODO de Zod)**
-- **DESPUES: Fase 22.5 AMPLIADA (stats + QR lifecycle)**
+- **SIGUIENTE: Fase 22.5 AMPLIADA (stats + QR lifecycle)**
 - Tests: 155 pasando
-- **Cumplimiento daRulez.md:** 98% (violaciones 6.2 y 7.3.1 resueltas)
+- **Cumplimiento daRulez.md:** 100% (todas las violaciones resueltas)
 
 ---
 
@@ -42,7 +42,7 @@
 | **22.10** | **Mover WebSocketAuthMiddleware** | COMPLETADA |
 | **22.10.1** | **Eliminar generacion JWT (CRITICA)** | COMPLETADA |
 | **22.10.2** | **Eliminar emoji en logs** | COMPLETADA |
-| **22.10.3** | **Resolver TODO de Zod** | PENDIENTE |
+| **22.10.3** | **Resolver TODO de Zod** | COMPLETADA |
 | **22.5** | **Extraer Stats + QR Lifecycle** | PENDIENTE (AMPLIADA) |
 | **22.8** | **Descomponer ParticipationService** | COMPLETADA |
 | **22.2** | **Session Key Binding con credentialId** | PENDIENTE |
@@ -1221,6 +1221,51 @@ backend/auth/infrastructure/adapters/
 - Logs sin emojis ni emoticones
 - Prefijos de nivel reemplazados por texto plano
 - Cumplimiento daRulez.md Seccion 7.3.1: 100%
+- Tests pasan sin regresiones (155/155)
+
+---
+
+### 22.10.3: Resolver TODO de Zod
+
+**Rama:** `fase-22.10.3-resolve-zod-todos`
+**Modelo:** Sonnet
+**Dificultad:** Baja
+**Estado:** COMPLETADA
+**Commit:** b9d7583
+**Recordatorio:** Comandos npm DEBEN ejecutarse dentro del contenedor Node (daRulez.md Art. 3.2)
+
+**Justificacion:** Comentario TODO obsoleto en validation.middleware.ts indicaba instalar Zod, pero el sistema funciona correctamente sin esa dependencia usando schemas manuales.
+
+**Archivo modificado:**
+- `node-service/src/middleware/validation.middleware.ts` (linea 118)
+
+**Analisis realizado:**
+- TODO encontrado: "Instalar Zod: npm install zod (dentro del contenedor)"
+- Verificacion de instalacion: Zod NO esta instalado (confirmado con `npm list zod`)
+- Busqueda de uso: `validateRequest` exportado pero NO usado en produccion
+- Conclusion: Sistema funciona con schemas manuales (CommonSchemas) sin necesitar Zod
+
+**Cambios realizados:**
+- Eliminado comentario TODO obsoleto
+- Agregada nota clarificando funcionamiento sin Zod
+- Documentado que Zod es opcional para uso futuro
+
+**Tareas:**
+
+- [x] Verificar estado del repositorio: `git status`
+- [x] Crear rama: `git checkout -b fase-22.10.3-resolve-zod-todos`
+- [x] Buscar TODOs relacionados con Zod: 1 encontrado
+- [x] Verificar instalacion de Zod: NO instalado
+- [x] Verificar uso de validateRequest: NO usado en produccion
+- [x] Resolver TODO: eliminar comentario y clarificar funcionamiento
+- [x] Verificar compilacion: `podman exec asistencia-node npm run build` (302 modulos)
+- [x] Verificar tests: `podman exec asistencia-node npm run test` (155/155 passed)
+- [x] Commit: b9d7583
+
+**Criterio de exito:** COMPLETADO
+- TODO de Zod resuelto
+- Documentacion clarificada sobre funcionamiento sin dependencia
+- Sistema mantiene compatibilidad con schemas manuales
 - Tests pasan sin regresiones (155/155)
 
 ---
