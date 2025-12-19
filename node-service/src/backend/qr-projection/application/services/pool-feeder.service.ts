@@ -13,7 +13,6 @@ export interface FeedStudentInput {
   readonly sessionId: string;
   readonly studentId: number;
   readonly roundNumber: number;
-  readonly hostUserId: number;
   /** TTL en segundos para el payload almacenado */
   readonly payloadTTL?: number;
 }
@@ -93,7 +92,7 @@ export class PoolFeeder {
       // 2. Construir payload (dominio puro)
       const payload = PayloadBuilder.buildStudentPayload({
         sessionId: input.sessionId,
-        hostUserId: input.hostUserId,
+        studentId: input.studentId,
         roundNumber: input.roundNumber,
       });
 

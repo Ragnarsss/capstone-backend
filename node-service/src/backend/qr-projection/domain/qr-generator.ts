@@ -138,7 +138,7 @@ export class QRGenerator implements IQRGenerator {
     const payload: QRPayloadV1 = {
       v: 1,
       sid: options.sessionId,
-      uid: options.hostUserId,
+      uid: options.userId,
       r: options.round,
       ts: Date.now(),
       n: this.generateNonce(),

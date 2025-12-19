@@ -340,7 +340,8 @@ describe('QRGenerator', () => {
       // Arrange
       const options = {
         sessionId: 'proj-456',
-        hostUserId: 99,
+        userId: 99,
+        hostUserId: 1,
         round: 3,
       };
 
@@ -351,11 +352,12 @@ describe('QRGenerator', () => {
       expect(result.payload.r).toBe(3);
     });
 
-    it('debe incluir sessionId y hostUserId correctos', () => {
+    it('debe incluir sessionId y userId (estudiante) correctos', () => {
       // Arrange
       const options = {
         sessionId: 'proj-789',
-        hostUserId: 77,
+        userId: 77,
+        hostUserId: 1,
         round: 1,
       };
 
@@ -371,7 +373,8 @@ describe('QRGenerator', () => {
       // Arrange
       const options = {
         sessionId: 'proj-123',
-        hostUserId: 42,
+        userId: 42,
+        hostUserId: 1,
         round: 2,
       };
 
@@ -388,7 +391,8 @@ describe('QRGenerator', () => {
       // Arrange
       const options = {
         sessionId: 'proj-100',
-        hostUserId: 10,
+        userId: 10,
+        hostUserId: 1,
         round: 1,
       };
 
