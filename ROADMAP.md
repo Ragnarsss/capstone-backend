@@ -3,6 +3,7 @@
 > Ultima actualizacion: 2025-12-19
 > Base: fase-22.6-fix-session-key-encryption
 > Build: OK | Tests: 262/262 pasando
+> Siguiente: fase-22.6.1-fix-scan-resume
 
 ---
 
@@ -23,6 +24,7 @@
 | 22.4 | Extraer Persistencia | COMPLETADA |
 | **22.5** | **Stats + QR Lifecycle** | **COMPLETADA** |
 | **22.6** | **Fix Session Key Encryption (CRITICO)** | **COMPLETADA** |
+| **22.6.1** | **Fix Reanudación Escaneo Post-Cooldown (MAYOR)** | **PENDIENTE** |
 | **22.7** | **Unificar Singleton SessionKeyStore (MENOR)** | **PENDIENTE** |
 | 22.8-22.9 | Inyeccion SessionKeyQuery, QR Ports, Participation, /dev/ | COMPLETADA |
 | 22.10.1-22.10.3 | Mover WebSocketAuth, JWT, Emojis, Zod | COMPLETADA |
@@ -52,22 +54,25 @@
 
 ```mermaid
 flowchart TB
-    P1[22.7<br/>Singleton Unification<br/>MENOR]
-    P2[23.1<br/>Restriction Integration<br/>MAYOR]
-    P3[23.2<br/>Puente HTTP Node-PHP<br/>MAYOR]
-    P4[24<br/>Infraestructura y Operaciones<br/>MAYOR]
-    P5[25<br/>Testing E2E y Calidad<br/>MAYOR]
+    P1[22.6.1<br/>Fix Reanudación Escaneo<br/>MAYOR]
+    P2[22.7<br/>Singleton Unification<br/>MENOR]
+    P3[23.1<br/>Restriction Integration<br/>MAYOR]
+    P4[23.2<br/>Puente HTTP Node-PHP<br/>MAYOR]
+    P5[24<br/>Infraestructura y Operaciones<br/>MAYOR]
+    P6[25<br/>Testing E2E y Calidad<br/>MAYOR]
     
     P1 --> P2
     P2 --> P3
     P3 --> P4
     P4 --> P5
+    P5 --> P6
 
-    style P1 fill:#90EE90
-    style P2 fill:#FFD700
+    style P1 fill:#FFD700
+    style P2 fill:#90EE90
     style P3 fill:#FFD700
     style P4 fill:#FFD700
     style P5 fill:#FFD700
+    style P6 fill:#FFD700
 ```
 
 **Leyenda:** Verde claro = MENOR, Amarillo = MAYOR
@@ -442,6 +447,88 @@ El DecryptStage ahora tiene cobertura completa de tests unitarios que verifican 
 
 ---
 
+### Fase 22.6.1: Fix Reanudación de Escaneo Post-Cooldown
+
+**Objetivo:** Corregir el flujo de captura de QR para que reanude correctamente el escaneo después del cooldown visual, permitiendo completar asistencia multi-round.
+
+**Rama:** `fase-22.6.1-fix-scan-resume`
+**Modelo:** Sonnet
+**Severidad:** MAYOR
+**Referencia:** spec-qr-validation.md, daRulez §7.1.1 (SoC)
+**Estado:** PENDIENTE
+
+**Situación actual:**
+
+En [qr-scan.service.ts#L167-L173](node-service/src/frontend/features/qr-reader/services/qr-scan.service.ts#L167-L173):
+
+**Comportamiento esperado:**
+1. Cliente detecta QR que le corresponde (uid + round correcto)
+2. **PAUSA captura** (flag `validating = true`) sin cerrar cámara
+3. Envía datos encriptados al servidor
+4. Espera respuesta del servidor
+5. Según respuesta: muestra cooldown visual (3s) y **REANUDA captura** para siguiente round
+6. Pausar es necesario para evitar: repetición de envíos, condiciones de carrera, interrupciones
+
+**Comportamiento actual:**
+- ✅ Pausa correctamente al detectar QR (L136: `validating = true`)
+- ✅ Envía datos y espera respuesta
+- ✅ Muestra cooldown visual
+- ❌ **NO reanuda captura** después del cooldown
+- ❌ Usuario queda bloqueado sin poder completar rounds 2 y 3
+
+**Causa:** `setTimeout` anidado (L167) crea condición de carrera con temporizador interno de `showCooldown`, impidiendo que el callback de reanudación se ejecute correctamente.
+
+**Criterio de éxito verificable:**
+
+- [ ] Flujo E2E completo: registro → round 1 (pausa/envía/cooldown/reanuda) → round 2 (pausa/envía/cooldown/reanuda) → round 3 → completado
+- [ ] Durante validación: `validating = true` bloquea procesamiento de nuevos QRs
+- [ ] Después de cooldown: `validating = false` permite procesar nuevos QRs
+- [ ] Logs muestran `[QRScanService] Reanudando escaneo, round esperado: N` después de cada cooldown
+- [ ] `handleScanResult()` procesa nuevos QRs después de reanudar
+- [ ] Build y tests: 262/262 pasando
+
+**Restricciones arquitectónicas:**
+
+- Mantener flag `validating` para evitar procesamiento concurrente (evita condiciones de carrera - daRulez §7.1.1)
+- Pausar captura durante validación (no procesar múltiples QRs simultáneamente)
+- No cerrar cámara entre rounds (mantener stream activo)
+- No modificar lógica del pipeline de validación backend
+- Preservar UX del cooldown visual (3 segundos entre rounds)
+
+**Entregables mínimos:**
+
+- Fix en `qr-scan.service.ts` método `handleScanResult()`
+- Eliminación de `setTimeout` anidado innecesario
+- Log de confirmación cuando reanuda escaneo
+- Verificación de sincronización correcta del flag `validating`
+- Zero regresiones en comportamiento existente
+
+**Archivos a modificar:**
+
+- `node-service/src/frontend/features/qr-reader/services/qr-scan.service.ts` (L161-178)
+  - Eliminar `setTimeout(() => { showCooldown(...) }, 500)`
+  - Llamar `showCooldown()` directamente después de `showPartialSuccess()`
+  - Agregar log en callback del cooldown
+
+**Tareas:**
+
+- [ ] Eliminar `setTimeout` de 500ms que envuelve `showCooldown`
+- [ ] Invocar `showCooldown()` inmediatamente después de actualizar `expectedRound`
+- [ ] Agregar log de debug en callback: `console.log('[QRScanService] Reanudando escaneo, round esperado:', this.expectedRound)`
+- [ ] Verificar que `validating = false` se ejecuta en callback del cooldown
+- [ ] Verificar que callback de `handleScanResult()` se ejecuta después de reanudar
+- [ ] Testing manual: completar asistencia de 3 rounds end-to-end
+- [ ] Build y tests: 262/262 pasando
+- [ ] Commit atómico con mensaje: "fix(qr-reader): reanudar escaneo después de cooldown visual"
+
+**Impacto:** ALTO - Desbloquea testing E2E del sistema completo antes de fase 23 (integración PHP)
+
+**Referencias:** 
+- `spec-qr-validation.md` - Flujo multi-round sección "Fase 1: Cliente Escanea QRs" paso 3
+- `documents/02-modulos/attendance.md` - Diagrama de secuencia validación
+
+---
+
 ### Fase 22.7: Unificar uso de singleton SessionKeyStore
 
 **Objetivo:** Eliminar instanciación directa de SessionKeyStore en favor del patrón singleton existente para garantizar consistencia de estado en toda la aplicación.
@@ -800,13 +887,19 @@ Ejecutar en orden de prioridad:
 
 ### Pendientes por Completar
 
-1. **[MENOR]** **22.7** - Unificar Singleton SessionKeyStore
+1. **[MAYOR]** **22.6.1** - Fix Reanudación de Escaneo Post-Cooldown
+   - Impacto: Alto, desbloquea testing E2E completo
+   - Esfuerzo: ~1-2 horas
+   - Riesgo: Bajo (fix puntual en frontend)
+   - **SIGUIENTE TAREA - BLOQUEANTE**
+
+2. **[MENOR]** **22.7** - Unificar Singleton SessionKeyStore
    - Impacto: Bajo, mejora consistencia arquitectónica
    - Esfuerzo: ~1-2 horas
    - Riesgo: Mínimo
-   - **SIGUIENTE TAREA**
+   - Dependencias: 22.6.1 completado
 
-2. **[MAYOR]** **23.1** - Implementar Restriction Service
+3. **[MAYOR]** **23.1** - Implementar Restriction Service
    - Impacto: Alto, integración crítica con PHP
    - Esfuerzo: ~1-2 días
    - Riesgo: Medio (requiere coordinación con equipo PHP)
