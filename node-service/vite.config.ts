@@ -1,5 +1,6 @@
 import { defineConfig } from 'vitest/config';
 import path from 'path';
+import dotenv from 'dotenv';
 
 /**
  * Vite Configuration
@@ -11,6 +12,9 @@ import path from 'path';
  * - Vite sirve con base: '/asistencia/' para que los assets tengan el prefijo correcto
  * - Los HTMLs usan rutas relativas desde /asistencia/ (ej: /asistencia/shared/styles/base.css)
  */
+
+// Cargar variables de entorno desde el .env del proyecto padre
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -75,7 +79,9 @@ export default defineConfig({
     },
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'html'],
+      reporter: ['text', 'html', 'json-summary'],
+      reportsDirectory: './coverage',
+      clean: false,
       exclude: ['node_modules', 'dist', 'src/frontend', '**/*.test.ts'],
     },
   },

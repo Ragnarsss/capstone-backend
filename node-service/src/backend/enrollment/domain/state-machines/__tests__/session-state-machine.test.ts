@@ -277,4 +277,58 @@ describe('SessionStateMachine', () => {
       }
     });
   });
+
+  describe('inferState - Inferir estado de session desde datos', () => {
+    it('debe retornar NO_SESSION cuando no hay session key', () => {
+      const result = SessionStateMachine.inferState({
+        hasSessionKey: false,
+        sessionKeyExpired: false,
+      });
+
+      expect(result).toBe('no_session');
+    });
+
+    it('debe retornar NO_SESSION incluso si sessionKeyExpired es true cuando no hay key', () => {
+      const result = SessionStateMachine.inferState({
+        hasSessionKey: false,
+        sessionKeyExpired: true,
+      });
+
+      expect(result).toBe('no_session');
+    });
+
+    it('debe retornar SESSION_EXPIRED cuando hay key pero está expirada', () => {
+      const result = SessionStateMachine.inferState({
+        hasSessionKey: true,
+        sessionKeyExpired: true,
+      });
+
+      expect(result).toBe('session_expired');
+    });
+
+    it('debe retornar SESSION_ACTIVE cuando hay key y no está expirada', () => {
+      const result = SessionStateMachine.inferState({
+        hasSessionKey: true,
+        sessionKeyExpired: false,
+      });
+
+      expect(result).toBe('session_active');
+    });
+  });
+
+  describe('Edge cases - Estados inválidos', () => {
+    it('debe manejar estado inválido en canTransition', () => {
+      // @ts-expect-error - Testeando estado inválido deliberadamente
+      const result = SessionStateMachine.canTransition('invalid_state', 'no_session', 'enrolled');
+
+      expect(result).toBe(false);
+    });
+
+    it('debe retornar array vacío para getValidTransitions con estado inválido', () => {
+      // @ts-expect-error - Testeando estado inválido deliberadamente
+      const transitions = SessionStateMachine.getValidTransitions('invalid_state', 'enrolled');
+
+      expect(transitions).toEqual([]);
+    });
+  });
 });
