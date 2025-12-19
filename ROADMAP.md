@@ -1,9 +1,9 @@
 # ROADMAP - Fuente de Verdad del Proyecto
 
 > Ultima actualizacion: 2025-12-19
-> Base: fase-22.6-fix-session-key-encryption
-> Build: OK | Tests: 262/262 pasando
-> Siguiente: fase-22.6.1-fix-scan-resume
+> Base: fase-22.6.1-fix-scan-resume
+> Build: OK | Tests: 263/263 pasando
+> Siguiente: fase-22.6.2-fix-totp-validation
 
 ---
 
@@ -24,7 +24,8 @@
 | 22.4 | Extraer Persistencia | COMPLETADA |
 | **22.5** | **Stats + QR Lifecycle** | **COMPLETADA** |
 | **22.6** | **Fix Session Key Encryption (CRITICO)** | **COMPLETADA** |
-| **22.6.1** | **Fix Reanudación Escaneo Post-Cooldown (MAYOR)** | **PENDIENTE** |
+| **22.6.1** | **Fix Escaneo + uid + TOTPu Integration (MAYOR)** | **COMPLETADA** |
+| **22.6.2** | **Fix Validacion TOTPu Backend (MAYOR)** | **PENDIENTE** |
 | **22.7** | **Unificar Singleton SessionKeyStore (MENOR)** | **PENDIENTE** |
 | 22.8-22.9 | Inyeccion SessionKeyQuery, QR Ports, Participation, /dev/ | COMPLETADA |
 | 22.10.1-22.10.3 | Mover WebSocketAuth, JWT, Emojis, Zod | COMPLETADA |
@@ -54,19 +55,22 @@
 
 ```mermaid
 flowchart TB
-    P1[22.6.1<br/>Fix Reanudación Escaneo<br/>MAYOR]
+    P0[22.6.1<br/>Fix Escaneo + uid + TOTPu<br/>COMPLETADA]
+    P1[22.6.2<br/>Fix Validacion TOTPu<br/>MAYOR]
     P2[22.7<br/>Singleton Unification<br/>MENOR]
     P3[23.1<br/>Restriction Integration<br/>MAYOR]
     P4[23.2<br/>Puente HTTP Node-PHP<br/>MAYOR]
     P5[24<br/>Infraestructura y Operaciones<br/>MAYOR]
     P6[25<br/>Testing E2E y Calidad<br/>MAYOR]
     
+    P0 --> P1
     P1 --> P2
     P2 --> P3
     P3 --> P4
     P4 --> P5
     P5 --> P6
 
+    style P0 fill:#90EE90
     style P1 fill:#FFD700
     style P2 fill:#90EE90
     style P3 fill:#FFD700
@@ -447,85 +451,101 @@ El DecryptStage ahora tiene cobertura completa de tests unitarios que verifican 
 
 ---
 
-### Fase 22.6.1: Fix Reanudación de Escaneo Post-Cooldown
+### Fase 22.6.1: Fix Escaneo + uid + TOTPu Integration
 
-**Objetivo:** Corregir el flujo de captura de QR para que reanude correctamente el escaneo después del cooldown visual, permitiendo completar asistencia multi-round.
+**Objetivo:** Corregir el flujo de captura de QR para que reanude correctamente después del cooldown, use el uid correcto (studentId) e integre TOTPu en la respuesta.
 
 **Rama:** `fase-22.6.1-fix-scan-resume`
 **Modelo:** Sonnet
 **Severidad:** MAYOR
 **Referencia:** spec-qr-validation.md, daRulez §7.1.1 (SoC)
+**Estado:** COMPLETADA (2025-12-19)
+**Commits:** e44be7a (setTimeout fix), a88ce29 (uid + TOTPu)
+
+**Problemas resueltos:**
+
+1. **Race condition en cooldown** - setTimeout anidado impedía reanudación
+2. **uid incorrecto en QR** - Usaba hostUserId (profesor) en lugar de studentId
+3. **Falta TOTPu en respuesta** - Cliente no enviaba TOTP para validación
+
+**Archivos modificados:**
+
+- `qr-scan.service.ts`: eliminar setTimeout, integrar TOTPu del SessionKeyStore
+- `payload-builder.service.ts`: cambiar hostUserId → studentId
+- `qr-generator.ts`: usar options.userId para uid
+- `pool-feeder.service.ts`: remover hostUserId de FeedStudentInput
+- `qr-generator.test.ts`: actualizar tests
+
+**Criterio de éxito verificable:**
+
+- [x] setTimeout race condition eliminado
+- [x] uid del QR = studentId (no hostUserId)
+- [x] Respuesta del cliente incluye TOTPu
+- [x] Escaneo reanuda después de cooldown
+- [x] Build y tests: 263/263 pasando
+
+---
+
+### Fase 22.6.2: Fix Validacion TOTPu Backend
+
+**Objetivo:** Corregir la validación de TOTPu en el backend para que coincida con el TOTP generado por el frontend, verificando compatibilidad de derivación HKDF y algoritmo TOTP.
+
+**Rama:** `fase-22.6.2-fix-totp-validation`
+**Modelo:** Opus
+**Severidad:** MAYOR
+**Referencia:** 14-decision-totp-session-key.md, daRulez §1.4.1 (seguridad criptográfica)
 **Estado:** PENDIENTE
 
 **Situación actual:**
 
-En [qr-scan.service.ts#L167-L173](node-service/src/frontend/features/qr-reader/services/qr-scan.service.ts#L167-L173):
+El frontend envía TOTPu en la respuesta encriptada, pero el backend rechaza con "TOTPu no coincide con lo esperado". El problema está en la sincronización entre:
 
-**Comportamiento esperado:**
-1. Cliente detecta QR que le corresponde (uid + round correcto)
-2. **PAUSA captura** (flag `validating = true`) sin cerrar cámara
-3. Envía datos encriptados al servidor
-4. Espera respuesta del servidor
-5. Según respuesta: muestra cooldown visual (3s) y **REANUDA captura** para siguiente round
-6. Pausar es necesario para evitar: repetición de envíos, condiciones de carrera, interrupciones
+1. **Frontend**: Deriva hmacKey via HKDF y genera TOTP almacenado en login
+2. **Backend**: Deriva secret para TOTP y verifica contra lo enviado
 
-**Comportamiento actual:**
-- ✅ Pausa correctamente al detectar QR (L136: `validating = true`)
-- ✅ Envía datos y espera respuesta
-- ✅ Muestra cooldown visual
-- ❌ **NO reanuda captura** después del cooldown
-- ❌ Usuario queda bloqueado sin poder completar rounds 2 y 3
+**Hipótesis de causa:**
 
-**Causa:** `setTimeout` anidado (L167) crea condición de carrera con temporizador interno de `showCooldown`, impidiendo que el callback de reanudación se ejecute correctamente.
+- Frontend almacena TOTPu generado en login (estático)
+- Backend regenera TOTP en cada validación (dinámico, basado en tiempo)
+- Desincronización temporal o de derivación
 
 **Criterio de éxito verificable:**
 
-- [ ] Flujo E2E completo: registro → round 1 (pausa/envía/cooldown/reanuda) → round 2 (pausa/envía/cooldown/reanuda) → round 3 → completado
-- [ ] Durante validación: `validating = true` bloquea procesamiento de nuevos QRs
-- [ ] Después de cooldown: `validating = false` permite procesar nuevos QRs
-- [ ] Logs muestran `[QRScanService] Reanudando escaneo, round esperado: N` después de cada cooldown
-- [ ] `handleScanResult()` procesa nuevos QRs después de reanudar
-- [ ] Build y tests: 262/262 pasando
+- [ ] Log de debug muestra: TOTP frontend vs TOTP backend esperado
+- [ ] Identificar diferencia: ¿derivación HKDF? ¿algoritmo TOTP? ¿timing?
+- [ ] Validación TOTP exitosa en flujo E2E
+- [ ] Round 1 completo → cooldown → Round 2 → Round 3 → asistencia registrada
+- [ ] Build y tests: 263/263 pasando
 
 **Restricciones arquitectónicas:**
 
-- Mantener flag `validating` para evitar procesamiento concurrente (evita condiciones de carrera - daRulez §7.1.1)
-- Pausar captura durante validación (no procesar múltiples QRs simultáneamente)
-- No cerrar cámara entre rounds (mantener stream activo)
-- No modificar lógica del pipeline de validación backend
-- Preservar UX del cooldown visual (3 segundos entre rounds)
+- No debilitar modelo criptográfico (daRulez §1.4.1)
+- Mantener compatibilidad con derivación HKDF existente (fase 22.2)
+- TOTP debe ser time-based con ventana de tolerancia razonable
 
-**Entregables mínimos:**
+**Archivos a investigar:**
 
-- Fix en `qr-scan.service.ts` método `handleScanResult()`
-- Eliminación de `setTimeout` anidado innecesario
-- Log de confirmación cuando reanuda escaneo
-- Verificación de sincronización correcta del flag `validating`
-- Zero regresiones en comportamiento existente
-
-**Archivos a modificar:**
-
-- `node-service/src/frontend/features/qr-reader/services/qr-scan.service.ts` (L161-178)
-  - Eliminar `setTimeout(() => { showCooldown(...) }, 500)`
-  - Llamar `showCooldown()` directamente después de `showPartialSuccess()`
-  - Agregar log en callback del cooldown
+- `frontend/shared/services/enrollment/session-key.store.ts` - getTotpu()
+- `frontend/shared/services/enrollment/login.service.ts` - derivación HKDF
+- `backend/attendance/domain/validation-pipeline/stages/totp-validation.stage.ts` - verificación
+- `backend/session/application/use-cases/login-ecdh.use-case.ts` - derivación backend
 
 **Tareas:**
 
-- [ ] Eliminar `setTimeout` de 500ms que envuelve `showCooldown`
-- [ ] Invocar `showCooldown()` inmediatamente después de actualizar `expectedRound`
-- [ ] Agregar log de debug en callback: `console.log('[QRScanService] Reanudando escaneo, round esperado:', this.expectedRound)`
-- [ ] Verificar que `validating = false` se ejecuta en callback del cooldown
-- [ ] Verificar que callback de `handleScanResult()` se ejecuta después de reanudar
-- [ ] Testing manual: completar asistencia de 3 rounds end-to-end
-- [ ] Build y tests: 262/262 pasando
-- [ ] Commit atómico con mensaje: "fix(qr-reader): reanudar escaneo después de cooldown visual"
+- [ ] Agregar logs de debug en totp-validation.stage.ts (TOTP esperado vs recibido)
+- [ ] Verificar qué almacena frontend como totpu (¿estático o dinámico?)
+- [ ] Comparar derivación HKDF frontend vs backend
+- [ ] Identificar y corregir la discrepancia
+- [ ] Remover logs de debug
+- [ ] Testing E2E completo (3 rounds)
+- [ ] Build y tests pasando
+- [ ] Commit atómico
 
-**Impacto:** ALTO - Desbloquea testing E2E del sistema completo antes de fase 23 (integración PHP)
+**Dependencias:** Requiere 22.6.1 COMPLETADA
 
 **Referencias:** 
-- `spec-qr-validation.md` - Flujo multi-round sección "Fase 1: Cliente Escanea QRs" paso 3
-- `documents/02-modulos/attendance.md` - Diagrama de secuencia validación
+- `14-decision-totp-session-key.md` - Diseño original de TOTP
+- `spec-qr-validation.md` - Pipeline de validación
 
 ---
 
@@ -887,17 +907,17 @@ Ejecutar en orden de prioridad:
 
 ### Pendientes por Completar
 
-1. **[MAYOR]** **22.6.1** - Fix Reanudación de Escaneo Post-Cooldown
+1. **[MAYOR]** **22.6.2** - Fix Validacion TOTPu Backend
    - Impacto: Alto, desbloquea testing E2E completo
-   - Esfuerzo: ~1-2 horas
-   - Riesgo: Bajo (fix puntual en frontend)
+   - Esfuerzo: ~2-4 horas (investigación criptográfica)
+   - Riesgo: Medio (requiere entender derivación HKDF)
    - **SIGUIENTE TAREA - BLOQUEANTE**
 
 2. **[MENOR]** **22.7** - Unificar Singleton SessionKeyStore
    - Impacto: Bajo, mejora consistencia arquitectónica
    - Esfuerzo: ~1-2 horas
    - Riesgo: Mínimo
-   - Dependencias: 22.6.1 completado
+   - Dependencias: 22.6.2 completado
 
 3. **[MAYOR]** **23.1** - Implementar Restriction Service
    - Impacto: Alto, integración crítica con PHP
