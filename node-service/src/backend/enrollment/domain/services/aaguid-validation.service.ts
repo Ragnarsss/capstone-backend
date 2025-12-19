@@ -67,6 +67,7 @@ const AUTHORIZED_AAGUIDS: Record<string, string> = {
 
   // === Chrome on Android ===
   'b5397048-5a7c-11e9-8647-d663bd873d93': 'Chrome on Android',
+  'b93fd961-f2e6-462f-b122-82002247de78': 'Chrome on Android (variante)',
 
   // === Credential Manager (Android 14+) ===
   '0ea242b4-43c4-4a1b-8b17-dd6d0b6baec6': 'Android Credential Manager',

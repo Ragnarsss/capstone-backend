@@ -32,7 +32,9 @@ export interface GenerateStudentQROptions {
 export interface GenerateQRResult {
   /** Payload estructurado (para almacenamiento) */
   readonly payload: QRPayloadV1;
-  /** String encriptado (para mostrar en QR) */
+  /** JSON del payload sin encriptar (para encriptación externa) */
+  readonly plaintext: string;
+  /** String encriptado con mock key (para decoys/fallback) */
   readonly encrypted: string;
 }
 
@@ -46,17 +48,21 @@ export interface IQRGenerator {
   /**
    * Genera un QR para un estudiante específico
    * 
+   * Retorna el payload, su plaintext y una versión encriptada con mock key.
+   * El caller puede re-encriptar el plaintext con la session_key real del estudiante.
+   * 
    * @param options - Opciones de generación
-   * @returns Payload y string encriptado
+   * @returns Payload, plaintext y encrypted (con mock key)
    * 
    * @example
    * ```typescript
-   * const { payload, encrypted } = generator.generateForStudent({
+   * const { payload, plaintext, encrypted } = generator.generateForStudent({
    *   sessionId: 'session-123',
    *   userId: 42,
    *   round: 1,
    *   hostUserId: 1,
    * });
+   * // Luego encriptar plaintext con session_key real si está disponible
    * ```
    */
   generateForStudent(options: GenerateStudentQROptions): GenerateQRResult;

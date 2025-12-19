@@ -105,11 +105,12 @@ export class LoginService {
       // 5. Derivar shared secret usando ECDH
       const sharedSecret = await this.deriveSharedSecret(keyPair.privateKey, serverPublicKey);
 
-      // 6. Derivar session_key usando HKDF (vinculada al credentialId)
+      // 6. Derivar session_key (AES-GCM) y hmacKey (HMAC-SHA256) usando HKDF
       const sessionKey = await this.deriveSessionKey(sharedSecret, credentialId);
+      const hmacKey = await this.deriveHmacKey(sharedSecret, credentialId);
 
-      // 7. Almacenar automáticamente en SessionKeyStore
-      await this.sessionKeyStore.storeSessionKey(sessionKey, data.totpu, data.deviceId);
+      // 7. Almacenar ambas claves en SessionKeyStore
+      await this.sessionKeyStore.storeSessionKey(sessionKey, hmacKey, data.totpu, data.deviceId);
 
       return {
         success: true,
@@ -229,6 +230,43 @@ export class LoginService {
       },
       true,
       ['encrypt', 'decrypt']
+    );
+  }
+
+  /**
+   * Deriva hmacKey desde shared secret usando HKDF
+   * Usada para generar TOTPu sin necesidad de exportKey en runtime
+   * 
+   * @param sharedSecret - Resultado del ECDH key exchange
+   * @param credentialId - ID único de la credencial FIDO2 para binding
+   */
+  private async deriveHmacKey(sharedSecret: ArrayBuffer, credentialId: string): Promise<CryptoKey> {
+    const baseKey = await crypto.subtle.importKey(
+      'raw',
+      sharedSecret,
+      'HKDF',
+      false,
+      ['deriveKey']
+    );
+
+    // Info diferente para generar clave HMAC distinta a la session_key
+    const info = new TextEncoder().encode('attendance-hmac-key-v1:' + credentialId);
+
+    return await crypto.subtle.deriveKey(
+      {
+        name: 'HKDF',
+        hash: 'SHA-256',
+        salt: new Uint8Array(0),
+        info,
+      },
+      baseKey,
+      {
+        name: 'HMAC',
+        hash: 'SHA-256',
+        length: 256,
+      },
+      true,
+      ['sign']
     );
   }
 

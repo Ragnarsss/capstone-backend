@@ -15,6 +15,7 @@ import type {
 import type { QRPayloadV1 } from '../../../../shared/types';
 import { ProjectionPoolRepository } from '../../../../shared/infrastructure/valkey';
 import { logger } from '../../../../shared/infrastructure/logger';
+import type { StudentEncryptionService } from './student-encryption.service';
 
 export class QRLifecycleService implements IQRLifecycleManager {
   constructor(
@@ -22,7 +23,8 @@ export class QRLifecycleService implements IQRLifecycleManager {
     private readonly payloadRepo: IQRPayloadRepository,
     private readonly poolRepo: ProjectionPoolRepository = new ProjectionPoolRepository(),
     private readonly poolBalancer: IPoolBalancer | null = null,
-    private readonly defaultHostUserId: number = 1
+    private readonly defaultHostUserId: number = 1,
+    private readonly encryptionService?: StudentEncryptionService
   ) {}
 
   /**
@@ -61,12 +63,24 @@ export class QRLifecycleService implements IQRLifecycleManager {
   }): Promise<{ payload: QRPayloadV1; encrypted: string }> {
     const { sessionId, studentId, round, hostUserId, ttl } = options;
 
-    const { payload, encrypted } = this.qrGenerator.generateForStudent({
+    // Generar payload (retorna plaintext y encrypted con mock key)
+    const { payload, plaintext, encrypted: mockEncrypted } = this.qrGenerator.generateForStudent({
       sessionId,
       userId: studentId,
       round,
       hostUserId,
     });
+
+    // Encriptar con session_key real del estudiante si está disponible
+    let encrypted: string;
+    if (this.encryptionService) {
+      const result = await this.encryptionService.encryptForStudent(studentId, plaintext);
+      encrypted = result.encrypted;
+    } else {
+      // Sin servicio de encriptación, usar mock encrypted
+      encrypted = mockEncrypted;
+      logger.warn(`[QRLifecycle] Sin StudentEncryptionService, usando mock key`);
+    }
 
     await this.payloadRepo.store(payload, encrypted, ttl);
     await this.poolRepo.upsertStudentQR(sessionId, studentId, encrypted, round);

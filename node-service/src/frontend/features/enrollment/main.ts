@@ -381,8 +381,7 @@ class EnrollmentApplication {
         throw new Error(loginResult.error || 'Error en login');
       }
 
-      // Guardar session key
-      this.sessionKeyStore.storeSessionKey(loginResult.sessionKey!, loginResult.totpu!);
+      // LoginService.performLogin() ya almacena session_key y hmacKey en SessionKeyStore
 
       this.showLoginMessage('Sesion iniciada correctamente', 'success');
 

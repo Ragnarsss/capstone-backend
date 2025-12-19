@@ -352,9 +352,8 @@ class QRReaderApplication {
         return;
       }
 
-      // Almacenar session_key
-      await this.sessionKeyStore.storeSessionKey(result.sessionKey, result.totpu);
-      console.log('[QRReader] Session key almacenada');
+      // LoginService ya almacenó las session keys (sessionKey + hmacKey)
+      console.log('[QRReader] Login exitoso, session keys almacenadas');
 
       // Mostrar estado listo
       this.showReadyState();

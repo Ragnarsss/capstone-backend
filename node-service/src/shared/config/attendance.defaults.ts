@@ -14,7 +14,7 @@ export const DEFAULT_MAX_ROUNDS = 3;
 export const DEFAULT_MAX_ATTEMPTS = 3;
 
 /** Tiempo de vida del QR en segundos */
-export const DEFAULT_QR_TTL_SECONDS = 60;
+export const DEFAULT_QR_TTL_SECONDS = parseInt(process.env.QR_TTL_SECONDS || '60', 10);
 
-/** Tamano minimo del pool de QRs (incluyendo fakes) */
-export const DEFAULT_MIN_POOL_SIZE = 10;
+/** Tamano minimo del pool de QRs (incluyendo fakes/decoys) */
+export const DEFAULT_MIN_POOL_SIZE = parseInt(process.env.MIN_POOL_SIZE || '10', 10);

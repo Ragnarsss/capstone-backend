@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { ParticipationService } from '../application/participation.service';
 import { ValidateScanUseCase } from '../application/validate-scan.usecase';
 import { CompleteScanUseCase } from '../application/complete-scan.usecase';
-import { StudentStateService, QRLifecycleService } from '../application/services';
+import { StudentStateService, QRLifecycleService, StudentEncryptionService } from '../application/services';
 import { ActiveSessionRepository, ProjectionPoolRepository } from '../../../shared/infrastructure/valkey';
 import { StudentSessionRepository } from '../infrastructure/student-session.repository';
 import { 
@@ -69,7 +69,20 @@ export async function registerAttendanceRoutes(
   // Servicios de dominio
   const studentRepo = new StudentSessionRepository();
   const studentStateService = new StudentStateService(studentRepo);
-  const qrLifecycleService = new QRLifecycleService(qrGenerator, payloadRepo, poolRepo, poolBalancer);
+
+  // Session key query para encriptación de estudiantes
+  const sessionKeyQuery = new SessionKeyQueryAdapter(new SessionKeyRepository());
+  const studentEncryptionService = new StudentEncryptionService(sessionKeyQuery);
+
+  // QR Lifecycle con encriptación por estudiante
+  const qrLifecycleService = new QRLifecycleService(
+    qrGenerator,
+    payloadRepo,
+    poolRepo,
+    poolBalancer,
+    1, // defaultHostUserId
+    studentEncryptionService
+  );
 
   // Instanciar ParticipationService con dependencias inyectadas
   const participation = participationService ?? new ParticipationService(
@@ -80,9 +93,8 @@ export async function registerAttendanceRoutes(
   const activeSessionRepo = new ActiveSessionRepository();
 
   // UseCases con pipeline
-  
+
   // UseCase para solo validación (debugging)
-  const sessionKeyQuery = new SessionKeyQueryAdapter(new SessionKeyRepository());
   const validateScanUseCase = new ValidateScanUseCase({
     aesGcmService: new AesGcmService(),
     qrStateLoader: new QRStateAdapter(poolRepo),

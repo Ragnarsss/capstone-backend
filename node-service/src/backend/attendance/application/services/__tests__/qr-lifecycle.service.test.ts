@@ -19,9 +19,10 @@ describe('QRLifecycleService', () => {
   let mockQRGenerator: IQRGenerator;
   let mockPayloadRepo: IQRPayloadRepository;
   let mockPoolRepo: Partial<ProjectionPoolRepository>;
+  let mockEncryptionService: { encryptForStudent: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
-    // Mock QRGenerator
+    // Mock QRGenerator - ahora retorna plaintext además de encrypted
     mockQRGenerator = {
       generateForStudent: vi.fn().mockReturnValue({
         payload: {
@@ -33,7 +34,8 @@ describe('QRLifecycleService', () => {
           n: 'mock-nonce-12345678',
           h: 1,
         } as QRPayloadV1,
-        encrypted: 'encrypted-qr-payload-string',
+        plaintext: '{"v":1,"s":"test-session","u":123,"r":2,"t":1234567890,"n":"mock-nonce-12345678","h":1}',
+        encrypted: 'mock-encrypted-fallback',
       }),
     };
 
@@ -48,17 +50,26 @@ describe('QRLifecycleService', () => {
     mockPoolRepo = {
       upsertStudentQR: vi.fn().mockResolvedValue(undefined),
     };
+
+    // Mock StudentEncryptionService
+    mockEncryptionService = {
+      encryptForStudent: vi.fn().mockResolvedValue({
+        encrypted: 'encrypted-with-real-key',
+        usedRealKey: true,
+      }),
+    };
   });
 
   describe('generateAndPublish (implementa IQRLifecycleManager)', () => {
-    it('debe generar QR y retornar resultado correcto', async () => {
+    it('debe generar QR y retornar resultado correcto con encryptionService', async () => {
       // Arrange
       const service = new QRLifecycleService(
         mockQRGenerator,
         mockPayloadRepo,
         mockPoolRepo as ProjectionPoolRepository,
         null,
-        1
+        1,
+        mockEncryptionService as any
       );
 
       const options: NextQROptions = {
@@ -71,11 +82,36 @@ describe('QRLifecycleService', () => {
       // Act
       const result = await service.generateAndPublish(options);
 
-      // Assert
-      expect(result.encrypted).toBe('encrypted-qr-payload-string');
+      // Assert - usa encrypted del encryptionService
+      expect(result.encrypted).toBe('encrypted-with-real-key');
       expect(result.nonce).toBe('mock-nonce-12345678');
       expect(result.round).toBe(2);
       expect(result.qrTTL).toBe(60);
+    });
+
+    it('debe usar mock encrypted cuando no hay encryptionService', async () => {
+      // Arrange - sin encryptionService
+      const service = new QRLifecycleService(
+        mockQRGenerator,
+        mockPayloadRepo,
+        mockPoolRepo as ProjectionPoolRepository,
+        null,
+        1
+        // Sin encryptionService
+      );
+
+      const options: NextQROptions = {
+        sessionId: 'test-session',
+        studentId: 123,
+        round: 2,
+        qrTTL: 60,
+      };
+
+      // Act
+      const result = await service.generateAndPublish(options);
+
+      // Assert - usa encrypted fallback del generator
+      expect(result.encrypted).toBe('mock-encrypted-fallback');
     });
 
     it('debe llamar a generateForStudent con parámetros correctos', async () => {
@@ -131,7 +167,7 @@ describe('QRLifecycleService', () => {
       // Assert
       expect(mockPayloadRepo.store).toHaveBeenCalledWith(
         expect.objectContaining({ n: 'mock-nonce-12345678' }),
-        'encrypted-qr-payload-string',
+        'mock-encrypted-fallback',
         90
       );
     });
@@ -160,7 +196,7 @@ describe('QRLifecycleService', () => {
       expect(mockPoolRepo.upsertStudentQR).toHaveBeenCalledWith(
         'test-session',
         789,
-        'encrypted-qr-payload-string',
+        'mock-encrypted-fallback',
         1
       );
     });
@@ -270,7 +306,7 @@ describe('QRLifecycleService', () => {
 
       // Assert
       expect(result.payload.n).toBe('mock-nonce-12345678');
-      expect(result.encrypted).toBe('encrypted-qr-payload-string');
+      expect(result.encrypted).toBe('mock-encrypted-fallback');
     });
   });
 });

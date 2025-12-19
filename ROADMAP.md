@@ -1,6 +1,6 @@
 # ROADMAP - Fuente de Verdad del Proyecto
 
-> Ultima actualizacion: 2025-12-18
+> Ultima actualizacion: 2025-12-19
 > Base: main consolidado desde fase-22.10.3
 > Build: OK | Tests: 262/262 pasando
 
@@ -27,6 +27,12 @@
 | **22.3.4** | **Test Decrypt Stage (MAYOR)** | **COMPLETADA** |
 | **22.5** | **Stats + QR Lifecycle** | **COMPLETADA** |
 | ~~22.11-22.12~~ | ~~Deuda Tecnica Opcional~~ | **OMITIDAS** |
+| **26.1** | **TOTP Dual Key - evitar exportKey (CRITICO)** | **PENDIENTE** |
+| **26.2** | **Eliminar doble escritura session_key** | **PENDIENTE** |
+| **26.3** | **Unificar instancias SessionKeyStore** | **PENDIENTE** |
+| **26.4** | **Inyectar StudentEncryptionService (CRITICO)** | **PENDIENTE** |
+| **26.5** | **Extraer Composition Root** | **PENDIENTE** |
+| **26.6** | **Centralizar configuracion** | **PENDIENTE** |
 | **23** | **Integracion PHP (Restriction + Puente)** | **PENDIENTE** |
 | 24 | Infraestructura y Operaciones | PENDIENTE |
 | 25 | Testing E2E y Calidad | PENDIENTE |
@@ -82,6 +88,18 @@ flowchart TB
         D1[22.11-12<br/>OMITIDAS]
     end
 
+    subgraph BLOQUE_F[F: Correccion Flujo QR]
+        direction TB
+        F1[26.1<br/>TOTP Dual Key]:::critical
+        F2[26.2<br/>Eliminar Doble Escritura]
+        F3[26.3<br/>Singleton Store]
+        F4[26.4<br/>Inyectar Encryption]:::critical
+        F5[26.5<br/>Composition Root]
+        F6[26.6<br/>Centralizar Config]
+        F1 --> F2 --> F3
+        F1 --> F4 --> F5 --> F6
+    end
+
     subgraph BLOQUE_E[E: Integracion PHP]
         direction LR
         E1[23.1<br/>Restriction]
@@ -93,7 +111,8 @@ flowchart TB
     BLOQUE_B --> BLOQUE_B2
     BLOQUE_B2 --> BLOQUE_C
     BLOQUE_C --> BLOQUE_D
-    BLOQUE_D --> BLOQUE_E
+    BLOQUE_D --> BLOQUE_F
+    BLOQUE_F --> BLOQUE_E
 
     style A1 fill:#90EE90
     style A2 fill:#90EE90
@@ -108,11 +127,19 @@ flowchart TB
     style T4 fill:#90EE90
     style C1 fill:#90EE90
     style D1 fill:#90EE90
+    style F1 fill:#ff6b6b
+    style F2 fill:#ffa94d
+    style F3 fill:#ffa94d
+    style F4 fill:#ff6b6b
+    style F5 fill:#ffa94d
+    style F6 fill:#69db7c
     style E1 fill:#99ccff
     style E2 fill:#99ccff
+
+    classDef critical fill:#ff6b6b
 ```
 
-**Leyenda:** Rojo oscuro = CRITICO, Rojo claro = MAYOR, Naranja = Arquitectura, Verde = Omitida/Completada, Azul = Integracion
+**Leyenda:** Rojo oscuro = CRITICO, Naranja = MAYOR, Verde claro = MENOR, Verde = Completada, Azul = Integracion
 
 ---
 
@@ -618,6 +645,241 @@ El DecryptStage ahora tiene cobertura completa de tests unitarios que verifican 
 
 ---
 
+## BLOQUE F: Correccion Flujo Escaneo QR
+
+> Resuelve problemas criticos detectados en el flujo de escaneo QR que impiden la validacion de asistencia.
+> Prerequisito para pruebas manuales end-to-end.
+
+### Fase 26.1: TOTP Dual Key - evitar exportKey
+
+**Objetivo:** Resolver el error `Failed to execute 'exportKey' on 'SubtleCrypto': key is not extractable` almacenando una version HMAC de la session_key durante el login.
+
+**Rama:** `fase-26.1-totp-dual-key`
+**Modelo:** Opus
+**Severidad:** CRITICA
+**Referencia:** Error en runtime, bloquea flujo completo de escaneo
+
+**Situacion actual:**
+
+- `generateTOTPu()` en `totp.ts` llama `exportKey('raw', key)` para reimportar como HMAC
+- La session_key derivada de ECDH puede no ser extractable dependiendo del navegador/contexto
+- El error bloquea completamente el flujo de validacion
+
+**Archivos a modificar:**
+
+| Archivo | Cambio |
+|---------|--------|
+| `frontend/shared/services/enrollment/session-key.store.ts` | Almacenar `hmacKey` junto a `sessionKey` en `StoredSession` |
+| `frontend/shared/services/enrollment/login.service.ts` | Derivar HMAC key durante login y pasarla a store |
+| `frontend/shared/crypto/totp.ts` | Recibir HMAC key directamente, eliminar `ensureHmacKey()` |
+| `frontend/features/qr-reader/services/qr-scan.service.ts` | Obtener HMAC key del store para TOTP |
+
+**Tareas:**
+
+- [ ] Modificar `StoredSession` interface: agregar `hmacKey: JsonWebKey`
+- [ ] En `LoginService.deriveSessionKey()`: derivar segunda key con `usages: ['sign']` para HMAC
+- [ ] Actualizar `SessionKeyStore.storeSessionKey()`: recibir y almacenar ambas keys
+- [ ] Crear `SessionKeyStore.getHmacKey()`: nuevo metodo que retorna CryptoKey HMAC
+- [ ] Simplificar `generateTOTPu()`: recibir HMAC key directamente, sin conversion
+- [ ] Actualizar `QRScanService`: usar `getHmacKey()` para TOTP
+- [ ] Build y tests: X/X pasando
+
+**Criterio de exito:**
+
+- [ ] `generateTOTPu()` no llama `exportKey()`
+- [ ] TOTP se genera correctamente con key HMAC dedicada
+- [ ] Error `key is not extractable` eliminado
+- [ ] Tests unitarios para derivacion dual
+
+---
+
+### Fase 26.2: Eliminar doble escritura de session_key
+
+**Objetivo:** Eliminar la escritura duplicada que sobrescribe la session_key con datos incompletos.
+
+**Rama:** `fase-26.2-eliminate-duplicate-store`
+**Modelo:** Sonnet
+**Severidad:** MAYOR
+**Referencia:** daRulez 7.1.1 - DRY
+
+**Situacion actual:**
+
+- `LoginService.performLogin()` almacena en singleton con `(sessionKey, totpu, deviceId)`
+- `qr-reader/main.ts` vuelve a llamar `storeSessionKey(result.sessionKey, result.totpu)` sin deviceId
+- La segunda escritura sobrescribe la primera con datos incompletos
+
+**Archivos a modificar:**
+
+| Archivo | Cambio |
+|---------|--------|
+| `frontend/features/qr-reader/main.ts` | Eliminar llamada duplicada a `storeSessionKey()` |
+| `frontend/features/enrollment/main.ts` | Eliminar llamada duplicada a `storeSessionKey()` |
+
+**Tareas:**
+
+- [ ] En `qr-reader/main.ts:356`: eliminar `await this.sessionKeyStore.storeSessionKey(...)`
+- [ ] En `enrollment/main.ts:385`: eliminar `this.sessionKeyStore.storeSessionKey(...)`
+- [ ] Verificar que `LoginService.performLogin()` es la unica fuente de escritura
+- [ ] Build y tests: X/X pasando
+
+**Criterio de exito:**
+
+- [ ] `grep -n "storeSessionKey" frontend/` muestra solo `login.service.ts` y `session-key.store.ts`
+- [ ] deviceId siempre presente en session almacenada
+
+---
+
+### Fase 26.3: Unificar instancias de SessionKeyStore
+
+**Objetivo:** Usar singleton `getSessionKeyStore()` en todo el frontend para evitar inconsistencias.
+
+**Rama:** `fase-26.3-singleton-session-store`
+**Modelo:** Sonnet
+**Severidad:** MAYOR
+**Referencia:** Multiples instancias accediendo al mismo sessionStorage
+
+**Situacion actual:**
+
+- `qr-reader/main.ts:79` crea `new SessionKeyStore()`
+- `aes-gcm.ts:38` crea `new SessionKeyStore()`
+- `qr-scan.service.ts:143` usa `getSessionKeyStore()` (correcto)
+- Tres instancias diferentes accediendo al mismo storage
+
+**Archivos a modificar:**
+
+| Archivo | Cambio |
+|---------|--------|
+| `frontend/features/qr-reader/main.ts` | Usar `getSessionKeyStore()` |
+| `frontend/shared/crypto/aes-gcm.ts` | Usar `getSessionKeyStore()` |
+
+**Tareas:**
+
+- [ ] En `qr-reader/main.ts:79`: cambiar `new SessionKeyStore()` por `getSessionKeyStore()`
+- [ ] En `aes-gcm.ts:38`: cambiar `new SessionKeyStore()` por `getSessionKeyStore()`
+- [ ] Verificar imports actualizados
+- [ ] Build y tests: X/X pasando
+
+**Criterio de exito:**
+
+- [ ] `grep -n "new SessionKeyStore()" frontend/` retorna 0 resultados
+- [ ] Todas las referencias usan `getSessionKeyStore()`
+
+---
+
+### Fase 26.4: Inyectar StudentEncryptionService en factory
+
+**Objetivo:** Corregir el factory para que los QRs de rounds 2+ se generen con session_key real, no mock.
+
+**Rama:** `fase-26.4-inject-encryption-service`
+**Modelo:** Opus
+**Severidad:** CRITICA
+**Referencia:** daRulez 1.4.1 - "Seguridad primero"
+
+**Situacion actual:**
+
+- `complete-scan-deps.factory.ts:114-118` crea `QRLifecycleService` sin `encryptionService`
+- QRs para rounds 2+ se generan con mock key
+- Estudiante no puede descifrar QRs generados despues del primero
+
+**Archivos a modificar:**
+
+| Archivo | Cambio |
+|---------|--------|
+| `backend/attendance/infrastructure/adapters/complete-scan-deps.factory.ts` | Crear e inyectar `StudentEncryptionService` |
+
+**Tareas:**
+
+- [ ] Importar `StudentEncryptionService` y `SessionKeyQueryAdapter`
+- [ ] Crear instancia de `SessionKeyQueryAdapter` en el factory
+- [ ] Crear instancia de `StudentEncryptionService` con el adapter
+- [ ] Pasar `encryptionService` al constructor de `QRLifecycleService`
+- [ ] Build y tests: X/X pasando
+
+**Criterio de exito:**
+
+- [ ] `QRLifecycleService` recibe `encryptionService` no-null
+- [ ] Log `[QRLifecycle] Sin StudentEncryptionService` no aparece en runtime
+- [ ] QRs round 2+ son descifrables por el estudiante
+
+---
+
+### Fase 26.5: Extraer Composition Root de routes.ts
+
+**Objetivo:** Mover la creacion de servicios fuera de la capa de presentacion, respetando SoC.
+
+**Rama:** `fase-26.5-extract-composition-root`
+**Modelo:** Sonnet
+**Severidad:** MAYOR
+**Referencia:** daRulez 2.2 - "Prohibido capas tecnicas transversales compartidas"
+
+**Situacion actual:**
+
+- `routes.ts:56-100` instancia 20+ servicios directamente
+- Capa de presentacion conoce detalles de infraestructura
+- Dificil de testear y mantener
+
+**Archivos a crear/modificar:**
+
+| Archivo | Cambio |
+|---------|--------|
+| `backend/attendance/infrastructure/composition-root.ts` | NUEVO: factory de dependencias |
+| `backend/attendance/presentation/routes.ts` | Simplificar, usar composition root |
+
+**Tareas:**
+
+- [ ] Crear `composition-root.ts` con funcion `createAttendanceDependencies()`
+- [ ] Mover creacion de servicios de `routes.ts` a `composition-root.ts`
+- [ ] Exportar objetos pre-construidos: `participationService`, `completeScanUseCase`, etc.
+- [ ] Actualizar `routes.ts` para importar dependencias del composition root
+- [ ] Build y tests: X/X pasando
+
+**Criterio de exito:**
+
+- [ ] `routes.ts` no tiene `new XxxService()` excepto para validacion de request
+- [ ] `composition-root.ts` centraliza todas las instanciaciones
+- [ ] Tests pueden mockear el composition root completo
+
+---
+
+### Fase 26.6: Centralizar configuracion (magic numbers)
+
+**Objetivo:** Centralizar valores hardcodeados en configuracion, facilitando ajustes sin modificar codigo.
+
+**Rama:** `fase-26.6-centralize-config`
+**Modelo:** Sonnet
+**Severidad:** MENOR
+**Referencia:** daRulez 7.1.1 - DRY
+
+**Situacion actual:**
+
+Magic numbers dispersos:
+- `qr-scan.service.ts`: `COOLDOWN_SECONDS = 3`, `ERROR_RECOVERY_SECONDS = 2`
+- `student-session.repository.ts`: `stateTTL = 7200`
+- `stats-calculator.ts`: rangos de certeza hardcodeados
+
+**Archivos a modificar:**
+
+| Archivo | Cambio |
+|---------|--------|
+| `shared/config/index.ts` | Agregar constantes de attendance |
+| `frontend/shared/config/index.ts` | Crear archivo config para frontend |
+| Archivos con magic numbers | Importar desde config |
+
+**Tareas:**
+
+- [ ] Agregar a `shared/config/index.ts`: `SCAN_COOLDOWN_SECONDS`, `ERROR_RECOVERY_SECONDS`
+- [ ] Agregar rangos de certeza: `CERTAINTY_SUSPICIOUS_MIN_MS`, `CERTAINTY_SUSPICIOUS_MAX_MS`
+- [ ] Crear `frontend/shared/config/index.ts` con constantes de UI
+- [ ] Actualizar archivos para usar imports de config
+- [ ] Build y tests: X/X pasando
+
+**Criterio de exito:**
+
+- [ ] `grep -rn "= 3;" frontend/` no encuentra cooldowns hardcodeados
+- [ ] Configuracion centralizada y documentada
+
+---
+
 ## BLOQUE E: Integracion PHP (FINAL)
 
 ### Fase 23.1: Implementar Restriction Service
@@ -742,37 +1004,6 @@ El DecryptStage ahora tiene cobertura completa de tests unitarios que verifican 
 
 ---
 
-## Ramas a Limpiar
-
-```bash
-# Ejecutar despues de merge a main
-git branch -d fase-22.2-session-binding
-git branch -d fase-22.10.4-centralize-secrets
-git branch -d fase-22.10.5-remove-microservices-mention
-git branch -d fase-22.10.6-access-vertical-slicing
-git branch -d fase-22.10.7-8-translate-comments
-git branch -d fase-22.10.3-resolve-zod-todos
-git branch -d fase-22.10.2-remove-emoji-logs
-git branch -d fase-22.10.1-remove-jwt-generation
-git branch -d fase-22.10-move-websocket-auth
-git branch -d fase-22.4-extract-persistence
-git branch -d fase-22.8-decompose-participation
-git branch -d fase-22.9-remove-dev-endpoints
-git branch -d fase-22.7-qr-projection-ports
-git branch -d fase-22.6-inject-session-query
-git branch -d fase-22.1-totp-validation
-git branch -d fase-21.3-eliminar-guest
-git branch -d fase-21.2-qr-reader-access-gateway
-git branch -d fase-21.1.3-auto-revoke-enrollment
-git branch -d fase-21.1.2-access-gateway-orchestrator
-git branch -d fase-21.1.1-fix-login-service-authclient
-git branch -d fase-21.1-shared-enrollment-services
-git branch -d fase-22.5-stats-qr-lifecycle
-git branch -D fase-22.5-extract-stats-and-qr-lifecycle  # Incompatible (rama antigua)
-```
-
----
-
 ## Proxima Accion
 
 Ejecutar en orden estricto:
@@ -798,9 +1029,17 @@ Ejecutar en orden estricto:
 **BLOQUE C - Arquitectura:** [OK] COMPLETADO
 13. [OK] **22.5** - Stats + QR Lifecycle extraction (commit 0755ca1)
 
+**BLOQUE F - Correccion Flujo Escaneo QR:**
+14. [ ] **26.1** - TOTP Dual Key (CRITICO) - Modelo: Opus
+15. [ ] **26.2** - Eliminar doble escritura session_key - Modelo: Sonnet
+16. [ ] **26.3** - Unificar instancias SessionKeyStore - Modelo: Sonnet
+17. [ ] **26.4** - Inyectar StudentEncryptionService (CRITICO) - Modelo: Opus
+18. [ ] **26.5** - Extraer Composition Root - Modelo: Sonnet
+19. [ ] **26.6** - Centralizar configuracion - Modelo: Sonnet
+
 **BLOQUE E - Integracion PHP (FINAL):**
-14. **23.1** - Restriction Integration
-15. **23.2** - Puente HTTP Node-PHP
+20. [ ] **23.1** - Restriction Integration
+21. [ ] **23.2** - Puente HTTP Node-PHP
 
 **Fases omitidas:**
 - ~~22.10.9~~ - Comentarios tests ya usan convencion AAA estandar

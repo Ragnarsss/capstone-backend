@@ -58,6 +58,19 @@ export class QRDisplayComponent {
     }
   }
 
+  /**
+   * Muestra estado de espera cuando el pool esta vacio
+   * Indica visualmente que el sistema espera estudiantes
+   */
+  showWaiting(): void {
+    if (this.elements.countdown && this.elements.qrContainer && this.elements.qrImage) {
+      this.elements.countdown.style.display = 'block';
+      this.elements.countdown.textContent = '...';
+      this.elements.qrContainer.style.display = 'none';
+      this.updateStatus('Esperando que los estudiantes se registren...');
+    }
+  }
+
   showWaitingAuth(): void {
     this.updateStatus('Esperando autenticacion...');
   }

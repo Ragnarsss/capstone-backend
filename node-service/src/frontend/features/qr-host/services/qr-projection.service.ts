@@ -93,10 +93,27 @@ export class QRProjectionService {
     throw new Error('Formato de payload no reconocido');
   }
 
+  /**
+   * Verifica si el payload es de tipo "waiting" (pool vacio)
+   */
+  private isWaitingPayload(payload: QRUpdatePayload): boolean {
+    if ('data' in payload && payload.data) {
+      return payload.data.uid === -1 && payload.data.n === 'waiting';
+    }
+    return false;
+  }
+
   private async handleQRUpdate(payload: unknown): Promise<void> {
     const qrPayload = payload as QRUpdatePayload;
     
     try {
+      // Verificar si es payload de espera (pool vacio)
+      if (this.isWaitingPayload(qrPayload)) {
+        this.component.showWaiting();
+        console.debug('[QRProjectionService] Pool vacio, mostrando estado de espera');
+        return;
+      }
+
       const content = this.extractQRContent(qrPayload);
       
       // Usar nivel de correccion alto (H) para payloads encriptados
