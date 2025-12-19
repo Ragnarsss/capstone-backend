@@ -165,17 +165,16 @@ export class QRScanService {
           // El parent decide qué hacer (redirigir, mostrar mensaje, etc.)
           this.notifyParentCompletion(studentId, validationResult.sessionId);
         } else {
-          // Partial success - usar cooldown con cuenta regresiva
+          // Partial success - actualizar round esperado y mostrar cooldown
           this.component.showPartialSuccess(`Ronda ${payload.r} completada`);
           this.expectedRound = validationResult.nextRound || (this.expectedRound + 1);
           
-          // Cooldown visual antes de siguiente ronda
-          setTimeout(() => {
-            this.component.showCooldown(COOLDOWN_SECONDS, () => {
-              this.validating = false;
-              this.component.showScanning();
-            });
-          }, 500); // Breve pausa para mostrar el exito
+          // Cooldown visual con reanudación automática
+          this.component.showCooldown(COOLDOWN_SECONDS, () => {
+            this.validating = false;
+            this.component.showScanning();
+            console.log(`[QRScanService] Reanudando escaneo, round esperado: ${this.expectedRound}`);
+          });
         }
       } else {
         this.component.showValidationError(validationResult.message);
