@@ -1,7 +1,7 @@
 # ROADMAP - Fuente de Verdad del Proyecto
 
 > Ultima actualizacion: 2025-12-19
-> Base: main consolidado desde fase-22.10.3
+> Base: fase-22.6-fix-session-key-encryption
 > Build: OK | Tests: 262/262 pasando
 
 ---
@@ -14,25 +14,25 @@
 | 19-20 | Separacion Dominios y Limpieza Legacy | COMPLETADA |
 | 21.1-21.3 | Unificar Frontend, Access Gateway, Eliminar guest/ | COMPLETADA |
 | 22.1 | Validacion TOTP | COMPLETADA |
-| 22.4 | Extraer Persistencia | COMPLETADA |
-| 22.6-22.9 | Inyeccion SessionKeyQuery, QR Ports, Participation, /dev/ | COMPLETADA |
-| 22.10-22.10.3 | Mover WebSocketAuth, JWT, Emojis, Zod | COMPLETADA |
-| 22.10.4-22.10.10 | Correcciones Auditoria daRulez (secretos, access, traducciones, logger) | COMPLETADA |
-| ~~22.10.9~~ | ~~Traducir tests (AAA ya es estándar)~~ | **OMITIDA** |
 | **22.2** | **Session Key Binding (CRITICO)** | **COMPLETADA** |
 | **22.3** | **Validar AAGUID (CRITICO)** | **COMPLETADA** |
-| **22.3.3** | **Test HKDF Compatibility (CRITICO)** | **COMPLETADA** |
 | **22.3.1** | **Test Login ECDH Use Case (CRITICO)** | **COMPLETADA** |
 | **22.3.2** | **Test QR Generator (MAYOR)** | **COMPLETADA** |
+| **22.3.3** | **Test HKDF Compatibility (CRITICO)** | **COMPLETADA** |
 | **22.3.4** | **Test Decrypt Stage (MAYOR)** | **COMPLETADA** |
+| 22.4 | Extraer Persistencia | COMPLETADA |
 | **22.5** | **Stats + QR Lifecycle** | **COMPLETADA** |
+| **22.6** | **Fix Session Key Encryption (CRITICO)** | **COMPLETADA** |
+| **22.7** | **Unificar Singleton SessionKeyStore (MENOR)** | **PENDIENTE** |
+| 22.8-22.9 | Inyeccion SessionKeyQuery, QR Ports, Participation, /dev/ | COMPLETADA |
+| 22.10.1-22.10.3 | Mover WebSocketAuth, JWT, Emojis, Zod | COMPLETADA |
+| 22.10.4 | Centralizar secretos en .env | COMPLETADA |
+| 22.10.5 | Eliminar mencion microservicios | COMPLETADA |
+| 22.10.6 | Completar segmentacion modulo access | COMPLETADA |
+| 22.10.7-22.10.8 | Traducir comentarios restriction + enrollment | COMPLETADA |
+| ~~22.10.9~~ | ~~Traducir tests (AAA ya es estándar)~~ | **OMITIDA** |
+| 22.10.10 | Reemplazar console.log por logger | COMPLETADA |
 | ~~22.11-22.12~~ | ~~Deuda Tecnica Opcional~~ | **OMITIDAS** |
-| **26.1** | **TOTP Dual Key - evitar exportKey (CRITICO)** | **PENDIENTE** |
-| **26.2** | **Eliminar doble escritura session_key** | **PENDIENTE** |
-| **26.3** | **Unificar instancias SessionKeyStore** | **PENDIENTE** |
-| **26.4** | **Inyectar StudentEncryptionService (CRITICO)** | **PENDIENTE** |
-| **26.5** | **Extraer Composition Root** | **PENDIENTE** |
-| **26.6** | **Centralizar configuracion** | **PENDIENTE** |
 | **23** | **Integracion PHP (Restriction + Puente)** | **PENDIENTE** |
 | 24 | Infraestructura y Operaciones | PENDIENTE |
 | 25 | Testing E2E y Calidad | PENDIENTE |
@@ -52,94 +52,32 @@
 
 ```mermaid
 flowchart TB
-    subgraph BLOQUE_A[A: Correcciones daRulez]
-        direction LR
-        A1[22.10.4<br/>Secretos]
-        A2[22.10.5<br/>Microserv]
-        A3[22.10.6<br/>Access]
-        A4[22.10.7-8<br/>Traducciones]
-        A5[22.10.10<br/>Logger]
-        A1 --> A2 --> A3 --> A4 --> A5
-    end
+    P1[22.7<br/>Singleton Unification<br/>MENOR]
+    P2[23.1<br/>Restriction Integration<br/>MAYOR]
+    P3[23.2<br/>Puente HTTP Node-PHP<br/>MAYOR]
+    P4[24<br/>Infraestructura y Operaciones<br/>MAYOR]
+    P5[25<br/>Testing E2E y Calidad<br/>MAYOR]
+    
+    P1 --> P2
+    P2 --> P3
+    P3 --> P4
+    P4 --> P5
 
-    subgraph BLOQUE_B[B: Seguridad Critica]
-        direction LR
-        B1[22.2<br/>Key Binding]
-        B2[22.3<br/>AAGUID]
-        B1 --> B2
-    end
-
-    subgraph BLOQUE_B2[B2: Testing Critico Pre-Manual]
-        direction LR
-        T1[22.3.3<br/>HKDF Compat]:::done
-        T2[22.3.1<br/>Login ECDH]:::done
-        T3[22.3.2<br/>QR Generator]:::done
-        T4[22.3.4<br/>Decrypt Stage]:::done
-        T1 --> T2 --> T3 --> T4
-    end
-
-    subgraph BLOQUE_C[C: Arquitectura]
-        direction LR
-        C1[22.5<br/>Stats+Lifecycle]
-    end
-
-    subgraph BLOQUE_D[D: Deuda Tecnica]
-        direction LR
-        D1[22.11-12<br/>OMITIDAS]
-    end
-
-    subgraph BLOQUE_F[F: Correccion Flujo QR]
-        direction TB
-        F1[26.1<br/>TOTP Dual Key]:::critical
-        F2[26.2<br/>Eliminar Doble Escritura]
-        F3[26.3<br/>Singleton Store]
-        F4[26.4<br/>Inyectar Encryption]:::critical
-        F5[26.5<br/>Composition Root]
-        F6[26.6<br/>Centralizar Config]
-        F1 --> F2 --> F3
-        F1 --> F4 --> F5 --> F6
-    end
-
-    subgraph BLOQUE_E[E: Integracion PHP]
-        direction LR
-        E1[23.1<br/>Restriction]
-        E2[23.2<br/>Puente HTTP]
-        E1 --> E2
-    end
-
-    BLOQUE_A --> BLOQUE_B
-    BLOQUE_B --> BLOQUE_B2
-    BLOQUE_B2 --> BLOQUE_C
-    BLOQUE_C --> BLOQUE_D
-    BLOQUE_D --> BLOQUE_F
-    BLOQUE_F --> BLOQUE_E
-
-    style A1 fill:#90EE90
-    style A2 fill:#90EE90
-    style A3 fill:#90EE90
-    style A4 fill:#90EE90
-    style A5 fill:#90EE90
-    style B1 fill:#90EE90
-    style B2 fill:#90EE90
-    style T1 fill:#90EE90
-    style T2 fill:#90EE90
-    style T3 fill:#90EE90
-    style T4 fill:#90EE90
-    style C1 fill:#90EE90
-    style D1 fill:#90EE90
-    style F1 fill:#ff6b6b
-    style F2 fill:#ffa94d
-    style F3 fill:#ffa94d
-    style F4 fill:#ff6b6b
-    style F5 fill:#ffa94d
-    style F6 fill:#69db7c
-    style E1 fill:#99ccff
-    style E2 fill:#99ccff
-
-    classDef critical fill:#ff6b6b
+    style P1 fill:#90EE90
+    style P2 fill:#FFD700
+    style P3 fill:#FFD700
+    style P4 fill:#FFD700
+    style P5 fill:#FFD700
 ```
 
-**Leyenda:** Rojo oscuro = CRITICO, Naranja = MAYOR, Verde claro = MENOR, Verde = Completada, Azul = Integracion
+**Leyenda:** Verde claro = MENOR, Amarillo = MAYOR
+
+**Prioridad:**
+1. **22.7** (MENOR) - Mejora arquitectónica de bajo riesgo, desbloquea consistencia
+2. **23.1** (MAYOR) - Integración crítica con PHP para restricciones
+3. **23.2** (MAYOR) - Completa comunicación bidireccional Node↔PHP
+4. **24** (MAYOR) - Preparación para producción
+5. **25** (MAYOR) - Validación final de calidad
 
 ---
 
@@ -159,171 +97,6 @@ backend/
 ```
 
 ---
-
-## BLOQUE A: Correcciones Auditoria daRulez
-
-### Fase 22.10.4: Centralizar secretos en .env y validar en runtime
-
-**Rama:** `fase-22.10.4-centralize-secrets`
-**Modelo:** Sonnet
-**Severidad:** MAYOR (viola daRulez 6.6)
-**Referencia:** daRulez.md seccion 6.6 - "Los secretos nunca se documentan con valores reales"
-**Estado:** COMPLETADA (2025-12-18)
-**Commit:** e3172f9
-
-**Situación actual:**
-
-1. `.env.example` existe pero le falta `SERVER_MASTER_SECRET`
-2. `compose.yaml` tiene valores hardcodeados en lugar de usar `${VAR}` de `.env`
-3. `config/index.ts` tiene defaults inseguros que permiten iniciar sin `.env`
-
-**Archivos a modificar:**
-
-- `.env.example` - Agregar variable faltante
-- `.env` - Mantener sincronizado con `.env.example`
-- `compose.yaml` - Usar variables de entorno sin defaults
-- `node-service/src/shared/config/index.ts` - Validar variables críticas
-
-**Tareas:**
-
-- [x] Agregar `SERVER_MASTER_SECRET` a `.env.example` con documentación
-- [x] Actualizar `compose.yaml`: agregar `env_file: .env` y usar `${VAR}` sin defaults
-- [x] Modificar `config/index.ts`: eliminar defaults y agregar `validateRequiredEnvVars()`
-- [x] Verificar build y tests: 155/155 pasando
-- [x] Commit atómico: e3172f9
-
-**Criterio de exito:** CUMPLIDO
-- Aplicación falla al iniciar sin `.env` con mensaje claro
-- `.env.example` contiene TODAS las variables con valores de referencia
-- `compose.yaml` usa `env_file` y no tiene secrets hardcodeados
-
----
-
-### Fase 22.10.5: Eliminar mencion de microservicios
-
-**Rama:** `fase-22.10.5-remove-microservices-mention`
-**Modelo:** Sonnet
-**Severidad:** MAYOR (viola daRulez 2.1)
-**Referencia:** daRulez.md seccion 2.1 - "Microservicios estan prohibidos"
-**Estado:** COMPLETADA (2025-12-18)
-**Commit:** f36ed52
-
-**Archivo:** `node-service/src/shared/ports/index.ts`
-
-**Tareas:**
-
-- [x] Modificar comentario L11: eliminar "Preparacion para microservicios"
-- [x] Reemplazar por beneficios reales: desacoplamiento, testing, cambio de implementaciones
-- [x] Verificar: `grep -r "microservicio" node-service/` → 0 resultados
-- [x] Build y tests: 155/155 [OK]
-- [x] Commit atómico: f36ed52
-
-**Criterio de exito:** CUMPLIDO - Cero menciones de microservicios en codigo.
-
----
-
-### Fase 22.10.6: Completar segmentacion vertical modulo access
-
-**Rama:** `fase-22.10.6-access-vertical-slicing`
-**Modelo:** Opus
-**Severidad:** MAYOR (viola daRulez 2.2)
-**Referencia:** daRulez.md seccion 2.2 - "Cada modulo contiene: dominio, aplicacion, infraestructura, presentacion"
-**Estado:** COMPLETADA (2025-12-18)
-**Commit:** d7b863b
-
-**Directorio:** `node-service/src/backend/access/`
-
-**Estructura final:**
-
-```
-access/
-├── domain/                  # [OK] CREADO
-│   ├── models.ts            # AccessState, AccessStateType, AccessAction, AccessDeviceInfo
-│   └── index.ts
-├── application/services/    # [OK] Actualizado imports
-├── infrastructure/          # [OK] CREADO (reservado)
-│   └── index.ts
-├── presentation/            # Existente
-└── __tests__/               # Existente
-```
-
-**Tareas:**
-
-- [x] Crear `access/domain/models.ts` con tipos inmutables
-- [x] Crear `access/domain/index.ts` con exports
-- [x] Crear `access/infrastructure/index.ts` (reservado para futuros adaptadores)
-- [x] Mover `AccessState` de application/ a domain/
-- [x] Actualizar imports en access-gateway.service.ts
-- [x] Re-exportar tipos en application/services/index.ts para compatibilidad
-- [x] Build y tests: 155/155 [OK]
-- [x] Commit atómico: d7b863b
-
-**Criterio de exito:** CUMPLIDO - Modulo access tiene las 4 capas.
-
----
-
-### Fases 22.10.7 + 22.10.8: Traducir comentarios (restriction + enrollment)
-
-**Rama:** `fase-22.10.7-8-translate-comments`
-**Modelo:** Sonnet
-**Severidad:** MENOR (viola daRulez 7.4.1)
-**Referencia:** daRulez.md seccion 7.4.1 - "Comentarios solo en espanol"
-**Estado:** COMPLETADA (2025-12-18)
-**Commit:** c0260dc
-
-**Archivos modificados:**
-
-- `restriction/application/services/restriction.service.ts`
-- `enrollment/domain/services/one-to-one-policy.service.ts`
-- `enrollment/application/orchestrators/enrollment-flow.orchestrator.ts`
-
-**Tareas:**
-
-- [x] restriction.service.ts: traducir JSDoc completo y comentarios inline
-- [x] one-to-one-policy.service.ts: traducir metodos validate() y revokeViolations()
-- [x] enrollment-flow.orchestrator.ts: traducir metodo attemptAccess() y flujo
-- [x] Build y tests: 155/155 pasando
-- [x] Commit atomico agrupado: c0260dc
-
-**Criterio de exito:** CUMPLIDO - Comentarios de logica de negocio en espanol
-
----
-
-### Fase 22.10.9: Traducir comentarios - access tests
-
-**Rama:** `fase-22.10.9-translate-access-tests`
-**Modelo:** Sonnet
-**Severidad:** MENOR (viola daRulez 7.4.1)
-**Estado:** ~~PENDIENTE~~ → **OMITIDA**
-
-**Justificación de omisión:** Los comentarios `// Arrange`, `// Act`, `// Assert`, `// Verify` son convención estándar de testing (patrón AAA) y no requieren traducción. No hay comentarios de lógica de negocio en inglés.
-
----
-
-### Fase 22.10.10: Reemplazar console.log por logger
-
-**Rama:** `fase-22.10.10-use-structured-logger`
-**Modelo:** Sonnet
-**Severidad:** MENOR
-**Estado:** COMPLETADA (2025-12-18)
-**Commit:** 831c58d
-
-**Archivo:** `node-service/src/backend/enrollment/presentation/routes.ts`
-
-**Tareas:**
-
-- [x] Importar logger desde `shared/infrastructure/logger`
-- [x] L118-L130: Reemplazar console.log por logger.info/logger.warn/logger.error
-- [x] Formato estructurado: `logger.info({ userId, userAgent }, 'Client logs received')`
-- [x] Usar switch para mapear niveles: error → logger.error, warn → logger.warn, default → logger.info
-- [x] Build y tests: 155/155 pasando
-- [x] Commit atómico: 831c58d
-
-**Criterio de exito:** CUMPLIDO - No hay console.log en endpoint client-log, logging estructurado implementado
-
----
-
-## BLOQUE B: Seguridad Critica
 
 ### Fase 22.2: Session Key Binding con credentialId
 
@@ -405,10 +178,6 @@ access/
 **Referencias:** `Caracterizacion.md` sección 4, FIDO2 spec para AAGUIDs conocidos
 
 ---
-
-## BLOQUE B2: Testing Critico Pre-Manual
-
-> Prerequisito para pruebas manuales con FIDO2. Verifica que los componentes criticos del flujo funcionan antes de testing manual.
 
 ### Fase 22.3.1: Test unitario Login ECDH Use Case
 
@@ -590,8 +359,6 @@ El DecryptStage ahora tiene cobertura completa de tests unitarios que verifican 
 
 ---
 
-## BLOQUE C: Arquitectura
-
 ### Fase 22.5: Extraer Stats + QR Lifecycle - COMPLETADO ✅
 
 **Objetivo:** Desacoplar cálculo de estadísticas y generación de QR de `CompleteScanUseCase`, delegando a servicios dedicados que usen ports existentes.
@@ -629,7 +396,267 @@ El DecryptStage ahora tiene cobertura completa de tests unitarios que verifican 
 
 ---
 
-## BLOQUE D: Deuda Tecnica Opcional
+### Fase 22.6: Fix Session Key Encryption
+
+**Objetivo:** Corregir la encriptación de QRs y el flujo de login para usar session_key real del estudiante en lugar de mock key, solucionando errores de exportKey y duplicación de escritura.
+
+**Rama:** `fase-22.6-fix-session-key-encryption`
+**Modelo:** Opus
+**Severidad:** CRITICA
+**Estado:** COMPLETADA (2025-12-19)
+**Commit:** 9a7d544
+
+**Problemas resueltos:**
+
+1. **QR encriptado con MOCK_KEY en backend vs session_key real en frontend**
+   - `QRLifecycleService` generaba QRs con mock key porque no tenía `StudentEncryptionService`
+   - Backend: encriptaba con mock, Frontend: desencriptaba con session_key real → fallo
+   - Solución: Inyectar `StudentEncryptionService` en `QRLifecycleService` (routes.ts)
+
+2. **Error exportKey en qr-reader login**
+   - `qr-reader/main.ts` llamaba `storeSessionKey()` duplicadamente con parámetros incorrectos
+   - `LoginService` ya guardaba internamente la session_key
+   - Solución: Eliminar llamada duplicada
+
+3. **Soporte dual-key (AES + HMAC) para evitar exportKey**
+   - `StoredSession` ahora almacena `sessionKey` y `hmacKey` derivadas de HKDF
+   - `LoginService` deriva ambas claves desde shared secret ECDH
+   - Solución al error "key is not extractable"
+
+**Archivos principales modificados:**
+
+- `backend/attendance/presentation/routes.ts`: inyección StudentEncryptionService
+- `backend/attendance/services/student-encryption.service.ts`: nuevo servicio
+- `frontend/qr-reader/main.ts`: fix login duplicado
+- `frontend/enrollment/login.service.ts`: derivación dual-key HKDF
+- `frontend/enrollment/session-key.store.ts`: almacenamiento dual-key
+
+**Criterio de éxito verificable:**
+
+- [x] `QRLifecycleService` recibe `encryptionService` no-null
+- [x] Backend encripta QRs con session_key real del estudiante desde Valkey
+- [x] Frontend desencripta correctamente con session_key derivada
+- [x] Error `exportKey` eliminado con derivación dual-key
+- [x] Login no tiene escritura duplicada de session_key
+- [x] Build y tests: 262/262 pasando
+
+---
+
+### Fase 22.7: Unificar uso de singleton SessionKeyStore
+
+**Objetivo:** Eliminar instanciación directa de SessionKeyStore en favor del patrón singleton existente para garantizar consistencia de estado en toda la aplicación.
+
+**Rama:** `fase-22.7-unify-sessionkeystore-singleton`
+**Modelo:** Sonnet
+**Severidad:** MENOR
+**Referencia:** daRulez.md §7.1.2 - "Singleton mutable (estado global compartido)" prohibido cuando es mutable
+**Estado:** PENDIENTE
+
+**Situación actual:**
+
+Tres componentes instancian `SessionKeyStore` directamente con `new SessionKeyStore()` en lugar de usar la función singleton `getSessionKeyStore()`, violando el patrón establecido y creando potencialmente múltiples instancias con cachés desincronizadas.
+
+**Criterio de éxito verificable:**
+
+- [ ] `grep -rn "new SessionKeyStore()" node-service/src/frontend/` retorna solo 1 resultado (singleton factory)
+- [ ] `grep -rn "getSessionKeyStore()" node-service/src/frontend/` muestra uso consistente
+- [ ] Todas las features usan la misma instancia singleton
+- [ ] Build y tests: 262/262 pasando
+
+**Restricciones arquitectónicas:**
+
+- Mantener compatibilidad con inyección opcional en `LoginService` (para testing)
+- No cambiar la API pública de `SessionKeyStore`
+- Singleton debe ser inmutable en estructura (no viola daRulez §7.1.2)
+
+**Archivos a modificar:**
+
+- `node-service/src/frontend/shared/crypto/aes-gcm.ts` (L39)
+- `node-service/src/frontend/features/qr-reader/main.ts` (L79)
+- `node-service/src/frontend/features/enrollment/main.ts` (L55)
+
+**Tareas:**
+
+- [ ] Importar `getSessionKeyStore` en aes-gcm.ts
+- [ ] Reemplazar `new SessionKeyStore()` por `getSessionKeyStore()` en aes-gcm.ts
+- [ ] Importar `getSessionKeyStore` en qr-reader/main.ts
+- [ ] Reemplazar `new SessionKeyStore()` por `getSessionKeyStore()` en qr-reader/main.ts
+- [ ] Importar `getSessionKeyStore` en enrollment/main.ts
+- [ ] Reemplazar `new SessionKeyStore()` por `getSessionKeyStore()` en enrollment/main.ts
+- [ ] Verificar que LoginService mantiene inyección opcional para tests
+- [ ] Build y tests: 262/262 pasando
+- [ ] Commit atómico
+
+**Entregables mínimos:**
+
+- Uso consistente del patrón singleton en todos los componentes frontend
+- Eliminación de instanciación directa excepto en singleton factory
+- Zero regresiones en tests existentes
+
+**Impacto:** Bajo - mejora consistencia arquitectónica sin cambiar funcionalidad.
+
+---
+
+### Fase 22.10.4: Centralizar secretos en .env y validar en runtime
+
+**Rama:** `fase-22.10.4-centralize-secrets`
+**Modelo:** Sonnet
+**Severidad:** MAYOR (viola daRulez 6.6)
+**Referencia:** daRulez.md seccion 6.6 - "Los secretos nunca se documentan con valores reales"
+**Estado:** COMPLETADA (2025-12-18)
+**Commit:** e3172f9
+
+**Situación actual:**
+
+1. `.env.example` existe pero le falta `SERVER_MASTER_SECRET`
+2. `compose.yaml` tiene valores hardcodeados en lugar de usar `${VAR}` de `.env`
+3. `config/index.ts` tiene defaults inseguros que permiten iniciar sin `.env`
+
+**Archivos a modificar:**
+
+- `.env.example` - Agregar variable faltante
+- `.env` - Mantener sincronizado con `.env.example`
+- `compose.yaml` - Usar variables de entorno sin defaults
+- `node-service/src/shared/config/index.ts` - Validar variables críticas
+
+**Tareas:**
+
+- [x] Agregar `SERVER_MASTER_SECRET` a `.env.example` con documentación
+- [x] Actualizar `compose.yaml`: agregar `env_file: .env` y usar `${VAR}` sin defaults
+- [x] Modificar `config/index.ts`: eliminar defaults y agregar `validateRequiredEnvVars()`
+- [x] Verificar build y tests: 155/155 pasando
+- [x] Commit atómico: e3172f9
+
+**Criterio de exito:** CUMPLIDO
+- Aplicación falla al iniciar sin `.env` con mensaje claro
+- `.env.example` contiene TODAS las variables con valores de referencia
+- `compose.yaml` usa `env_file` y no tiene secrets hardcodeados
+
+---
+
+### Fase 22.10.5: Eliminar mencion de microservicios
+
+**Rama:** `fase-22.10.5-remove-microservices-mention`
+**Modelo:** Sonnet
+**Severidad:** MAYOR (viola daRulez 2.1)
+**Referencia:** daRulez.md seccion 2.1 - "Microservicios estan prohibidos"
+**Estado:** COMPLETADA (2025-12-18)
+**Commit:** f36ed52
+
+**Archivo:** `node-service/src/shared/ports/index.ts`
+
+**Tareas:**
+
+- [x] Modificar comentario L11: eliminar "Preparacion para microservicios"
+- [x] Reemplazar por beneficios reales: desacoplamiento, testing, cambio de implementaciones
+- [x] Verificar: `grep -r "microservicio" node-service/` → 0 resultados
+- [x] Build y tests: 155/155 [OK]
+- [x] Commit atómico: f36ed52
+
+**Criterio de exito:** CUMPLIDO - Cero menciones de microservicios en codigo.
+
+---
+
+### Fase 22.10.6: Completar segmentacion vertical modulo access
+
+**Rama:** `fase-22.10.6-access-vertical-slicing`
+**Modelo:** Opus
+**Severidad:** MAYOR (viola daRulez 2.2)
+**Referencia:** daRulez.md seccion 2.2 - "Cada modulo contiene: dominio, aplicacion, infraestructura, presentacion"
+**Estado:** COMPLETADA (2025-12-18)
+**Commit:** d7b863b
+
+**Directorio:** `node-service/src/backend/access/`
+
+**Estructura final:**
+
+```
+access/
+├── domain/                  # [OK] CREADO
+│   ├── models.ts            # AccessState, AccessStateType, AccessAction, AccessDeviceInfo
+│   └── index.ts
+├── application/services/    # [OK] Actualizado imports
+├── infrastructure/          # [OK] CREADO (reservado)
+│   └── index.ts
+├── presentation/            # Existente
+└── __tests__/               # Existente
+```
+
+**Tareas:**
+
+- [x] Crear `access/domain/models.ts` con tipos inmutables
+- [x] Crear `access/domain/index.ts` con exports
+- [x] Crear `access/infrastructure/index.ts` (reservado para futuros adaptadores)
+- [x] Mover `AccessState` de application/ a domain/
+- [x] Actualizar imports en access-gateway.service.ts
+- [x] Re-exportar tipos en application/services/index.ts para compatibilidad
+- [x] Build y tests: 155/155 [OK]
+- [x] Commit atómico: d7b863b
+
+**Criterio de exito:** CUMPLIDO - Modulo access tiene las 4 capas.
+
+---
+
+### Fases 22.10.7 + 22.10.8: Traducir comentarios (restriction + enrollment)
+
+**Rama:** `fase-22.10.7-8-translate-comments`
+**Modelo:** Sonnet
+**Severidad:** MENOR (viola daRulez 7.4.1)
+**Referencia:** daRulez.md seccion 7.4.1 - "Comentarios solo en espanol"
+**Estado:** COMPLETADA (2025-12-18)
+**Commit:** c0260dc
+
+**Archivos modificados:**
+
+- `restriction/application/services/restriction.service.ts`
+- `enrollment/domain/services/one-to-one-policy.service.ts`
+- `enrollment/application/orchestrators/enrollment-flow.orchestrator.ts`
+
+**Tareas:**
+
+- [x] restriction.service.ts: traducir JSDoc completo y comentarios inline
+- [x] one-to-one-policy.service.ts: traducir metodos validate() y revokeViolations()
+- [x] enrollment-flow.orchestrator.ts: traducir metodo attemptAccess() y flujo
+- [x] Build y tests: 155/155 pasando
+- [x] Commit atomico agrupado: c0260dc
+
+**Criterio de exito:** CUMPLIDO - Comentarios de logica de negocio en espanol
+
+---
+
+### Fase 22.10.9: Traducir comentarios - access tests
+
+**Rama:** `fase-22.10.9-translate-access-tests`
+**Modelo:** Sonnet
+**Severidad:** MENOR (viola daRulez 7.4.1)
+**Estado:** ~~PENDIENTE~~ → **OMITIDA**
+
+**Justificación de omisión:** Los comentarios `// Arrange`, `// Act`, `// Assert`, `// Verify` son convención estándar de testing (patrón AAA) y no requieren traducción. No hay comentarios de lógica de negocio en inglés.
+
+---
+
+### Fase 22.10.10: Reemplazar console.log por logger
+
+**Rama:** `fase-22.10.10-use-structured-logger`
+**Modelo:** Sonnet
+**Severidad:** MENOR
+**Estado:** COMPLETADA (2025-12-18)
+**Commit:** 831c58d
+
+**Archivo:** `node-service/src/backend/enrollment/presentation/routes.ts`
+
+**Tareas:**
+
+- [x] Importar logger desde `shared/infrastructure/logger`
+- [x] L118-L130: Reemplazar console.log por logger.info/logger.warn/logger.error
+- [x] Formato estructurado: `logger.info({ userId, userAgent }, 'Client logs received')`
+- [x] Usar switch para mapear niveles: error → logger.error, warn → logger.warn, default → logger.info
+- [x] Build y tests: 155/155 pasando
+- [x] Commit atómico: 831c58d
+
+**Criterio de exito:** CUMPLIDO - No hay console.log en endpoint client-log, logging estructurado implementado
+
+---
 
 ### Fases 22.11-22.12
 
@@ -644,243 +671,6 @@ El DecryptStage ahora tiene cobertura completa de tests unitarios que verifican 
 **Resultado:** Estas fases pueden eliminarse del roadmap activo.
 
 ---
-
-## BLOQUE F: Correccion Flujo Escaneo QR
-
-> Resuelve problemas criticos detectados en el flujo de escaneo QR que impiden la validacion de asistencia.
-> Prerequisito para pruebas manuales end-to-end.
-
-### Fase 26.1: TOTP Dual Key - evitar exportKey
-
-**Objetivo:** Resolver el error `Failed to execute 'exportKey' on 'SubtleCrypto': key is not extractable` almacenando una version HMAC de la session_key durante el login.
-
-**Rama:** `fase-26.1-totp-dual-key`
-**Modelo:** Opus
-**Severidad:** CRITICA
-**Referencia:** Error en runtime, bloquea flujo completo de escaneo
-
-**Situacion actual:**
-
-- `generateTOTPu()` en `totp.ts` llama `exportKey('raw', key)` para reimportar como HMAC
-- La session_key derivada de ECDH puede no ser extractable dependiendo del navegador/contexto
-- El error bloquea completamente el flujo de validacion
-
-**Archivos a modificar:**
-
-| Archivo | Cambio |
-|---------|--------|
-| `frontend/shared/services/enrollment/session-key.store.ts` | Almacenar `hmacKey` junto a `sessionKey` en `StoredSession` |
-| `frontend/shared/services/enrollment/login.service.ts` | Derivar HMAC key durante login y pasarla a store |
-| `frontend/shared/crypto/totp.ts` | Recibir HMAC key directamente, eliminar `ensureHmacKey()` |
-| `frontend/features/qr-reader/services/qr-scan.service.ts` | Obtener HMAC key del store para TOTP |
-
-**Tareas:**
-
-- [ ] Modificar `StoredSession` interface: agregar `hmacKey: JsonWebKey`
-- [ ] En `LoginService.deriveSessionKey()`: derivar segunda key con `usages: ['sign']` para HMAC
-- [ ] Actualizar `SessionKeyStore.storeSessionKey()`: recibir y almacenar ambas keys
-- [ ] Crear `SessionKeyStore.getHmacKey()`: nuevo metodo que retorna CryptoKey HMAC
-- [ ] Simplificar `generateTOTPu()`: recibir HMAC key directamente, sin conversion
-- [ ] Actualizar `QRScanService`: usar `getHmacKey()` para TOTP
-- [ ] Build y tests: X/X pasando
-
-**Criterio de exito:**
-
-- [ ] `generateTOTPu()` no llama `exportKey()`
-- [ ] TOTP se genera correctamente con key HMAC dedicada
-- [ ] Error `key is not extractable` eliminado
-- [ ] Tests unitarios para derivacion dual
-
----
-
-### Fase 26.2: Eliminar doble escritura de session_key
-
-**Objetivo:** Eliminar la escritura duplicada que sobrescribe la session_key con datos incompletos.
-
-**Rama:** `fase-26.2-eliminate-duplicate-store`
-**Modelo:** Sonnet
-**Severidad:** MAYOR
-**Referencia:** daRulez 7.1.1 - DRY
-
-**Situacion actual:**
-
-- `LoginService.performLogin()` almacena en singleton con `(sessionKey, totpu, deviceId)`
-- `qr-reader/main.ts` vuelve a llamar `storeSessionKey(result.sessionKey, result.totpu)` sin deviceId
-- La segunda escritura sobrescribe la primera con datos incompletos
-
-**Archivos a modificar:**
-
-| Archivo | Cambio |
-|---------|--------|
-| `frontend/features/qr-reader/main.ts` | Eliminar llamada duplicada a `storeSessionKey()` |
-| `frontend/features/enrollment/main.ts` | Eliminar llamada duplicada a `storeSessionKey()` |
-
-**Tareas:**
-
-- [ ] En `qr-reader/main.ts:356`: eliminar `await this.sessionKeyStore.storeSessionKey(...)`
-- [ ] En `enrollment/main.ts:385`: eliminar `this.sessionKeyStore.storeSessionKey(...)`
-- [ ] Verificar que `LoginService.performLogin()` es la unica fuente de escritura
-- [ ] Build y tests: X/X pasando
-
-**Criterio de exito:**
-
-- [ ] `grep -n "storeSessionKey" frontend/` muestra solo `login.service.ts` y `session-key.store.ts`
-- [ ] deviceId siempre presente en session almacenada
-
----
-
-### Fase 26.3: Unificar instancias de SessionKeyStore
-
-**Objetivo:** Usar singleton `getSessionKeyStore()` en todo el frontend para evitar inconsistencias.
-
-**Rama:** `fase-26.3-singleton-session-store`
-**Modelo:** Sonnet
-**Severidad:** MAYOR
-**Referencia:** Multiples instancias accediendo al mismo sessionStorage
-
-**Situacion actual:**
-
-- `qr-reader/main.ts:79` crea `new SessionKeyStore()`
-- `aes-gcm.ts:38` crea `new SessionKeyStore()`
-- `qr-scan.service.ts:143` usa `getSessionKeyStore()` (correcto)
-- Tres instancias diferentes accediendo al mismo storage
-
-**Archivos a modificar:**
-
-| Archivo | Cambio |
-|---------|--------|
-| `frontend/features/qr-reader/main.ts` | Usar `getSessionKeyStore()` |
-| `frontend/shared/crypto/aes-gcm.ts` | Usar `getSessionKeyStore()` |
-
-**Tareas:**
-
-- [ ] En `qr-reader/main.ts:79`: cambiar `new SessionKeyStore()` por `getSessionKeyStore()`
-- [ ] En `aes-gcm.ts:38`: cambiar `new SessionKeyStore()` por `getSessionKeyStore()`
-- [ ] Verificar imports actualizados
-- [ ] Build y tests: X/X pasando
-
-**Criterio de exito:**
-
-- [ ] `grep -n "new SessionKeyStore()" frontend/` retorna 0 resultados
-- [ ] Todas las referencias usan `getSessionKeyStore()`
-
----
-
-### Fase 26.4: Inyectar StudentEncryptionService en factory
-
-**Objetivo:** Corregir el factory para que los QRs de rounds 2+ se generen con session_key real, no mock.
-
-**Rama:** `fase-26.4-inject-encryption-service`
-**Modelo:** Opus
-**Severidad:** CRITICA
-**Referencia:** daRulez 1.4.1 - "Seguridad primero"
-
-**Situacion actual:**
-
-- `complete-scan-deps.factory.ts:114-118` crea `QRLifecycleService` sin `encryptionService`
-- QRs para rounds 2+ se generan con mock key
-- Estudiante no puede descifrar QRs generados despues del primero
-
-**Archivos a modificar:**
-
-| Archivo | Cambio |
-|---------|--------|
-| `backend/attendance/infrastructure/adapters/complete-scan-deps.factory.ts` | Crear e inyectar `StudentEncryptionService` |
-
-**Tareas:**
-
-- [ ] Importar `StudentEncryptionService` y `SessionKeyQueryAdapter`
-- [ ] Crear instancia de `SessionKeyQueryAdapter` en el factory
-- [ ] Crear instancia de `StudentEncryptionService` con el adapter
-- [ ] Pasar `encryptionService` al constructor de `QRLifecycleService`
-- [ ] Build y tests: X/X pasando
-
-**Criterio de exito:**
-
-- [ ] `QRLifecycleService` recibe `encryptionService` no-null
-- [ ] Log `[QRLifecycle] Sin StudentEncryptionService` no aparece en runtime
-- [ ] QRs round 2+ son descifrables por el estudiante
-
----
-
-### Fase 26.5: Extraer Composition Root de routes.ts
-
-**Objetivo:** Mover la creacion de servicios fuera de la capa de presentacion, respetando SoC.
-
-**Rama:** `fase-26.5-extract-composition-root`
-**Modelo:** Sonnet
-**Severidad:** MAYOR
-**Referencia:** daRulez 2.2 - "Prohibido capas tecnicas transversales compartidas"
-
-**Situacion actual:**
-
-- `routes.ts:56-100` instancia 20+ servicios directamente
-- Capa de presentacion conoce detalles de infraestructura
-- Dificil de testear y mantener
-
-**Archivos a crear/modificar:**
-
-| Archivo | Cambio |
-|---------|--------|
-| `backend/attendance/infrastructure/composition-root.ts` | NUEVO: factory de dependencias |
-| `backend/attendance/presentation/routes.ts` | Simplificar, usar composition root |
-
-**Tareas:**
-
-- [ ] Crear `composition-root.ts` con funcion `createAttendanceDependencies()`
-- [ ] Mover creacion de servicios de `routes.ts` a `composition-root.ts`
-- [ ] Exportar objetos pre-construidos: `participationService`, `completeScanUseCase`, etc.
-- [ ] Actualizar `routes.ts` para importar dependencias del composition root
-- [ ] Build y tests: X/X pasando
-
-**Criterio de exito:**
-
-- [ ] `routes.ts` no tiene `new XxxService()` excepto para validacion de request
-- [ ] `composition-root.ts` centraliza todas las instanciaciones
-- [ ] Tests pueden mockear el composition root completo
-
----
-
-### Fase 26.6: Centralizar configuracion (magic numbers)
-
-**Objetivo:** Centralizar valores hardcodeados en configuracion, facilitando ajustes sin modificar codigo.
-
-**Rama:** `fase-26.6-centralize-config`
-**Modelo:** Sonnet
-**Severidad:** MENOR
-**Referencia:** daRulez 7.1.1 - DRY
-
-**Situacion actual:**
-
-Magic numbers dispersos:
-- `qr-scan.service.ts`: `COOLDOWN_SECONDS = 3`, `ERROR_RECOVERY_SECONDS = 2`
-- `student-session.repository.ts`: `stateTTL = 7200`
-- `stats-calculator.ts`: rangos de certeza hardcodeados
-
-**Archivos a modificar:**
-
-| Archivo | Cambio |
-|---------|--------|
-| `shared/config/index.ts` | Agregar constantes de attendance |
-| `frontend/shared/config/index.ts` | Crear archivo config para frontend |
-| Archivos con magic numbers | Importar desde config |
-
-**Tareas:**
-
-- [ ] Agregar a `shared/config/index.ts`: `SCAN_COOLDOWN_SECONDS`, `ERROR_RECOVERY_SECONDS`
-- [ ] Agregar rangos de certeza: `CERTAINTY_SUSPICIOUS_MIN_MS`, `CERTAINTY_SUSPICIOUS_MAX_MS`
-- [ ] Crear `frontend/shared/config/index.ts` con constantes de UI
-- [ ] Actualizar archivos para usar imports de config
-- [ ] Build y tests: X/X pasando
-
-**Criterio de exito:**
-
-- [ ] `grep -rn "= 3;" frontend/` no encuentra cooldowns hardcodeados
-- [ ] Configuracion centralizada y documentada
-
----
-
-## BLOQUE E: Integracion PHP (FINAL)
 
 ### Fase 23.1: Implementar Restriction Service
 
@@ -1006,44 +796,39 @@ Magic numbers dispersos:
 
 ## Proxima Accion
 
-Ejecutar en orden estricto:
+Ejecutar en orden de prioridad:
 
-**BLOQUE A - Compliance daRulez:** [OK] COMPLETADO
-1. [OK] **22.10.4** - Centralizar secretos (commit e3172f9)
-2. [OK] **22.10.5** - Eliminar microservicios (commit f36ed52)
-3. [OK] **22.10.6** - Completar modulo access (commit d7b863b)
-4. [OK] **22.10.7-8** - Traducir comentarios (commit c0260dc)
-5. [OMITIDA] **22.10.9** - Tests ya usan convencion AAA
-6. [OK] **22.10.10** - Logger estructurado (commit 831c58d)
+### Pendientes por Completar
 
-**BLOQUE B - Seguridad Critica:** [OK] COMPLETADO
-7. [OK] **22.2** - Session Key Binding con credentialId (commit 5c2c473)
-8. [OK] **22.3** - AAGUID Validation con whitelist (commits 0844ede, 1296c0a)
+1. **[MENOR]** **22.7** - Unificar Singleton SessionKeyStore
+   - Impacto: Bajo, mejora consistencia arquitectónica
+   - Esfuerzo: ~1-2 horas
+   - Riesgo: Mínimo
+   - **SIGUIENTE TAREA**
 
-**BLOQUE B2 - Testing Critico Pre-Manual:** [OK] COMPLETADO
-9. [OK] **22.3.3** - Test compatibilidad HKDF Frontend-Backend (commit 9a2a24a)
-10. [OK] **22.3.1** - Test unitario Login ECDH Use Case (commit 65f0168)
-11. [OK] **22.3.2** - Test unitario QR Generator (commit b8b3f1d)
-12. [OK] **22.3.4** - Test unitario Decrypt Stage (commit 1f1fcdf)
+2. **[MAYOR]** **23.1** - Implementar Restriction Service
+   - Impacto: Alto, integración crítica con PHP
+   - Esfuerzo: ~1-2 días
+   - Riesgo: Medio (requiere coordinación con equipo PHP)
+   - Dependencias: 22.7 completado
 
-**BLOQUE C - Arquitectura:** [OK] COMPLETADO
-13. [OK] **22.5** - Stats + QR Lifecycle extraction (commit 0755ca1)
+3. **[MAYOR]** **23.2** - Puente HTTP Node-PHP
+   - Impacto: Alto, completa comunicación bidireccional
+   - Esfuerzo: ~2-3 días
+   - Riesgo: Medio
+   - Dependencias: 23.1 completado
 
-**BLOQUE F - Correccion Flujo Escaneo QR:**
-14. [ ] **26.1** - TOTP Dual Key (CRITICO) - Modelo: Opus
-15. [ ] **26.2** - Eliminar doble escritura session_key - Modelo: Sonnet
-16. [ ] **26.3** - Unificar instancias SessionKeyStore - Modelo: Sonnet
-17. [ ] **26.4** - Inyectar StudentEncryptionService (CRITICO) - Modelo: Opus
-18. [ ] **26.5** - Extraer Composition Root - Modelo: Sonnet
-19. [ ] **26.6** - Centralizar configuracion - Modelo: Sonnet
+4. **[MAYOR]** **24** - Infraestructura y Operaciones
+   - Impacto: Alto, preparación para producción
+   - Esfuerzo: ~3-5 días
+   - Riesgo: Bajo-Medio
+   - Dependencias: 23.2 completado
 
-**BLOQUE E - Integracion PHP (FINAL):**
-20. [ ] **23.1** - Restriction Integration
-21. [ ] **23.2** - Puente HTTP Node-PHP
-
-**Fases omitidas:**
-- ~~22.10.9~~ - Comentarios tests ya usan convencion AAA estandar
-- ~~22.11-22.12~~ - No hay flags legacy ni DI container
+5. **[MAYOR]** **25** - Testing E2E y Calidad
+   - Impacto: Alto, validación final
+   - Esfuerzo: ~3-5 días
+   - Riesgo: Bajo
+   - Dependencias: 24 completado
 
 ---
 
