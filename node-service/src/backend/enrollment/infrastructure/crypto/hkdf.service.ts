@@ -60,6 +60,23 @@ export class HkdfService {
   }
 
   /**
+   * Deriva hmacKey a partir de session_key para generacion/validacion TOTP
+   * 
+   * Usa el mismo info string que el frontend para garantizar compatibilidad:
+   * 'attendance-hmac-key-v1:' + credentialId
+   * 
+   * @param sessionKey - Session key derivada del ECDH
+   * @param credentialId - ID unico de la credencial FIDO2 (Base64)
+   * @returns Buffer de 32 bytes (hmacKey)
+   */
+  async deriveHmacKey(sessionKey: Buffer, credentialId: string): Promise<Buffer> {
+    const info = Buffer.from('attendance-hmac-key-v1:' + credentialId, 'utf-8');
+    const salt = Buffer.alloc(0);
+
+    return await this.hkdf(sessionKey, salt, info, 32);
+  }
+
+  /**
    * Deriva una clave genérica con contexto personalizado
    * 
    * @param ikm - Input Key Material

@@ -7,7 +7,7 @@ import { CameraManager } from './camera-manager';
 import type { CameraViewComponent } from '../ui/camera-view.component';
 import { AttendanceApiClient } from './attendance-api.client';
 import { AuthClient } from '../../../shared/auth/auth-client';
-import { decryptQR, encryptPayload } from '../../../shared/crypto/aes-gcm';
+import { decryptQR, encryptPayload, generateTotp } from '../../../shared/crypto';
 import { getSessionKeyStore } from '../../../shared/services/enrollment/session-key.store';
 
 // Tiempo de espera entre rondas (segundos)
@@ -127,15 +127,19 @@ export class QRScanService {
       this.validating = true;
       this.component.showValidating();
 
-      // 6. Obtener TOTPu del store de sesión
+      // 6. Obtener hmacKey del store y generar TOTP en tiempo real
       const sessionKeyStore = getSessionKeyStore();
-      const totpu = sessionKeyStore.getTotpu();
+      const hmacKey = await sessionKeyStore.getHmacKey();
       
-      if (!totpu) {
-        console.error('[QRScanService] No hay TOTPu almacenado - sesión no válida');
-        this.showRecoverableError('Sesión expirada. Por favor inicie sesión nuevamente.');
+      if (!hmacKey) {
+        console.error('[QRScanService] No hay hmacKey almacenada - sesion no valida');
+        this.component.showValidationError('Sesion expirada. Por favor inicie sesion nuevamente.');
+        this.validating = false;
         return;
       }
+
+      // Generar TOTP en tiempo real (no usar valor almacenado)
+      const totpu = await generateTotp(hmacKey);
 
       // 7. Construir respuesta con payload original desencriptado + TOTPu
       const responsePayload = {

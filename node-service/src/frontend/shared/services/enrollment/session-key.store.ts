@@ -16,7 +16,6 @@
 export interface StoredSession {
   sessionKey: JsonWebKey;
   hmacKey: JsonWebKey;
-  totpu: string;
   deviceId: number;
   createdAt: number;
   expiresAt: number;
@@ -32,7 +31,6 @@ export class SessionKeyStore {
   async storeSessionKey(
     sessionKey: CryptoKey,
     hmacKey: CryptoKey,
-    totpu: string,
     deviceId: number
   ): Promise<void> {
     try {
@@ -43,7 +41,6 @@ export class SessionKeyStore {
       const session: StoredSession = {
         sessionKey: sessionKeyData,
         hmacKey: hmacKeyData,
-        totpu,
         deviceId,
         createdAt: Date.now(),
         expiresAt: Date.now() + SESSION_TTL_MS,
@@ -136,14 +133,6 @@ export class SessionKeyStore {
   getDeviceId(): number | null {
     const session = this.getStoredSession();
     return session?.deviceId ?? null;
-  }
-
-  /**
-   * Obtiene el TOTPu almacenado
-   */
-  getTotpu(): string | null {
-    const session = this.getStoredSession();
-    return session?.totpu ?? null;
   }
 
   /**

@@ -110,12 +110,11 @@ export class LoginService {
       const hmacKey = await this.deriveHmacKey(sharedSecret, credentialId);
 
       // 7. Almacenar ambas claves en SessionKeyStore
-      await this.sessionKeyStore.storeSessionKey(sessionKey, hmacKey, data.totpu, data.deviceId);
+      await this.sessionKeyStore.storeSessionKey(sessionKey, hmacKey, data.deviceId);
 
       return {
         success: true,
         sessionKey,
-        totpu: data.totpu,
         deviceId: data.deviceId,
       };
     } catch (error) {

@@ -16,7 +16,6 @@ import {
 } from '../infrastructure/adapters';
 import { AesGcmService } from '../../../shared/infrastructure/crypto';
 import { SessionKeyRepository } from '../../session/infrastructure/repositories/session-key.repository';
-import { DeviceRepository } from '../../enrollment/infrastructure/repositories/device.repository';
 import { HkdfService } from '../../enrollment/infrastructure/crypto/hkdf.service';
 import { TotpValidatorAdapter } from '../../enrollment/infrastructure/adapters';
 import { mapValidationError } from './error-mapper';
@@ -97,10 +96,9 @@ export async function registerAttendanceRoutes(
 
   // UseCases con pipeline
 
-  // TOTP validator usando handshake_secret (enrollment domain)
-  const deviceRepo = new DeviceRepository();
+  // TOTP validator usando session_key de Valkey (segun diseno 14-decision-totp-session-key.md)
   const hkdfService = new HkdfService();
-  const totpValidator = new TotpValidatorAdapter(deviceRepo, hkdfService);
+  const totpValidator = new TotpValidatorAdapter(sessionKeyQuery, hkdfService);
 
   // UseCase para solo validación (debugging)
   const validateScanUseCase = new ValidateScanUseCase({

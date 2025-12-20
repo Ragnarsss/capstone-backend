@@ -21,7 +21,6 @@ import { StudentStateAdapter } from './student-state.adapter';
 import { SessionKeyQueryAdapter } from './session-key-query.adapter';
 import { SessionKeyRepository } from '../../../session/infrastructure/repositories/session-key.repository';
 import { ValidationRepository, ResultRepository, RegistrationRepository } from '../repositories';
-import { DeviceRepository } from '../../../enrollment/infrastructure/repositories/device.repository';
 import { HkdfService } from '../../../enrollment/infrastructure/crypto/hkdf.service';
 import { TotpValidatorAdapter } from '../../../enrollment/infrastructure/adapters';
 import { logger } from '../../../../shared/infrastructure/logger';
@@ -82,10 +81,9 @@ export function createCompleteScanDepsWithPersistence(
   const studentStateLoader = new StudentStateAdapter(studentRepo);
   const sessionKeyQuery = new SessionKeyQueryAdapter(sessionKeyRepo);
   
-  // TOTP validator usando handshake_secret (enrollment domain)
-  const deviceRepo = new DeviceRepository();
+  // TOTP validator usando session_key de Valkey (segun diseno 14-decision-totp-session-key.md)
   const hkdfService = new HkdfService();
-  const totpValidator = new TotpValidatorAdapter(deviceRepo, hkdfService);
+  const totpValidator = new TotpValidatorAdapter(sessionKeyQuery, hkdfService);
 
   const deps: CompleteScanDependencies = {
     // Para ValidateScanUseCase (pipeline)

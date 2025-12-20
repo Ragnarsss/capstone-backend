@@ -1,49 +1,50 @@
-import type { ITotpValidator } from '../../../../shared/ports';
-import type { DeviceRepository } from '../repositories/device.repository';
+import type { ITotpValidator, ISessionKeyQuery } from '../../../../shared/ports';
 import type { HkdfService } from '../crypto/hkdf.service';
 
 /**
- * Adapter para validación TOTP
+ * Adapter para validacion TOTP
  * 
  * Implementa ITotpValidator usando:
- * - DeviceRepository: para obtener handshake_secret del dispositivo activo
- * - HkdfService: para validar TOTP con implementación RFC 4226
+ * - ISessionKeyQuery: para obtener session_key de Valkey
+ * - HkdfService: para derivar hmacKey y validar TOTP
  * 
- * Este adapter encapsula toda la lógica de obtención del secret y validación,
- * exponiendo una interfaz simple al consumidor (attendance pipeline).
+ * Flujo segun diseno 14-decision-totp-session-key.md:
+ * 1. Obtener session_key + credentialId de Valkey
+ * 2. Derivar hmacKey = HKDF(session_key, 'attendance-hmac-key-v1:' + credentialId)
+ * 3. Validar TOTP con hmacKey
  */
 export class TotpValidatorAdapter implements ITotpValidator {
   constructor(
-    private readonly deviceRepository: DeviceRepository,
+    private readonly sessionKeyQuery: ISessionKeyQuery,
     private readonly hkdfService: HkdfService,
   ) {}
 
   /**
    * Valida un TOTP para un usuario dado
    * 
-   * 1. Busca el dispositivo activo del usuario
-   * 2. Obtiene el handshake_secret almacenado
-   * 3. Valida el TOTP con ventana de ±30s
+   * 1. Obtiene session_key de Valkey
+   * 2. Deriva hmacKey con HKDF
+   * 3. Valida el TOTP con ventana de +/-30s
    * 
    * @param userId - ID del usuario
-   * @param totp - Valor TOTP de 6 dígitos
-   * @returns true si válido, false si no hay dispositivo o TOTP inválido
+   * @param totp - Valor TOTP de 6 digitos
+   * @returns true si valido, false si no hay sesion o TOTP invalido
    */
   async validate(userId: number, totp: string): Promise<boolean> {
-    // Obtener dispositivos activos del usuario
-    const devices = await this.deviceRepository.findByUserId(userId);
+    // 1. Obtener session_key de Valkey
+    const sessionData = await this.sessionKeyQuery.findByUserId(userId);
 
-    if (devices.length === 0) {
+    if (!sessionData) {
       return false;
     }
 
-    // Usar el dispositivo más reciente (primero en el array ordenado por enrolled_at DESC)
-    const device = devices[0];
+    // 2. Derivar hmacKey desde session_key (mismo algoritmo que frontend)
+    const hmacKey = await this.hkdfService.deriveHmacKey(
+      sessionData.sessionKey,
+      sessionData.credentialId
+    );
 
-    // Convertir handshake_secret de Base64 a Buffer
-    const handshakeSecret = Buffer.from(device.handshakeSecret, 'base64');
-
-    // Validar TOTP con ventana de tolerancia (±1 step = ±30s)
-    return this.hkdfService.validateTotp(handshakeSecret, totp);
+    // 3. Validar TOTP con ventana de tolerancia (+/-1 step = +/-30s)
+    return this.hkdfService.validateTotp(hmacKey, totp);
   }
 }

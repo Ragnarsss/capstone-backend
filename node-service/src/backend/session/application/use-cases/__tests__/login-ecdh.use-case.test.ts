@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { LoginEcdhUseCase } from '../login-ecdh.use-case';
-import type { Device } from '../../../../enrollment/domain/models';
+import type { Device } from '../../../../enrollment/domain/entities';
 import type { SessionKey } from '../../../domain/models';
 
 /**
@@ -25,9 +25,14 @@ describe('LoginEcdhUseCase', () => {
     credentialId: 'Y3JlZGVudGlhbC0xMjM0NQ==',
     publicKey: 'cHVibGljLWtleS1kYXRh',
     handshakeSecret: Buffer.from('handshake-secret-32-bytes-mock').toString('base64'),
-    status: 'enrolled',
-    createdAt: new Date('2025-01-01'),
+    aaguid: '00000000-0000-0000-0000-000000000000',
+    deviceFingerprint: 'test-fingerprint',
+    attestationFormat: 'none',
+    signCount: 0,
+    enrolledAt: new Date('2025-01-01'),
     lastUsedAt: new Date('2025-01-10'),
+    isActive: true,
+    status: 'enrolled',
   };
 
   const mockInput = {
@@ -59,7 +64,6 @@ describe('LoginEcdhUseCase', () => {
     // Mock HkdfService
     mockHkdfService = {
       deriveSessionKey: vi.fn().mockResolvedValue(Buffer.from('session-key-derived-32-bytes-mock')),
-      generateTotp: vi.fn().mockReturnValue('123456'),
     };
 
     loginEcdhUseCase = new LoginEcdhUseCase(
@@ -138,16 +142,6 @@ describe('LoginEcdhUseCase', () => {
       );
     });
 
-    it('debe generar TOTPu con handshake_secret del dispositivo', async () => {
-      // Act
-      await loginEcdhUseCase.execute(mockInput);
-
-      // Assert
-      expect(mockHkdfService.generateTotp).toHaveBeenCalledWith(
-        expect.any(Buffer) // handshakeSecret decodificado de Base64
-      );
-    });
-
     it('debe actualizar last_used_at del dispositivo', async () => {
       // Act
       await loginEcdhUseCase.execute(mockInput);
@@ -156,14 +150,13 @@ describe('LoginEcdhUseCase', () => {
       expect(mockDeviceRepository.updateLastUsed).toHaveBeenCalledWith(mockDevice.deviceId);
     });
 
-    it('debe retornar serverPublicKey, TOTPu y deviceId', async () => {
+    it('debe retornar serverPublicKey y deviceId', async () => {
       // Act
       const result = await loginEcdhUseCase.execute(mockInput);
 
       // Assert
       expect(result).toEqual({
         serverPublicKey: 'c2VydmVyLXB1YmxpYy1rZXk=',
-        totpu: '123456',
         deviceId: mockDevice.deviceId,
       });
     });
@@ -237,7 +230,7 @@ describe('LoginEcdhUseCase', () => {
   });
 
   describe('Validacion de estado del dispositivo', () => {
-    it('debe permitir login solo si dispositivo está enrolled', async () => {
+    it('debe permitir login solo si dispositivo esta enrolled', async () => {
       // Arrange
       const deviceEnrolled = { ...mockDevice, status: 'enrolled' };
       mockDeviceRepository.findByCredentialId.mockResolvedValue(deviceEnrolled);
@@ -247,7 +240,7 @@ describe('LoginEcdhUseCase', () => {
 
       // Assert
       expect(result).toBeDefined();
-      expect(result.totpu).toBe('123456');
+      expect(result.serverPublicKey).toBeDefined();
     });
 
     it('debe rechazar login si dispositivo no está en estado válido', async () => {
