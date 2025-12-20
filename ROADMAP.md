@@ -3,7 +3,7 @@
 > Ultima actualizacion: 2025-12-20
 > Base: fase-22.6.3-totp-session-key
 > Build: OK | Tests: 241/241 pasando
-> Siguiente: fase-22.6.4 (proyección QR multi-round)
+> Siguiente: fase-22.6.4-qr-multiround-projection
 
 ---
 
@@ -27,6 +27,7 @@
 | **22.6.1** | **Fix Escaneo + uid + TOTPu Integration (MAYOR)** | **COMPLETADA** |
 | **22.6.2** | **Unificar Validacion TOTP con handshakeSecret (CRITICO)** | **COMPLETADA** |
 | **22.6.3** | **Alinear TOTPu con diseño session_key (CRITICO)** | **COMPLETADA** |
+| **22.6.4** | **Fix proyección QR multi-round sin falsos (MAYOR)** | **PENDIENTE** |
 | **22.7** | **Unificar Singleton SessionKeyStore (MENOR)** | **PENDIENTE** |
 | 22.8-22.9 | Inyeccion SessionKeyQuery, QR Ports, Participation, /dev/ | COMPLETADA |
 | 22.10.1-22.10.3 | Mover WebSocketAuth, JWT, Emojis, Zod | COMPLETADA |
@@ -712,6 +713,61 @@ Scan:
 - daRulez §7.1.1 (Consistencia diseño-implementación)
 - RFC 6238 (TOTP)
 - Web Crypto API (HMAC key derivation)
+
+---
+
+### Fase 22.6.4: Fix proyección QR multi-round sin falsos
+
+**Objetivo:** Asegurar que cuando un estudiante completa Round N, el QR de Round N+1 se proyecte inmediatamente en la pantalla del profesor, incluso sin QRs falsos en el pool.
+
+**Rama:** `fase-22.6.4-qr-multiround-projection`
+**Modelo:** Sonnet
+**Severidad:** MAYOR
+**Referencia:** spec-qr-validation.md, daRulez §7.1.1 (SoC)
+**Estado:** PENDIENTE
+
+**Situación actual:**
+
+- `qr-emitter.service.ts:175-185` - `emitNext()` obtiene entrada del pool con round-robin
+- `projection-pool.repository.ts:78-98` - `upsertStudentQR()` reemplaza entrada existente
+- Pool con 1 estudiante: mismo QR se emite repetidamente
+- Cuando se hace upsert, el QR en pantalla no cambia (imagen idéntica hasta próximo ciclo)
+- El estudiante escanea QR de Round 1 cuando el servidor espera Round 2
+
+**Evidencia del fallo:**
+
+```
+[QRLifecycle] Generando QR para student=186875052, round=2
+[ProjectionPool] Upserted student=186875052 round=2 in session=session-...
+[Validate] Pipeline failed: code=WRONG_QR, trace=...validateStudentOwnsQR: FAIL
+```
+
+**Criterio de éxito verificable:**
+
+- [ ] E2E: Round 1 → Round 2 → Round 3 sin error WRONG_QR
+- [ ] El QR proyectado cambia visualmente después de cada validación exitosa
+- [ ] Funciona con pool de 1 estudiante (sin QRs falsos)
+- [ ] Build y tests pasando
+
+**Archivos a modificar:**
+
+- `qr-projection/application/services/qr-emitter.service.ts` - Detectar cambio de round y forzar re-render
+- `shared/infrastructure/valkey/projection-pool.repository.ts` - Posible: señal de invalidación
+
+**Tareas:**
+
+- [ ] Analizar por qué el QR no cambia visualmente en pantalla
+- [ ] Implementar mecanismo de refresh cuando round cambia
+- [ ] Verificar que WebSocket envía nuevo QR cuando pool se actualiza
+- [ ] E2E: Completar 3 rounds consecutivos
+- [ ] Build y tests pasando
+- [ ] Commit atómico
+
+**Dependencias:** Requiere 22.6.3 COMPLETADA
+
+**Referencias:**
+- spec-qr-validation.md
+- daRulez §7.1.1 (Flujo coherente)
 
 ---
 
