@@ -1,9 +1,9 @@
 # ROADMAP - Fuente de Verdad del Proyecto
 
 > Ultima actualizacion: 2025-12-20
-> Base: fase-22.6.5-pool-cleanup (fa10726)
+> Base: fase-22.7-unify-sessionkeystore-singleton (3b4595b)
 > Build: OK | Tests: 241/241 pasando
-> Siguiente: fase-22.7-unify-sessionkeystore-singleton
+> Siguiente: fase-23.1-restriction-integration
 
 ---
 
@@ -29,7 +29,7 @@
 | **22.6.3** | **Alinear TOTPu con diseño session_key (CRITICO)** | **COMPLETADA** |
 | **22.6.4** | **Completar responsabilidad QRLifecycleService (MAYOR)** | **COMPLETADA** |
 | **22.6.5** | **Limpiar pool al completar asistencia (MENOR)** | **COMPLETADA** |
-| **22.7** | **Unificar Singleton SessionKeyStore (MENOR)** | **PENDIENTE** |
+| **22.7** | **Unificar Singleton SessionKeyStore (MENOR)** | **COMPLETADA** |
 | 22.8-22.9 | Inyeccion SessionKeyQuery, QR Ports, Participation, /dev/ | COMPLETADA |
 | 22.10.1-22.10.3 | Mover WebSocketAuth, JWT, Emojis, Zod | COMPLETADA |
 | 22.10.4 | Centralizar secretos en .env | COMPLETADA |
@@ -869,7 +869,8 @@ Extender `QRLifecycleService` para que sea autocontenido:
 **Modelo:** Sonnet
 **Severidad:** MENOR
 **Referencia:** daRulez.md §7.1.2 - "Singleton mutable (estado global compartido)" prohibido cuando es mutable
-**Estado:** PENDIENTE
+**Estado:** COMPLETADA (2025-12-20)
+**Commit:** 3b4595b
 
 **Situación actual:**
 
@@ -877,10 +878,10 @@ Tres componentes instancian `SessionKeyStore` directamente con `new SessionKeySt
 
 **Criterio de éxito verificable:**
 
-- [ ] `grep -rn "new SessionKeyStore()" node-service/src/frontend/` retorna solo 1 resultado (singleton factory)
-- [ ] `grep -rn "getSessionKeyStore()" node-service/src/frontend/` muestra uso consistente
-- [ ] Todas las features usan la misma instancia singleton
-- [ ] Build y tests: 262/262 pasando
+- [x] `grep -rn "new SessionKeyStore()" node-service/src/frontend/` retorna solo 1 resultado (singleton factory)
+- [x] `grep -rn "getSessionKeyStore()" node-service/src/frontend/` muestra uso consistente
+- [x] Todas las features usan la misma instancia singleton
+- [x] Build y tests: 241/241 pasando
 
 **Restricciones arquitectónicas:**
 
@@ -896,15 +897,15 @@ Tres componentes instancian `SessionKeyStore` directamente con `new SessionKeySt
 
 **Tareas:**
 
-- [ ] Importar `getSessionKeyStore` en aes-gcm.ts
-- [ ] Reemplazar `new SessionKeyStore()` por `getSessionKeyStore()` en aes-gcm.ts
-- [ ] Importar `getSessionKeyStore` en qr-reader/main.ts
-- [ ] Reemplazar `new SessionKeyStore()` por `getSessionKeyStore()` en qr-reader/main.ts
-- [ ] Importar `getSessionKeyStore` en enrollment/main.ts
-- [ ] Reemplazar `new SessionKeyStore()` por `getSessionKeyStore()` en enrollment/main.ts
-- [ ] Verificar que LoginService mantiene inyección opcional para tests
-- [ ] Build y tests: 262/262 pasando
-- [ ] Commit atómico
+- [x] Importar `getSessionKeyStore` en aes-gcm.ts
+- [x] Reemplazar `new SessionKeyStore()` por `getSessionKeyStore()` en aes-gcm.ts
+- [x] Importar `getSessionKeyStore` en qr-reader/main.ts
+- [x] Reemplazar `new SessionKeyStore()` por `getSessionKeyStore()` en qr-reader/main.ts
+- [x] Importar `getSessionKeyStore` en enrollment/main.ts
+- [x] Reemplazar `new SessionKeyStore()` por `getSessionKeyStore()` en enrollment/main.ts
+- [x] Verificar que LoginService mantiene inyección opcional para tests
+- [x] Build y tests: 241/241 pasando
+- [x] Commit atómico: 3b4595b
 
 **Entregables mínimos:**
 
