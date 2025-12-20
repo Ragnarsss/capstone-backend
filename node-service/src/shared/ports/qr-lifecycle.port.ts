@@ -61,4 +61,17 @@ export interface IQRLifecycleManager {
    * @throws Error si falla algún paso crítico
    */
   generateAndPublish(options: NextQROptions): Promise<NextQRResult>;
+
+  /**
+   * Remueve al estudiante del pool de proyección
+   * 
+   * Se llama cuando el estudiante completa todos los rounds,
+   * limpiando su entrada del pool para liberar recursos.
+   * 
+   * Operación idempotente: múltiples llamadas no generan error.
+   * 
+   * @param sessionId - ID de la sesión de asistencia
+   * @param studentId - ID del estudiante a remover
+   */
+  removeFromPool(sessionId: string, studentId: number): Promise<void>;
 }

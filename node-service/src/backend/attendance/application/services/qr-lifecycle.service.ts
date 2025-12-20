@@ -108,4 +108,13 @@ export class QRLifecycleService implements IQRLifecycleManager {
     if (!this.poolBalancer) return;
     await this.poolBalancer.balance(sessionId);
   }
+
+  /**
+   * Implementación de IQRLifecycleManager.removeFromPool
+   * Remueve al estudiante del pool cuando completa todos los rounds
+   */
+  async removeFromPool(sessionId: string, studentId: number): Promise<void> {
+    logger.debug(`[QRLifecycle] Removiendo student=${studentId} de pool session=${sessionId.substring(0, 8)}...`);
+    await this.poolRepo.removeStudent(sessionId, studentId);
+  }
 }

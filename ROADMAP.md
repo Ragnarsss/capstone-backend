@@ -1,9 +1,9 @@
 # ROADMAP - Fuente de Verdad del Proyecto
 
 > Ultima actualizacion: 2025-12-20
-> Base: fase-22.6.4-qr-multiround-projection (dce46e5)
+> Base: fase-22.6.5-pool-cleanup (231d94d)
 > Build: OK | Tests: 241/241 pasando
-> Siguiente: fase-22.6.5-pool-cleanup
+> Siguiente: fase-22.7-unify-sessionkeystore-singleton
 
 ---
 
@@ -28,7 +28,7 @@
 | **22.6.2** | **Unificar Validacion TOTP con handshakeSecret (CRITICO)** | **COMPLETADA** |
 | **22.6.3** | **Alinear TOTPu con diseño session_key (CRITICO)** | **COMPLETADA** |
 | **22.6.4** | **Completar responsabilidad QRLifecycleService (MAYOR)** | **COMPLETADA** |
-| **22.6.5** | **Limpiar pool al completar asistencia (MENOR)** | **PENDIENTE** |
+| **22.6.5** | **Limpiar pool al completar asistencia (MENOR)** | **COMPLETADA** |
 | **22.7** | **Unificar Singleton SessionKeyStore (MENOR)** | **PENDIENTE** |
 | 22.8-22.9 | Inyeccion SessionKeyQuery, QR Ports, Participation, /dev/ | COMPLETADA |
 | 22.10.1-22.10.3 | Mover WebSocketAuth, JWT, Emojis, Zod | COMPLETADA |
@@ -62,7 +62,7 @@ flowchart TB
     P1[22.6.2<br/>Fix Validacion TOTPu<br/>COMPLETADA]
     P1_1[22.6.3<br/>Alinear TOTPu session_key<br/>COMPLETADA]
     P1_2[22.6.4<br/>Completar QRLifecycleService<br/>COMPLETADA]
-    P1_3[22.6.5<br/>Limpiar pool al completar<br/>PENDIENTE]
+    P1_3[22.6.5<br/>Limpiar pool al completar<br/>COMPLETADA]
     P2[22.7<br/>Singleton Unification<br/>MENOR]
     P3[23.1<br/>Restriction Integration<br/>MAYOR]
     P4[23.2<br/>Puente HTTP Node-PHP<br/>MAYOR]
@@ -83,7 +83,7 @@ flowchart TB
     style P1 fill:#90EE90
     style P1_1 fill:#90EE90
     style P1_2 fill:#90EE90
-    style P1_3 fill:#FFD700
+    style P1_3 fill:#90EE90
     style P2 fill:#90EE90
     style P3 fill:#FFD700
     style P4 fill:#FFD700
@@ -813,7 +813,8 @@ Extender `QRLifecycleService` para que sea autocontenido:
 **Modelo:** Sonnet
 **Severidad:** MENOR
 **Referencia:** daRulez §7.1.1 (Cohesión - ciclo de vida completo)
-**Estado:** PENDIENTE
+**Estado:** COMPLETADA (2025-12-20)
+**Commit:** [pendiente]
 
 **Situación actual:**
 
@@ -823,12 +824,12 @@ Extender `QRLifecycleService` para que sea autocontenido:
 
 **Criterio de éxito verificable:**
 
-- [ ] `IQRLifecycleManager` tiene método `removeFromPool(sessionId, studentId)`
-- [ ] `QRLifecycleService` implementa `removeFromPool()`
-- [ ] `ProjectionPoolRepository` tiene `removeStudent(sessionId, studentId)`
-- [ ] `CompleteScanUseCase` llama `removeFromPool()` cuando `isComplete=true`
-- [ ] E2E: estudiante completado no aparece en pool
-- [ ] Build y tests pasando
+- [x] `IQRLifecycleManager` tiene método `removeFromPool(sessionId, studentId)`
+- [x] `QRLifecycleService` implementa `removeFromPool()`
+- [x] `ProjectionPoolRepository` tiene `removeStudent(sessionId, studentId)`
+- [x] `CompleteScanUseCase` llama `removeFromPool()` cuando `isComplete=true`
+- [x] E2E: estudiante completado no aparece en pool
+- [x] Build y tests pasando
 
 **Restricciones arquitectónicas:**
 
@@ -845,12 +846,12 @@ Extender `QRLifecycleService` para que sea autocontenido:
 
 **Tareas:**
 
-- [ ] Agregar `removeFromPool(sessionId: string, studentId: number): Promise<void>` a `IQRLifecycleManager`
-- [ ] Implementar en `QRLifecycleService` delegando a `poolRepo.removeStudent()`
-- [ ] Implementar `removeStudent()` en `ProjectionPoolRepository` (Redis DEL)
-- [ ] Modificar `CompleteScanUseCase`: si `isComplete`, llamar `removeFromPool()` en lugar de `generateAndPublish()`
-- [ ] Build y tests pasando
-- [ ] Commit atómico
+- [x] Agregar `removeFromPool(sessionId: string, studentId: number): Promise<void>` a `IQRLifecycleManager`
+- [x] Implementar en `QRLifecycleService` delegando a `poolRepo.removeStudent()`
+- [x] Implementar `removeStudent()` en `ProjectionPoolRepository` (Redis DEL)
+- [x] Modificar `CompleteScanUseCase`: si `isComplete`, llamar `removeFromPool()` en lugar de `generateAndPublish()`
+- [x] Build y tests pasando
+- [x] E2E validado: Round 1→2→3, pool limpiado correctamente
 
 **Dependencias:** Requiere 22.6.4 COMPLETADA
 

@@ -220,6 +220,20 @@ export class ProjectionPoolRepository {
   }
 
   /**
+   * Remueve al estudiante del pool cuando completa todos los rounds
+   * Operación idempotente: si no existe, no genera error
+   */
+  async removeStudent(sessionId: string, studentId: number): Promise<void> {
+    const entries = await this.getAllEntries(sessionId);
+    const filtered = entries.filter(e => e.studentId !== studentId || e.isFake);
+    
+    if (filtered.length < entries.length) {
+      await this.rewritePool(sessionId, filtered);
+      logger.debug(`[ProjectionPool] Removed student=${studentId} from session=${sessionId.substring(0, 8)}...`);
+    }
+  }
+
+  /**
    * Reescribe el pool completo
    */
   private async rewritePool(sessionId: string, entries: PoolEntry[]): Promise<void> {
