@@ -82,19 +82,16 @@ export class ParticipationService {
         };
       }
 
-      // 3. Generar, almacenar y proyectar QR para el round actual
-      const { payload, encrypted } = await this.qrLifecycle.generateAndProject({
+      // 3. Generar, almacenar, proyectar y ACTIVAR QR para el round actual
+      // QRLifecycleService.generateAndPublish() se encarga de setActiveQR() internamente
+      const result = await this.qrLifecycle.generateAndPublish({
         sessionId,
         studentId,
         round: state.currentRound,
-        hostUserId: this.config.mockHostUserId,
-        ttl: this.config.qrTTL,
+        qrTTL: this.config.qrTTL,
       });
 
-      // 4. Actualizar estado con QR activo
-      await this.studentState.setActiveQR(sessionId, studentId, payload.n);
-
-      // 5. Balancear QRs falsos en el pool
+      // 4. Balancear QRs falsos en el pool
       await this.qrLifecycle.balancePool(sessionId);
 
       logger.debug(`[Participation] Registered student=${studentId} session=${sessionId.substring(0, 8)}... round=${state.currentRound}`);
@@ -106,7 +103,7 @@ export class ParticipationService {
           totalRounds: state.maxRounds,
           currentAttempt: state.currentAttempt,
           maxAttempts: state.maxAttempts,
-          qrPayload: encrypted,
+          qrPayload: result.encrypted,
           qrTTL: this.config.qrTTL,
         },
       };
@@ -184,15 +181,13 @@ export class ParticipationService {
       }
 
       // Generar nuevo QR para round 1 del nuevo intento
-      const { payload, encrypted } = await this.qrLifecycle.generateAndProject({
+      // QRLifecycleService.generateAndPublish() se encarga de setActiveQR() internamente
+      const result = await this.qrLifecycle.generateAndPublish({
         sessionId,
         studentId,
         round: newState.currentRound,
-        hostUserId: this.config.mockHostUserId,
-        ttl: this.config.qrTTL,
+        qrTTL: this.config.qrTTL,
       });
-
-      await this.studentState.setActiveQR(sessionId, studentId, payload.n);
 
       return {
         success: true,
@@ -201,7 +196,7 @@ export class ParticipationService {
           totalRounds: newState.maxRounds,
           currentAttempt: newState.currentAttempt,
           maxAttempts: newState.maxAttempts,
-          qrPayload: encrypted,
+          qrPayload: result.encrypted,
           qrTTL: this.config.qrTTL,
         },
       };

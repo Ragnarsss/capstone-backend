@@ -76,14 +76,15 @@ export async function registerAttendanceRoutes(
   const sessionKeyQuery = new SessionKeyQueryAdapter(new SessionKeyRepository());
   const studentEncryptionService = new StudentEncryptionService(sessionKeyQuery);
 
-  // QR Lifecycle con encriptación por estudiante
+  // QR Lifecycle con encriptación por estudiante y actualización de nonce activo
   const qrLifecycleService = new QRLifecycleService(
     qrGenerator,
     payloadRepo,
     poolRepo,
     poolBalancer,
     1, // defaultHostUserId
-    studentEncryptionService
+    studentEncryptionService,
+    studentStateService // para setActiveQR() en generateAndPublish()
   );
 
   // Instanciar ParticipationService con dependencias inyectadas

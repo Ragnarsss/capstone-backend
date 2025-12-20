@@ -1,7 +1,8 @@
 /**
- * Servicio de ciclo de vida de QRs: generar, almacenar y proyectar.
+ * Servicio de ciclo de vida de QRs: generar, almacenar, proyectar y activar.
  * 
  * Implementa IQRLifecycleManager para permitir inyección en CompleteScanUseCase.
+ * Responsabilidad completa: genera QR, lo almacena, lo proyecta Y actualiza el nonce activo.
  */
 import type { 
   IQRGenerator, 
@@ -16,6 +17,7 @@ import type { QRPayloadV1 } from '../../../../shared/types';
 import { ProjectionPoolRepository } from '../../../../shared/infrastructure/valkey';
 import { logger } from '../../../../shared/infrastructure/logger';
 import type { StudentEncryptionService } from './student-encryption.service';
+import type { StudentStateService } from './student-state.service';
 
 export class QRLifecycleService implements IQRLifecycleManager {
   constructor(
@@ -24,12 +26,14 @@ export class QRLifecycleService implements IQRLifecycleManager {
     private readonly poolRepo: ProjectionPoolRepository = new ProjectionPoolRepository(),
     private readonly poolBalancer: IPoolBalancer | null = null,
     private readonly defaultHostUserId: number = 1,
-    private readonly encryptionService?: StudentEncryptionService
+    private readonly encryptionService?: StudentEncryptionService,
+    private readonly studentStateService?: StudentStateService
   ) {}
 
   /**
    * Implementación de IQRLifecycleManager.generateAndPublish
-   * Genera y publica el siguiente QR para un estudiante
+   * Genera, publica y ACTIVA el siguiente QR para un estudiante.
+   * Responsabilidad completa: el caller no necesita llamar setActiveQR() por separado.
    */
   async generateAndPublish(options: NextQROptions): Promise<NextQRResult> {
     const { sessionId, studentId, round, qrTTL } = options;
@@ -43,6 +47,14 @@ export class QRLifecycleService implements IQRLifecycleManager {
       hostUserId: this.defaultHostUserId,
       ttl: qrTTL,
     });
+
+    // Actualizar el nonce activo del estudiante para que la validación funcione
+    if (this.studentStateService) {
+      await this.studentStateService.setActiveQR(sessionId, studentId, payload.n);
+      logger.debug(`[QRLifecycle] Nonce activo actualizado: ${payload.n.substring(0, 8)}...`);
+    } else {
+      logger.warn(`[QRLifecycle] Sin StudentStateService, nonce activo NO actualizado`);
+    }
 
     logger.debug(`[QRLifecycle] QR publicado: nonce=${payload.n.substring(0, 8)}...`);
 

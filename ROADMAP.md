@@ -716,58 +716,85 @@ Scan:
 
 ---
 
-### Fase 22.6.4: Fix proyección QR multi-round sin falsos
+### Fase 22.6.4: Completar responsabilidad QRLifecycleService
 
-**Objetivo:** Asegurar que cuando un estudiante completa Round N, el QR de Round N+1 se proyecte inmediatamente en la pantalla del profesor, incluso sin QRs falsos en el pool.
+**Objetivo:** Extender `QRLifecycleService.generateAndPublish()` para que complete el ciclo de activación de QR, incluyendo la actualización de `studentState.activeQRNonce`. Esto elimina el bug donde Round 2+ fallan con WRONG_QR porque el nonce activo no se actualiza.
 
 **Rama:** `fase-22.6.4-qr-multiround-projection`
-**Modelo:** Sonnet
+**Modelo:** Opus
 **Severidad:** MAYOR
-**Referencia:** spec-qr-validation.md, daRulez §7.1.1 (SoC)
+**Referencia:** daRulez §7.1.1 (SoC, DRY, Cohesión)
 **Estado:** PENDIENTE
 
-**Situación actual:**
-
-- `qr-emitter.service.ts:175-185` - `emitNext()` obtiene entrada del pool con round-robin
-- `projection-pool.repository.ts:78-98` - `upsertStudentQR()` reemplaza entrada existente
-- Pool con 1 estudiante: mismo QR se emite repetidamente
-- Cuando se hace upsert, el QR en pantalla no cambia (imagen idéntica hasta próximo ciclo)
-- El estudiante escanea QR de Round 1 cuando el servidor espera Round 2
-
-**Evidencia del fallo:**
+**Causa raíz identificada:**
 
 ```
-[QRLifecycle] Generando QR para student=186875052, round=2
-[ProjectionPool] Upserted student=186875052 round=2 in session=session-...
-[Validate] Pipeline failed: code=WRONG_QR, trace=...validateStudentOwnsQR: FAIL
+Round 1 PASS:
+  1. ParticipationService llama generateAndProject() + setActiveQR()
+  2. studentState.activeQRNonce = "9071463d..." ✓
+  3. Estudiante escanea → nonce coincide → PASS
+
+Round 2 FAIL:
+  1. CompleteScanUseCase llama generateAndPublish() (SIN setActiveQR)
+  2. studentState.activeQRNonce = "9071463d..." (viejo, no actualizado)
+  3. Pool tiene nuevo nonce "a72f0fe7..."
+  4. Estudiante escanea nuevo QR → nonces no coinciden → WRONG_QR
 ```
 
-**Criterio de éxito verificable:**
+**Problema arquitectónico:**
 
-- [ ] E2E: Round 1 → Round 2 → Round 3 sin error WRONG_QR
-- [ ] El QR proyectado cambia visualmente después de cada validación exitosa
-- [ ] Funciona con pool de 1 estudiante (sin QRs falsos)
-- [ ] Build y tests pasando
+| Componente | Llamada | setActiveQR() |
+|------------|---------|---------------|
+| ParticipationService | generateAndProject() + setActiveQR() | ✓ Sí |
+| CompleteScanUseCase | generateAndPublish() | ✗ No - **BUG** |
+
+El nombre "Lifecycle" implica gestión completa del ciclo, pero `generateAndPublish()` no completa el ciclo al omitir `setActiveQR()`.
+
+**Solución:**
+
+Extender `QRLifecycleService` para que sea autocontenido:
+1. Inyectar `StudentStateService` en constructor
+2. Llamar `setActiveQR(sessionId, studentId, payload.n)` dentro de `generateAndPublish()`
+3. Simplificar `ParticipationService` eliminando llamadas redundantes
 
 **Archivos a modificar:**
 
-- `qr-projection/application/services/qr-emitter.service.ts` - Detectar cambio de round y forzar re-render
-- `shared/infrastructure/valkey/projection-pool.repository.ts` - Posible: señal de invalidación
+- `attendance/application/services/qr-lifecycle.service.ts` - Agregar StudentStateService, llamar setActiveQR()
+- `attendance/infrastructure/adapters/complete-scan-deps.factory.ts` - Inyectar StudentStateService
+- `attendance/application/participation.service.ts` - Eliminar llamada redundante a setActiveQR
+
+**Criterio de éxito verificable:**
+
+- [ ] `QRLifecycleService.generateAndPublish()` llama `setActiveQR()` internamente
+- [ ] `ParticipationService` no llama `setActiveQR()` directamente (DRY)
+- [ ] E2E: Round 1 → Round 2 → Round 3 sin error WRONG_QR
+- [ ] Build y tests pasando
 
 **Tareas:**
 
-- [ ] Analizar por qué el QR no cambia visualmente en pantalla
-- [ ] Implementar mecanismo de refresh cuando round cambia
-- [ ] Verificar que WebSocket envía nuevo QR cuando pool se actualiza
+- [ ] Agregar `StudentStateService` al constructor de `QRLifecycleService`
+- [ ] Llamar `setActiveQR()` en `generateAndPublish()` después de `generateAndProject()`
+- [ ] Actualizar `createCompleteScanDepsWithPersistence()` para inyectar `StudentStateService`
+- [ ] Eliminar llamadas a `setActiveQR()` en `ParticipationService.registerParticipation()`
+- [ ] Eliminar llamadas a `setActiveQR()` en `ParticipationService.requestNewQR()`
 - [ ] E2E: Completar 3 rounds consecutivos
 - [ ] Build y tests pasando
 - [ ] Commit atómico
 
+**Beneficios:**
+
+| Aspecto | Antes | Después |
+|---------|-------|---------|
+| SoC | Caller debe saber llamar setActiveQR | Lifecycle completo en servicio |
+| DRY | 2 lugares llaman setActiveQR | 1 lugar (QRLifecycleService) |
+| Bugs | Fácil olvidar setActiveQR | Imposible olvidar |
+| Cohesión | Baja (lifecycle incompleto) | Alta (responsabilidad completa) |
+
 **Dependencias:** Requiere 22.6.3 COMPLETADA
 
 **Referencias:**
+- daRulez §7.1.1 (SoC, DRY, Cohesión)
 - spec-qr-validation.md
-- daRulez §7.1.1 (Flujo coherente)
 
 ---
 
