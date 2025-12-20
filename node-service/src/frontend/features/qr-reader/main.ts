@@ -25,7 +25,7 @@ import { LegacyContextStore } from '../../shared/stores/legacy-context.store';
 import {
   EnrollmentService,
   LoginService,
-  SessionKeyStore,
+  getSessionKeyStore,
   AccessService,
   type AccessState,
 } from '../../shared/services/enrollment';
@@ -76,7 +76,7 @@ class QRReaderApplication {
     this.attendanceApi = new AttendanceApiClient();
     this.enrollmentService = new EnrollmentService();
     this.loginService = new LoginService(this.authClient);
-    this.sessionKeyStore = new SessionKeyStore();
+    this.sessionKeyStore = getSessionKeyStore();
     this.accessService = new AccessService(() => this.authClient.getToken());
     const component = new CameraViewComponent();
     const cameraManager = new CameraManager('camera-feed');

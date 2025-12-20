@@ -14,7 +14,7 @@ import { AuthClient } from '../../shared/auth/auth-client';
 import {
   EnrollmentService,
   LoginService,
-  SessionKeyStore,
+  getSessionKeyStore,
   AccessService,
   type AccessState,
 } from '../../shared/services/enrollment';
@@ -52,7 +52,7 @@ class EnrollmentApplication {
     this.authClient = new AuthClient();
     this.enrollmentService = new EnrollmentService();
     this.loginService = new LoginService(this.authClient);
-    this.sessionKeyStore = new SessionKeyStore();
+    this.sessionKeyStore = getSessionKeyStore();
     this.accessService = new AccessService(() => this.authClient.getToken());
   }
 
