@@ -1,9 +1,9 @@
 # ROADMAP - Fuente de Verdad del Proyecto
 
 > Ultima actualizacion: 2025-12-20
-> Base: fase-22.6.2-fix-totp-validation
-> Build: OK | Tests: 263/263 pasando
-> Siguiente: fase-22.6.3-totp-session-key
+> Base: fase-22.6.3-totp-session-key
+> Build: OK | Tests: 241/241 pasando
+> Siguiente: fase-22.6.4 (proyección QR multi-round)
 
 ---
 
@@ -26,7 +26,7 @@
 | **22.6** | **Fix Session Key Encryption (CRITICO)** | **COMPLETADA** |
 | **22.6.1** | **Fix Escaneo + uid + TOTPu Integration (MAYOR)** | **COMPLETADA** |
 | **22.6.2** | **Unificar Validacion TOTP con handshakeSecret (CRITICO)** | **COMPLETADA** |
-| **22.6.3** | **Alinear TOTPu con diseño session_key (CRITICO)** | **PENDIENTE** |
+| **22.6.3** | **Alinear TOTPu con diseño session_key (CRITICO)** | **COMPLETADA** |
 | **22.7** | **Unificar Singleton SessionKeyStore (MENOR)** | **PENDIENTE** |
 | 22.8-22.9 | Inyeccion SessionKeyQuery, QR Ports, Participation, /dev/ | COMPLETADA |
 | 22.10.1-22.10.3 | Mover WebSocketAuth, JWT, Emojis, Zod | COMPLETADA |
@@ -616,7 +616,8 @@ attendance/domain/validation-pipeline/stages/
 **Modelo:** Opus (decisión criptográfica)
 **Severidad:** CRITICO
 **Referencia:** `documents/03-especificaciones-tecnicas/14-decision-totp-session-key.md`
-**Estado:** PENDIENTE
+**Estado:** COMPLETADA
+**Commits:** 8250e9b, 13e4328, 3f0ff5a
 
 **Problema detectado (auditoria 2025-12-20):**
 
