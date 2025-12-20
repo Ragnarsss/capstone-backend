@@ -1,18 +1,17 @@
 import type { Stage } from '../stage.interface';
 import type { ValidationContext } from '../context';
-import type { ISessionKeyQuery } from '../../../../../shared/ports';
-import { totp } from 'otplib';
+import type { ITotpValidator } from '../../../../../shared/ports';
 
 /**
  * Dependencias para el TOTPValidationStage
  */
 export interface TOTPValidationStageDeps {
-  /** Query para obtener session_key (inyectada via interface) */
-  sessionKeyQuery: ISessionKeyQuery;
+  /** Validador TOTP inyectado (usa handshake_secret internamente) */
+  totpValidator: ITotpValidator;
 }
 
 export function createTOTPValidationStage(deps: TOTPValidationStageDeps): Stage {
-  const { sessionKeyQuery } = deps;
+  const { totpValidator } = deps;
 
   return {
     name: 'totp-validation',
@@ -37,22 +36,11 @@ export function createTOTPValidationStage(deps: TOTPValidationStageDeps): Stage 
         return false;
       }
 
-      // Obtener session_key del estudiante via interfaz inyectada
-      const sessionKeyData = await sessionKeyQuery.findByUserId(ctx.studentId);
-      
-      if (!sessionKeyData) {
-        ctx.error = {
-          code: 'SESSION_KEY_NOT_FOUND',
-          message: 'No se encontró session_key para el estudiante',
-        };
-        return false;
-      }
+      // Validar TOTP usando el port inyectado
+      // El adapter internamente obtiene handshake_secret y valida con HkdfService
+      const isValid = await totpValidator.validate(ctx.studentId, ctx.response.totpu);
 
-      // Convertir session_key a secreto para TOTP
-      const secret = keyToSecret(sessionKeyData.sessionKey);
-
-      // Verificar con tolerancia de +/- 1 step (30s)
-      if (!verifyTOTP(secret, ctx.response.totpu)) {
+      if (!isValid) {
         ctx.error = {
           code: 'TOTP_INVALID',
           message: 'TOTPu no coincide con lo esperado',
@@ -64,29 +52,4 @@ export function createTOTPValidationStage(deps: TOTPValidationStageDeps): Stage 
       return true;
     },
   };
-}
-
-/**
- * Convierte session_key a secreto para TOTP
- */
-function keyToSecret(key: Buffer): string {
-  // otplib.totp espera secret como string
-  // Usamos base64 para convertir el Buffer
-  return key.toString('base64');
-}
-
-/**
- * Verifica si el TOTPu enviado por cliente es valido
- * 
- * Usa ventana de +/- 1 step (30s) para tolerancia de clock skew
- * Esto permite que el TOTP sea valido si fue generado 30s antes o despues
- */
-function verifyTOTP(secret: string, clientTOTP: string): boolean {
-  // Configurar window para tolerar +/- 1 step (30 segundos)
-  // window=1 significa: step actual, 1 anterior, 1 siguiente
-  totp.options = { window: 1 };
-  
-  // totp.check() verifica si el token es valido para el secreto
-  // con la ventana de tolerancia configurada
-  return totp.check(clientTOTP, secret);
 }

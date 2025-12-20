@@ -27,7 +27,7 @@ import {
 import type { QRStateLoader } from './stages/load-qr-state.stage';
 import type { StudentStateLoader } from './stages/load-student-state.stage';
 import type { AesGcmService } from '../../../../shared/infrastructure/crypto';
-import type { ISessionKeyQuery } from '../../../../shared/ports';
+import type { ISessionKeyQuery, ITotpValidator } from '../../../../shared/ports';
 
 /**
  * Dependencias requeridas para construir pipelines
@@ -36,8 +36,10 @@ export interface PipelineDependencies {
   aesGcmService: AesGcmService;
   qrStateLoader: QRStateLoader;
   studentStateLoader: StudentStateLoader;
-  /** Query para obtener session_key (inyectada para SoC) */
+  /** Query para obtener session_key (usada por decrypt stage) */
   sessionKeyQuery: ISessionKeyQuery;
+  /** Validador TOTP (usa handshake_secret internamente) */
+  totpValidator: ITotpValidator;
 }
 
 /**
@@ -65,8 +67,8 @@ export function createDefaultPipeline(deps: PipelineDependencies): Stage[] {
       sessionKeyQuery: deps.sessionKeyQuery,
     }),
 
-    // 2. TOTP validation (usa sessionKeyQuery para verificar)
-    createTOTPValidationStage({ sessionKeyQuery: deps.sessionKeyQuery }),
+    // 2. TOTP validation (usa handshake_secret via ITotpValidator)
+    createTOTPValidationStage({ totpValidator: deps.totpValidator }),
     
     // 3. Pure validations (sync wrapped as async)
     toAsyncStage(validateStructureStage),

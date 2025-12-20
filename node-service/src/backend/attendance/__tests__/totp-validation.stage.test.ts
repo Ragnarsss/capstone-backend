@@ -7,7 +7,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createTOTPValidationStage } from '../domain/validation-pipeline/stages/totp-validation.stage';
 import { createContext, type ValidationContext } from '../domain/validation-pipeline/context';
-import { totp } from 'otplib';
+import type { ITotpValidator } from '../../../shared/ports';
 
 /**
  * Helper para crear contexto con response valida
@@ -33,31 +33,21 @@ function createValidContext(overrides?: Partial<ValidationContext>): ValidationC
 }
 
 /**
- * Helper para generar un TOTP valido
+ * Mock factory para ITotpValidator
  */
-function generateValidTOTP(sessionKey: Buffer): string {
-  const secret = sessionKey.toString('base64');
-  return totp.generate(secret);
+function createMockTotpValidator(validateResult: boolean): ITotpValidator {
+  return {
+    validate: vi.fn().mockResolvedValue(validateResult),
+  };
 }
 
 describe('TOTPValidationStage', () => {
   it('debe pasar con TOTPu valido', async () => {
-    // Crear una session_key de prueba (32 bytes)
-    const sessionKey = Buffer.from('0'.repeat(64), 'hex');
-    const validTOTP = generateValidTOTP(sessionKey);
-
-    // Mock del repositorio
-    const mockSessionKeyRepo = {
-      findByUserId: vi.fn().mockResolvedValue({
-        sessionKey,
-        userId: 42,
-        deviceId: 'device-123',
-        createdAt: Date.now(),
-      }),
-    };
+    // Mock del validador que retorna true
+    const mockTotpValidator = createMockTotpValidator(true);
 
     const stage = createTOTPValidationStage({
-      sessionKeyQuery: mockSessionKeyRepo,
+      totpValidator: mockTotpValidator,
     });
 
     const ctx = createValidContext({
@@ -72,7 +62,7 @@ describe('TOTPValidationStage', () => {
         },
         studentId: 42,
         receivedAt: Date.now(),
-        totpu: validTOTP,
+        totpu: '123456',
       },
     });
 
@@ -80,16 +70,14 @@ describe('TOTPValidationStage', () => {
     
     expect(result).toBe(true);
     expect(ctx.error).toBeUndefined();
-    expect(mockSessionKeyRepo.findByUserId).toHaveBeenCalledWith(42);
+    expect(mockTotpValidator.validate).toHaveBeenCalledWith(42, '123456');
   });
 
   it('debe fallar sin response desencriptada', async () => {
-    const mockSessionKeyRepo = {
-      findByUserId: vi.fn(),
-    };
+    const mockTotpValidator = createMockTotpValidator(true);
 
     const stage = createTOTPValidationStage({
-      sessionKeyQuery: mockSessionKeyRepo,
+      totpValidator: mockTotpValidator,
     });
 
     const ctx = createContext('encrypted-test', 42);
@@ -102,12 +90,10 @@ describe('TOTPValidationStage', () => {
   });
 
   it('debe fallar cuando falta TOTPu en el payload', async () => {
-    const mockSessionKeyRepo = {
-      findByUserId: vi.fn(),
-    };
+    const mockTotpValidator = createMockTotpValidator(true);
 
     const stage = createTOTPValidationStage({
-      sessionKeyQuery: mockSessionKeyRepo,
+      totpValidator: mockTotpValidator,
     });
 
     const ctx = createValidContext();
@@ -120,13 +106,12 @@ describe('TOTPValidationStage', () => {
     expect(ctx.error?.code).toBe('TOTP_MISSING');
   });
 
-  it('debe fallar cuando session_key no existe en Valkey', async () => {
-    const mockSessionKeyRepo = {
-      findByUserId: vi.fn().mockResolvedValue(null),
-    };
+  it('debe fallar cuando validador retorna false (dispositivo no encontrado o TOTP invalido)', async () => {
+    // Mock que retorna false (puede ser dispositivo no encontrado o TOTP invalido)
+    const mockTotpValidator = createMockTotpValidator(false);
 
     const stage = createTOTPValidationStage({
-      sessionKeyQuery: mockSessionKeyRepo,
+      totpValidator: mockTotpValidator,
     });
 
     const ctx = createValidContext({
@@ -141,30 +126,22 @@ describe('TOTPValidationStage', () => {
         },
         studentId: 42,
         receivedAt: Date.now(),
-        totpu: '123456', // TOTPu cualquiera para llegar al check de session_key
+        totpu: '123456',
       },
     });
 
     const result = await stage.execute(ctx);
     
     expect(result).toBe(false);
-    expect(ctx.error?.code).toBe('SESSION_KEY_NOT_FOUND');
+    expect(ctx.error?.code).toBe('TOTP_INVALID');
   });
 
   it('debe fallar con TOTPu incorrecto', async () => {
-    const sessionKey = Buffer.from('0'.repeat(64), 'hex');
-
-    const mockSessionKeyRepo = {
-      findByUserId: vi.fn().mockResolvedValue({
-        sessionKey,
-        userId: 42,
-        deviceId: 'device-123',
-        createdAt: Date.now(),
-      }),
-    };
+    // Mock que retorna false para TOTP incorrecto
+    const mockTotpValidator = createMockTotpValidator(false);
 
     const stage = createTOTPValidationStage({
-      sessionKeyQuery: mockSessionKeyRepo,
+      totpValidator: mockTotpValidator,
     });
 
     const ctx = createValidContext({
@@ -189,27 +166,20 @@ describe('TOTPValidationStage', () => {
     expect(ctx.error?.code).toBe('TOTP_INVALID');
   });
 
-  it('debe validarse correctamente con diferentes session_keys', async () => {
-    // Test con multiples session_keys diferentes
+  it('debe validarse correctamente con diferentes estudiantes', async () => {
+    // Test con multiples estudiantes
     for (let i = 0; i < 3; i++) {
-      const sessionKey = Buffer.from(String(i).repeat(64), 'hex');
-      const validTOTP = generateValidTOTP(sessionKey);
-
-      const mockSessionKeyRepo = {
-        findByUserId: vi.fn().mockResolvedValue({
-          sessionKey,
-          userId: 42 + i,
-          deviceId: `device-${i}`,
-          createdAt: Date.now(),
-        }),
+      const mockTotpValidator: ITotpValidator = {
+        validate: vi.fn().mockResolvedValue(true),
       };
 
       const stage = createTOTPValidationStage({
-        sessionKeyQuery: mockSessionKeyRepo,
+        totpValidator: mockTotpValidator,
       });
 
+      const studentId = 42 + i;
       const ctx = createValidContext({
-        studentId: 42 + i,
+        studentId,
         response: {
           original: {
             v: 1,
@@ -219,9 +189,9 @@ describe('TOTPValidationStage', () => {
             ts: Date.now() - 1000,
             n: 'a'.repeat(32),
           },
-          studentId: 42 + i,
+          studentId,
           receivedAt: Date.now(),
-          totpu: validTOTP,
+          totpu: `12345${i}`,
         },
       });
 
@@ -229,30 +199,26 @@ describe('TOTPValidationStage', () => {
       
       expect(result).toBe(true);
       expect(ctx.error).toBeUndefined();
+      expect(mockTotpValidator.validate).toHaveBeenCalledWith(studentId, `12345${i}`);
     }
   });
 
-  it('debe rechazar TOTPu de otra sesion_key', async () => {
-    const sessionKey1 = Buffer.from('1'.repeat(64), 'hex');
-    const sessionKey2 = Buffer.from('2'.repeat(64), 'hex');
-    
-    // Generar TOTP con clave diferente
-    const wrongTOTP = generateValidTOTP(sessionKey2);
-
-    const mockSessionKeyRepo = {
-      findByUserId: vi.fn().mockResolvedValue({
-        sessionKey: sessionKey1,
-        userId: 42,
-        deviceId: 'device-123',
-        createdAt: Date.now(),
+  it('debe rechazar TOTPu de otro usuario', async () => {
+    // Mock que valida el userId correcto
+    const mockTotpValidator: ITotpValidator = {
+      validate: vi.fn().mockImplementation(async (userId: number, _totp: string) => {
+        // Solo validar para userId 42
+        return userId === 42;
       }),
     };
 
     const stage = createTOTPValidationStage({
-      sessionKeyQuery: mockSessionKeyRepo,
+      totpValidator: mockTotpValidator,
     });
 
+    // Context con studentId diferente
     const ctx = createValidContext({
+      studentId: 99, // Usuario diferente
       response: {
         original: {
           v: 1,
@@ -262,9 +228,9 @@ describe('TOTPValidationStage', () => {
           ts: Date.now() - 1000,
           n: 'a'.repeat(32),
         },
-        studentId: 42,
+        studentId: 99,
         receivedAt: Date.now(),
-        totpu: wrongTOTP, // TOTP de otra clave
+        totpu: '123456',
       },
     });
 
@@ -272,5 +238,6 @@ describe('TOTPValidationStage', () => {
     
     expect(result).toBe(false);
     expect(ctx.error?.code).toBe('TOTP_INVALID');
+    expect(mockTotpValidator.validate).toHaveBeenCalledWith(99, '123456');
   });
 });

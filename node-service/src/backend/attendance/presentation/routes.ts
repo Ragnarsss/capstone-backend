@@ -16,6 +16,9 @@ import {
 } from '../infrastructure/adapters';
 import { AesGcmService } from '../../../shared/infrastructure/crypto';
 import { SessionKeyRepository } from '../../session/infrastructure/repositories/session-key.repository';
+import { DeviceRepository } from '../../enrollment/infrastructure/repositories/device.repository';
+import { HkdfService } from '../../enrollment/infrastructure/crypto/hkdf.service';
+import { TotpValidatorAdapter } from '../../enrollment/infrastructure/adapters';
 import { mapValidationError } from './error-mapper';
 import { logger } from '../../../shared/infrastructure/logger';
 import { DEFAULT_QR_TTL_SECONDS, DEFAULT_MIN_POOL_SIZE } from '../../../shared/config';
@@ -94,12 +97,18 @@ export async function registerAttendanceRoutes(
 
   // UseCases con pipeline
 
+  // TOTP validator usando handshake_secret (enrollment domain)
+  const deviceRepo = new DeviceRepository();
+  const hkdfService = new HkdfService();
+  const totpValidator = new TotpValidatorAdapter(deviceRepo, hkdfService);
+
   // UseCase para solo validación (debugging)
   const validateScanUseCase = new ValidateScanUseCase({
     aesGcmService: new AesGcmService(),
     qrStateLoader: new QRStateAdapter(poolRepo),
     studentStateLoader: new StudentStateAdapter(studentRepo),
     sessionKeyQuery,
+    totpValidator,
   });
 
   // UseCase completo (validación + side effects)

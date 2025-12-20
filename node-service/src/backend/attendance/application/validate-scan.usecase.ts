@@ -23,7 +23,7 @@ import { createDefaultPipeline, type PipelineDependencies } from '../domain/vali
 import type { QRStateLoader } from '../domain/validation-pipeline/stages/load-qr-state.stage';
 import type { StudentStateLoader } from '../domain/validation-pipeline/stages/load-student-state.stage';
 import { AesGcmService } from '../../../shared/infrastructure/crypto';
-import type { ISessionKeyQuery } from '../../../shared/ports';
+import type { ISessionKeyQuery, ITotpValidator } from '../../../shared/ports';
 
 /**
  * Resultado del UseCase
@@ -46,6 +46,7 @@ export interface ValidateScanDependencies {
   qrStateLoader: QRStateLoader;
   studentStateLoader: StudentStateLoader;
   sessionKeyQuery: ISessionKeyQuery;
+  totpValidator: ITotpValidator;
 }
 
 /**
@@ -101,10 +102,10 @@ export function createValidateScanUseCase(
 
   const aesGcmService = deps?.aesGcmService ?? new AesGcmService();
 
-  // Los loaders y sessionKeyQuery deben ser provistos - no hay defaults seguros
-  if (!deps?.qrStateLoader || !deps?.studentStateLoader || !deps?.sessionKeyQuery) {
+  // Los loaders, sessionKeyQuery y totpValidator deben ser provistos - no hay defaults seguros
+  if (!deps?.qrStateLoader || !deps?.studentStateLoader || !deps?.sessionKeyQuery || !deps?.totpValidator) {
     throw new Error(
-      'ValidateScanUseCase requires qrStateLoader, studentStateLoader, and sessionKeyQuery. ' +
+      'ValidateScanUseCase requires qrStateLoader, studentStateLoader, sessionKeyQuery, and totpValidator. ' +
       'Use the adapters from infrastructure/adapters.'
     );
   }
@@ -114,5 +115,6 @@ export function createValidateScanUseCase(
     qrStateLoader: deps.qrStateLoader,
     studentStateLoader: deps.studentStateLoader,
     sessionKeyQuery: deps.sessionKeyQuery,
+    totpValidator: deps.totpValidator,
   });
 }
