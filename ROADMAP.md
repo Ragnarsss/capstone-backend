@@ -1,7 +1,7 @@
 # ROADMAP - Fuente de Verdad del Proyecto
 
-> Ultima actualizacion: 2025-12-19
-> Base: fase-22.6.1-fix-scan-resume
+> Ultima actualizacion: 2025-12-20
+> Base: fase-22.6.2-fix-totp-validation
 > Build: OK | Tests: 263/263 pasando
 > Siguiente: fase-22.6.2-fix-totp-validation
 
@@ -25,7 +25,7 @@
 | **22.5** | **Stats + QR Lifecycle** | **COMPLETADA** |
 | **22.6** | **Fix Session Key Encryption (CRITICO)** | **COMPLETADA** |
 | **22.6.1** | **Fix Escaneo + uid + TOTPu Integration (MAYOR)** | **COMPLETADA** |
-| **22.6.2** | **Fix Discrepancia TOTP handshakeSecret vs sessionKey (CRITICO)** | **PENDIENTE** |
+| **22.6.2** | **Unificar Validacion TOTP con handshakeSecret (CRITICO)** | **PENDIENTE** |
 | **22.7** | **Unificar Singleton SessionKeyStore (MENOR)** | **PENDIENTE** |
 | 22.8-22.9 | Inyeccion SessionKeyQuery, QR Ports, Participation, /dev/ | COMPLETADA |
 | 22.10.1-22.10.3 | Mover WebSocketAuth, JWT, Emojis, Zod | COMPLETADA |
@@ -486,73 +486,119 @@ El DecryptStage ahora tiene cobertura completa de tests unitarios que verifican 
 
 ---
 
-### Fase 22.6.2: Fix Discrepancia TOTP handshakeSecret vs sessionKey
+### Fase 22.6.2: Unificar Validacion TOTP con handshakeSecret
 
-**Objetivo:** Alinear la generacion y validacion de TOTPu para usar la misma fuente de secreto, cumpliendo con 14-decision-totp-session-key.md que especifica usar session_key.
+**Objetivo:** Corregir el stage TOTP para validar usando `handshakeSecret` (fuente correcta del enrolamiento), eliminando duplicacion de codigo TOTP y cumpliendo daRulez DRY/SoC.
 
 **Rama:** `fase-22.6.2-fix-totp-validation`
 **Modelo:** Opus
 **Severidad:** CRITICO
-**Referencia:** 14-decision-totp-session-key.md, daRulez §1.4.1 (seguridad criptografica)
+**Referencia:** daRulez §7.1.1 (DRY, SoC, Acoplamiento Bajo), §1.4.1 (seguridad)
 **Estado:** PENDIENTE
 
 **Causa raiz identificada (auditoria 2025-12-19):**
 
-| Componente | Fuente del TOTP | Problema |
-|------------|-----------------|----------|
-| Login backend | `handshakeSecret` (BD) | Genera TOTP con secret permanente |
-| Frontend store | `data.totpu` (estatico) | Almacena TOTP del servidor |
-| Validacion backend | `sessionKey` (Valkey) | Verifica con secret efimero |
+| Componente | Fuente del TOTP | Estado |
+|------------|-----------------|--------|
+| Login backend | `handshakeSecret` (BD) | CORRECTO - genera TOTP |
+| Frontend store | `data.totpu` (estatico) | CORRECTO - almacena del servidor |
+| Validacion backend | `sessionKey` (Valkey) | INCORRECTO - debe usar handshakeSecret |
 
-**Resultado:** TOTP nunca coincide porque `handshakeSecret != sessionKey`
+**Problemas arquitectonicos adicionales:**
 
-**Solucion segun 14-decision-totp-session-key.md:**
+| Problema | Ubicacion | Violacion daRulez |
+|----------|-----------|-------------------|
+| Codigo TOTP duplicado | `otplib` en stage vs `HkdfService.validateTotp()` | DRY §7.1.1 |
+| Dependencia directa a libreria | `import { totp } from 'otplib'` en stage | Acoplamiento §7.1.1 |
+| Stage conoce detalles de secret | Obtiene sessionKey y convierte a base64 | SoC §7.1.1 |
 
-> "TOTPu = TOTP(session_key)" - Ambos lados deben usar session_key
+**Solucion: Opcion C - Abstraccion ITotpValidator**
 
-- Frontend: Genera TOTP dinamico con `hmacKey` al momento de escanear
-- Backend: Valida TOTP con `sessionKey` de Valkey (ya implementado correctamente)
+Crear port `ITotpValidator` que encapsula la logica de validacion TOTP, reutilizando `HkdfService.validateTotp()` existente.
+
+```
+shared/ports/
+  totp-validator.port.ts           # Interface ITotpValidator
+
+enrollment/infrastructure/adapters/
+  totp-validator.adapter.ts        # Implementa ITotpValidator
+                                   # Usa DeviceRepository + HkdfService
+
+attendance/domain/validation-pipeline/stages/
+  totp-validation.stage.ts         # Recibe ITotpValidator (no ISessionKeyQuery)
+                                   # Elimina import de otplib
+```
+
+**Flujo corregido:**
+
+```
+1. Login: genera TOTP con handshakeSecret, envia al frontend
+2. Frontend: almacena TOTP estatico, lo envia en cada escaneo
+3. Backend stage: llama ITotpValidator.validate(userId, totp)
+4. Adaptador: busca device por userId, obtiene handshakeSecret, valida con HkdfService
+```
 
 **Criterio de exito verificable:**
 
-- [ ] Login NO envia `totpu` al cliente (eliminado de LoginEcdhOutput)
-- [ ] Frontend genera TOTP dinamico con `hmacKey` al escanear
-- [ ] Backend valida TOTP con `sessionKey` de Valkey
-- [ ] Test: TOTP frontend coincide con esperado en backend
+- [ ] `grep -rn "otplib" node-service/src/backend/attendance/` retorna 0 resultados
+- [ ] `grep -rn "ITotpValidator" node-service/src/shared/ports/` retorna 1+ resultados
+- [ ] Stage TOTP recibe ITotpValidator, no ISessionKeyQuery
+- [ ] HkdfService.validateTotp() es la unica implementacion TOTP en backend
+- [ ] Test: TOTP generado en login valida correctamente en pipeline
 - [ ] Flujo E2E: Round 1 -> Round 2 -> Round 3 -> asistencia registrada
 - [ ] Build y tests: X/X pasando
 
 **Restricciones arquitectonicas:**
 
-- Seguir 14-decision-totp-session-key.md: TOTPu = TOTP(session_key)
-- No debilitar modelo criptografico (daRulez §1.4.1)
-- Perfect Forward Secrecy: TOTP cambia por sesion
-- Ventana de tolerancia: +/- 30 segundos (window=1)
+- Pipeline mantiene estructura de stages (daRulez §7.1.2)
+- Adaptador vive en enrollment/infrastructure/ (donde esta DeviceRepository)
+- Port vive en shared/ports/ (comunicacion cross-domain)
+- No modificar HkdfService.validateTotp() - ya funciona correctamente
+- Ventana de tolerancia: +/- 30 segundos (window=1, ya implementado)
+
+**Archivos a crear:**
+
+- `shared/ports/totp-validator.port.ts` - Interface ITotpValidator
+- `enrollment/infrastructure/adapters/totp-validator.adapter.ts` - Implementacion
 
 **Archivos a modificar:**
 
-- `backend/session/application/use-cases/login-ecdh.use-case.ts` - Eliminar generacion totpu
-- `backend/session/presentation/` - Eliminar totpu de response DTO
-- `frontend/shared/services/enrollment/session-key.store.ts` - Agregar generateTotpu()
-- `frontend/features/qr-reader/services/qr-scan.service.ts` - Llamar generateTotpu()
-- `frontend/shared/services/enrollment/login.service.ts` - No almacenar totpu
+- `shared/ports/index.ts` - Export del nuevo port
+- `attendance/domain/validation-pipeline/stages/totp-validation.stage.ts` - Usar ITotpValidator
+- `attendance/domain/validation-pipeline/pipeline.factory.ts` - Inyectar ITotpValidator
+- `attendance/presentation/routes.ts` - Crear adaptador e inyectar
+- `attendance/__tests__/totp-validation.stage.test.ts` - Mockear ITotpValidator
 
 **Tareas:**
 
-- [ ] Backend: Eliminar totpu de LoginEcdhOutput y use-case
-- [ ] Frontend: Implementar generateTotpu() usando hmacKey + algoritmo TOTP
-- [ ] Frontend: qr-scan.service llama generateTotpu() al escanear
-- [ ] Frontend: Eliminar campo totpu de StoredSession (o hacerlo opcional)
-- [ ] Test: Verificar compatibilidad TOTP frontend/backend
+- [ ] Crear `shared/ports/totp-validator.port.ts` con interface ITotpValidator
+- [ ] Crear `enrollment/infrastructure/adapters/totp-validator.adapter.ts`
+- [ ] Exportar ITotpValidator en `shared/ports/index.ts`
+- [ ] Modificar `totp-validation.stage.ts`: recibir ITotpValidator, eliminar otplib
+- [ ] Modificar `pipeline.factory.ts`: agregar ITotpValidator a PipelineDependencies
+- [ ] Modificar `attendance/presentation/routes.ts`: instanciar adaptador
+- [ ] Actualizar tests del stage para mockear ITotpValidator
+- [ ] Verificar que HkdfService.validateTotp() tiene tests (ya existen)
 - [ ] E2E: Completar 3 rounds de asistencia
 - [ ] Build y tests pasando
 - [ ] Commit atomico
 
+**Beneficios de esta solucion:**
+
+| Aspecto | Antes | Despues |
+|---------|-------|---------|
+| DRY | 2 implementaciones TOTP | 1 (HkdfService) |
+| SoC | Stage conoce detalles crypto | Stage solo llama validate() |
+| Acoplamiento | Import directo otplib | Depende de abstraccion |
+| Testabilidad | Mock de ISessionKeyQuery | Mock simple de ITotpValidator |
+| Pipeline | Intacto | Intacto |
+
 **Dependencias:** Requiere 22.6.1 COMPLETADA
 
 **Referencias:** 
-- `14-decision-totp-session-key.md` - Seccion "Opcion Seleccionada: TOTPu basado en session_key"
-- `spec-qr-validation.md` - Pipeline de validacion stage 10
+- daRulez §7.1.1 (DRY, SoC, Acoplamiento)
+- daRulez §7.1.2 (Pipeline pattern)
+- `enrollment/infrastructure/crypto/hkdf.service.ts` - validateTotp() existente
 
 ---
 
@@ -914,39 +960,40 @@ Ejecutar en orden de prioridad:
 
 ### Pendientes por Completar
 
-1. **[MAYOR]** **22.6.2** - Fix Validacion TOTPu Backend
+1. **[CRITICO]** **22.6.2** - Unificar Validacion TOTP con handshakeSecret
    - Impacto: Alto, desbloquea testing E2E completo
-   - Esfuerzo: ~2-4 horas (investigación criptográfica)
-   - Riesgo: Medio (requiere entender derivación HKDF)
+   - Esfuerzo: ~2-3 horas (crear port + adaptador + modificar stage)
+   - Riesgo: Bajo (reutiliza HkdfService.validateTotp() existente)
+   - Beneficio: Elimina duplicacion TOTP, cumple DRY/SoC
    - **SIGUIENTE TAREA - BLOQUEANTE**
 
 2. **[MENOR]** **22.7** - Unificar Singleton SessionKeyStore
    - Impacto: Bajo, mejora consistencia arquitectónica
    - Esfuerzo: ~1-2 horas
-   - Riesgo: Mínimo
+   - Riesgo: Minimo
    - Dependencias: 22.6.2 completado
 
 3. **[MAYOR]** **23.1** - Implementar Restriction Service
-   - Impacto: Alto, integración crítica con PHP
-   - Esfuerzo: ~1-2 días
-   - Riesgo: Medio (requiere coordinación con equipo PHP)
+   - Impacto: Alto, integracion critica con PHP
+   - Esfuerzo: ~1-2 dias
+   - Riesgo: Medio (requiere coordinacion con equipo PHP)
    - Dependencias: 22.7 completado
 
-3. **[MAYOR]** **23.2** - Puente HTTP Node-PHP
-   - Impacto: Alto, completa comunicación bidireccional
-   - Esfuerzo: ~2-3 días
+4. **[MAYOR]** **23.2** - Puente HTTP Node-PHP
+   - Impacto: Alto, completa comunicacion bidireccional
+   - Esfuerzo: ~2-3 dias
    - Riesgo: Medio
    - Dependencias: 23.1 completado
 
-4. **[MAYOR]** **24** - Infraestructura y Operaciones
-   - Impacto: Alto, preparación para producción
-   - Esfuerzo: ~3-5 días
+5. **[MAYOR]** **24** - Infraestructura y Operaciones
+   - Impacto: Alto, preparacion para produccion
+   - Esfuerzo: ~3-5 dias
    - Riesgo: Bajo-Medio
    - Dependencias: 23.2 completado
 
-5. **[MAYOR]** **25** - Testing E2E y Calidad
-   - Impacto: Alto, validación final
-   - Esfuerzo: ~3-5 días
+6. **[MAYOR]** **25** - Testing E2E y Calidad
+   - Impacto: Alto, validacion final
+   - Esfuerzo: ~3-5 dias
    - Riesgo: Bajo
    - Dependencias: 24 completado
 
