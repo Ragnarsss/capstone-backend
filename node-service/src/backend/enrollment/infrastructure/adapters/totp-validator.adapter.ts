@@ -1,5 +1,6 @@
 import type { ITotpValidator, ISessionKeyQuery } from '../../../../shared/ports';
 import type { HkdfService } from '../crypto/hkdf.service';
+import { logger } from '../../../../shared/infrastructure/logger';
 
 /**
  * Adapter para validacion TOTP
@@ -35,8 +36,11 @@ export class TotpValidatorAdapter implements ITotpValidator {
     const sessionData = await this.sessionKeyQuery.findByUserId(userId);
 
     if (!sessionData) {
+      logger.warn(`[TotpValidator] No session found for userId=${userId}`);
       return false;
     }
+
+    logger.debug(`[TotpValidator] userId=${userId}, credentialId=${sessionData.credentialId?.substring(0, 20)}..., sessionKeyLen=${sessionData.sessionKey?.length}`);
 
     // 2. Derivar hmacKey desde session_key (mismo algoritmo que frontend)
     const hmacKey = await this.hkdfService.deriveHmacKey(
@@ -44,7 +48,17 @@ export class TotpValidatorAdapter implements ITotpValidator {
       sessionData.credentialId
     );
 
-    // 3. Validar TOTP con ventana de tolerancia (+/-1 step = +/-30s)
-    return this.hkdfService.validateTotp(hmacKey, totp);
+    // 3. Generar TOTP esperado para comparar
+    const expectedTotp = this.hkdfService.generateTotp(hmacKey);
+    logger.debug(`[TotpValidator] received=${totp}, expected=${expectedTotp}`);
+
+    // 4. Validar TOTP con ventana de tolerancia (+/-1 step = +/-30s)
+    const isValid = this.hkdfService.validateTotp(hmacKey, totp);
+    
+    if (!isValid) {
+      logger.warn(`[TotpValidator] TOTP mismatch for userId=${userId}: received=${totp}, expected=${expectedTotp}`);
+    }
+    
+    return isValid;
   }
 }

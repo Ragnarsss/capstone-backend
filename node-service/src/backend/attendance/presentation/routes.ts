@@ -218,6 +218,9 @@ export async function registerAttendanceRoutes(
       const result = await completeScanUseCase.execute(encrypted, studentId);
 
       if (!result.valid) {
+        // Log para diagnostico
+        logger.warn(`[Validate] Pipeline failed: code=${result.errorCode}, trace=${result.trace}`);
+        
         const errorResponse = result.error 
           ? mapValidationError(result.error)
           : { httpStatus: 400, code: 'UNKNOWN_ERROR', message: 'Error de validación' };
