@@ -8,6 +8,7 @@
 import type { CompleteScanDependencies, PersistenceDependencies, ServiceDependencies } from '../../application/complete-scan.usecase';
 import { AttendancePersistenceService } from '../../application/services/attendance-persistence.service';
 import { QRLifecycleService } from '../../application/services/qr-lifecycle.service';
+import { StudentEncryptionService } from '../../application/services/student-encryption.service';
 import { AttendanceStatsCalculator } from '../../domain/services/attendance-stats-calculator.service';
 import { AesGcmService } from '../../../../shared/infrastructure/crypto';
 import { QRPayloadRepository } from '../../../qr-projection/infrastructure/qr-payload.repository';
@@ -118,12 +119,17 @@ export function createCompleteScanDepsWithPersistence(
 
   // Servicios inyectados (extraídos del UseCase)
   const statsCalculator = new AttendanceStatsCalculator();
+  
+  // StudentEncryptionService para encriptar QRs con session_key real
+  const studentEncryptionService = new StudentEncryptionService(sessionKeyQuery);
+  
   const qrLifecycleManager = new QRLifecycleService(
     qrGenerator,
     payloadRepo,
     poolRepo,
     null,
-    cfg.mockHostUserId
+    cfg.mockHostUserId,
+    studentEncryptionService
   );
   
   const services: ServiceDependencies = {
