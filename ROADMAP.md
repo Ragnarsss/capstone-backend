@@ -1,7 +1,7 @@
 # ROADMAP - Fuente de Verdad del Proyecto
 
 > Ultima actualizacion: 2025-12-20
-> Base: fase-22.6.5-pool-cleanup (231d94d)
+> Base: fase-22.6.5-pool-cleanup (fa10726)
 > Build: OK | Tests: 241/241 pasando
 > Siguiente: fase-22.7-unify-sessionkeystore-singleton
 
@@ -814,7 +814,7 @@ Extender `QRLifecycleService` para que sea autocontenido:
 **Severidad:** MENOR
 **Referencia:** daRulez §7.1.1 (Cohesión - ciclo de vida completo)
 **Estado:** COMPLETADA (2025-12-20)
-**Commit:** [pendiente]
+**Commit:** fa10726
 
 **Situación actual:**
 
