@@ -3,7 +3,7 @@
 > Ultima actualizacion: 2025-12-20
 > Base: fase-22.6.2-fix-totp-validation
 > Build: OK | Tests: 263/263 pasando
-> Siguiente: fase-22.6.2-fix-totp-validation
+> Siguiente: fase-22.7-unify-sessionkeystore-singleton
 
 ---
 
@@ -25,7 +25,7 @@
 | **22.5** | **Stats + QR Lifecycle** | **COMPLETADA** |
 | **22.6** | **Fix Session Key Encryption (CRITICO)** | **COMPLETADA** |
 | **22.6.1** | **Fix Escaneo + uid + TOTPu Integration (MAYOR)** | **COMPLETADA** |
-| **22.6.2** | **Unificar Validacion TOTP con handshakeSecret (CRITICO)** | **PENDIENTE** |
+| **22.6.2** | **Unificar Validacion TOTP con handshakeSecret (CRITICO)** | **COMPLETADA** |
 | **22.7** | **Unificar Singleton SessionKeyStore (MENOR)** | **PENDIENTE** |
 | 22.8-22.9 | Inyeccion SessionKeyQuery, QR Ports, Participation, /dev/ | COMPLETADA |
 | 22.10.1-22.10.3 | Mover WebSocketAuth, JWT, Emojis, Zod | COMPLETADA |
@@ -71,7 +71,7 @@ flowchart TB
     P5 --> P6
 
     style P0 fill:#90EE90
-    style P1 fill:#FFD700
+    style P1 fill:#90EE90
     style P2 fill:#90EE90
     style P3 fill:#FFD700
     style P4 fill:#FFD700
@@ -494,7 +494,8 @@ El DecryptStage ahora tiene cobertura completa de tests unitarios que verifican 
 **Modelo:** Opus
 **Severidad:** CRITICO
 **Referencia:** daRulez §7.1.1 (DRY, SoC, Acoplamiento Bajo), §1.4.1 (seguridad)
-**Estado:** PENDIENTE
+**Estado:** COMPLETADA (2025-12-20)
+**Commit:** 6a4d987
 
 **Causa raiz identificada (auditoria 2025-12-19):**
 
@@ -540,13 +541,13 @@ attendance/domain/validation-pipeline/stages/
 
 **Criterio de exito verificable:**
 
-- [ ] `grep -rn "otplib" node-service/src/backend/attendance/` retorna 0 resultados
-- [ ] `grep -rn "ITotpValidator" node-service/src/shared/ports/` retorna 1+ resultados
-- [ ] Stage TOTP recibe ITotpValidator, no ISessionKeyQuery
-- [ ] HkdfService.validateTotp() es la unica implementacion TOTP en backend
-- [ ] Test: TOTP generado en login valida correctamente en pipeline
-- [ ] Flujo E2E: Round 1 -> Round 2 -> Round 3 -> asistencia registrada
-- [ ] Build y tests: X/X pasando
+- [x] `grep -rn "otplib" node-service/src/backend/attendance/` retorna 0 resultados
+- [x] `grep -rn "ITotpValidator" node-service/src/shared/ports/` retorna 1+ resultados
+- [x] Stage TOTP recibe ITotpValidator, no ISessionKeyQuery
+- [x] HkdfService.validateTotp() es la unica implementacion TOTP en backend
+- [x] Test: TOTP generado en login valida correctamente en pipeline
+- [ ] Flujo E2E: Round 1 -> Round 2 -> Round 3 -> asistencia registrada (ver 22.6.3)
+- [x] Build y tests: 263/263 pasando
 
 **Restricciones arquitectonicas:**
 
@@ -571,17 +572,17 @@ attendance/domain/validation-pipeline/stages/
 
 **Tareas:**
 
-- [ ] Crear `shared/ports/totp-validator.port.ts` con interface ITotpValidator
-- [ ] Crear `enrollment/infrastructure/adapters/totp-validator.adapter.ts`
-- [ ] Exportar ITotpValidator en `shared/ports/index.ts`
-- [ ] Modificar `totp-validation.stage.ts`: recibir ITotpValidator, eliminar otplib
-- [ ] Modificar `pipeline.factory.ts`: agregar ITotpValidator a PipelineDependencies
-- [ ] Modificar `attendance/presentation/routes.ts`: instanciar adaptador
-- [ ] Actualizar tests del stage para mockear ITotpValidator
-- [ ] Verificar que HkdfService.validateTotp() tiene tests (ya existen)
-- [ ] E2E: Completar 3 rounds de asistencia
-- [ ] Build y tests pasando
-- [ ] Commit atomico
+- [x] Crear `shared/ports/totp-validator.port.ts` con interface ITotpValidator
+- [x] Crear `enrollment/infrastructure/adapters/totp-validator.adapter.ts`
+- [x] Exportar ITotpValidator en `shared/ports/index.ts`
+- [x] Modificar `totp-validation.stage.ts`: recibir ITotpValidator, eliminar otplib
+- [x] Modificar `pipeline.factory.ts`: agregar ITotpValidator a PipelineDependencies
+- [x] Modificar `attendance/presentation/routes.ts`: instanciar adaptador
+- [x] Actualizar tests del stage para mockear ITotpValidator
+- [x] Verificar que HkdfService.validateTotp() tiene tests (ya existen)
+- [ ] E2E: Completar 3 rounds de asistencia (pendiente - ver 22.6.3)
+- [x] Build y tests pasando (263/263)
+- [x] Commit atomico: 6a4d987
 
 **Beneficios de esta solucion:**
 
@@ -960,18 +961,18 @@ Ejecutar en orden de prioridad:
 
 ### Pendientes por Completar
 
-1. **[CRITICO]** **22.6.2** - Unificar Validacion TOTP con handshakeSecret
-   - Impacto: Alto, desbloquea testing E2E completo
-   - Esfuerzo: ~2-3 horas (crear port + adaptador + modificar stage)
-   - Riesgo: Bajo (reutiliza HkdfService.validateTotp() existente)
-   - Beneficio: Elimina duplicacion TOTP, cumple DRY/SoC
+1. **[CRITICO]** **22.6.3** - Fix Generacion QR Round 2+ (NUEVO)
+   - Impacto: Alto, bloquea flujo E2E completo
+   - Esfuerzo: ~2-4 horas (diagnosticar flujo de generacion QR post-round)
+   - Riesgo: Medio (requiere analisis de QRLifecycleService)
+   - Problema: Round 1 valida OK pero Round 2 falla desencriptacion
    - **SIGUIENTE TAREA - BLOQUEANTE**
 
 2. **[MENOR]** **22.7** - Unificar Singleton SessionKeyStore
    - Impacto: Bajo, mejora consistencia arquitectónica
    - Esfuerzo: ~1-2 horas
    - Riesgo: Minimo
-   - Dependencias: 22.6.2 completado
+   - Dependencias: 22.6.3 completado
 
 3. **[MAYOR]** **23.1** - Implementar Restriction Service
    - Impacto: Alto, integracion critica con PHP
