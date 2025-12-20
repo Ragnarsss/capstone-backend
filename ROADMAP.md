@@ -25,7 +25,7 @@
 | **22.5** | **Stats + QR Lifecycle** | **COMPLETADA** |
 | **22.6** | **Fix Session Key Encryption (CRITICO)** | **COMPLETADA** |
 | **22.6.1** | **Fix Escaneo + uid + TOTPu Integration (MAYOR)** | **COMPLETADA** |
-| **22.6.2** | **Fix Validacion TOTPu Backend (MAYOR)** | **PENDIENTE** |
+| **22.6.2** | **Fix Discrepancia TOTP handshakeSecret vs sessionKey (CRITICO)** | **PENDIENTE** |
 | **22.7** | **Unificar Singleton SessionKeyStore (MENOR)** | **PENDIENTE** |
 | 22.8-22.9 | Inyeccion SessionKeyQuery, QR Ports, Participation, /dev/ | COMPLETADA |
 | 22.10.1-22.10.3 | Mover WebSocketAuth, JWT, Emojis, Zod | COMPLETADA |
@@ -486,66 +486,73 @@ El DecryptStage ahora tiene cobertura completa de tests unitarios que verifican 
 
 ---
 
-### Fase 22.6.2: Fix Validacion TOTPu Backend
+### Fase 22.6.2: Fix Discrepancia TOTP handshakeSecret vs sessionKey
 
-**Objetivo:** Corregir la validación de TOTPu en el backend para que coincida con el TOTP generado por el frontend, verificando compatibilidad de derivación HKDF y algoritmo TOTP.
+**Objetivo:** Alinear la generacion y validacion de TOTPu para usar la misma fuente de secreto, cumpliendo con 14-decision-totp-session-key.md que especifica usar session_key.
 
 **Rama:** `fase-22.6.2-fix-totp-validation`
 **Modelo:** Opus
-**Severidad:** MAYOR
-**Referencia:** 14-decision-totp-session-key.md, daRulez §1.4.1 (seguridad criptográfica)
+**Severidad:** CRITICO
+**Referencia:** 14-decision-totp-session-key.md, daRulez §1.4.1 (seguridad criptografica)
 **Estado:** PENDIENTE
 
-**Situación actual:**
+**Causa raiz identificada (auditoria 2025-12-19):**
 
-El frontend envía TOTPu en la respuesta encriptada, pero el backend rechaza con "TOTPu no coincide con lo esperado". El problema está en la sincronización entre:
+| Componente | Fuente del TOTP | Problema |
+|------------|-----------------|----------|
+| Login backend | `handshakeSecret` (BD) | Genera TOTP con secret permanente |
+| Frontend store | `data.totpu` (estatico) | Almacena TOTP del servidor |
+| Validacion backend | `sessionKey` (Valkey) | Verifica con secret efimero |
 
-1. **Frontend**: Deriva hmacKey via HKDF y genera TOTP almacenado en login
-2. **Backend**: Deriva secret para TOTP y verifica contra lo enviado
+**Resultado:** TOTP nunca coincide porque `handshakeSecret != sessionKey`
 
-**Hipótesis de causa:**
+**Solucion segun 14-decision-totp-session-key.md:**
 
-- Frontend almacena TOTPu generado en login (estático)
-- Backend regenera TOTP en cada validación (dinámico, basado en tiempo)
-- Desincronización temporal o de derivación
+> "TOTPu = TOTP(session_key)" - Ambos lados deben usar session_key
 
-**Criterio de éxito verificable:**
+- Frontend: Genera TOTP dinamico con `hmacKey` al momento de escanear
+- Backend: Valida TOTP con `sessionKey` de Valkey (ya implementado correctamente)
 
-- [ ] Log de debug muestra: TOTP frontend vs TOTP backend esperado
-- [ ] Identificar diferencia: ¿derivación HKDF? ¿algoritmo TOTP? ¿timing?
-- [ ] Validación TOTP exitosa en flujo E2E
-- [ ] Round 1 completo → cooldown → Round 2 → Round 3 → asistencia registrada
-- [ ] Build y tests: 263/263 pasando
+**Criterio de exito verificable:**
 
-**Restricciones arquitectónicas:**
+- [ ] Login NO envia `totpu` al cliente (eliminado de LoginEcdhOutput)
+- [ ] Frontend genera TOTP dinamico con `hmacKey` al escanear
+- [ ] Backend valida TOTP con `sessionKey` de Valkey
+- [ ] Test: TOTP frontend coincide con esperado en backend
+- [ ] Flujo E2E: Round 1 -> Round 2 -> Round 3 -> asistencia registrada
+- [ ] Build y tests: X/X pasando
 
-- No debilitar modelo criptográfico (daRulez §1.4.1)
-- Mantener compatibilidad con derivación HKDF existente (fase 22.2)
-- TOTP debe ser time-based con ventana de tolerancia razonable
+**Restricciones arquitectonicas:**
 
-**Archivos a investigar:**
+- Seguir 14-decision-totp-session-key.md: TOTPu = TOTP(session_key)
+- No debilitar modelo criptografico (daRulez §1.4.1)
+- Perfect Forward Secrecy: TOTP cambia por sesion
+- Ventana de tolerancia: +/- 30 segundos (window=1)
 
-- `frontend/shared/services/enrollment/session-key.store.ts` - getTotpu()
-- `frontend/shared/services/enrollment/login.service.ts` - derivación HKDF
-- `backend/attendance/domain/validation-pipeline/stages/totp-validation.stage.ts` - verificación
-- `backend/session/application/use-cases/login-ecdh.use-case.ts` - derivación backend
+**Archivos a modificar:**
+
+- `backend/session/application/use-cases/login-ecdh.use-case.ts` - Eliminar generacion totpu
+- `backend/session/presentation/` - Eliminar totpu de response DTO
+- `frontend/shared/services/enrollment/session-key.store.ts` - Agregar generateTotpu()
+- `frontend/features/qr-reader/services/qr-scan.service.ts` - Llamar generateTotpu()
+- `frontend/shared/services/enrollment/login.service.ts` - No almacenar totpu
 
 **Tareas:**
 
-- [ ] Agregar logs de debug en totp-validation.stage.ts (TOTP esperado vs recibido)
-- [ ] Verificar qué almacena frontend como totpu (¿estático o dinámico?)
-- [ ] Comparar derivación HKDF frontend vs backend
-- [ ] Identificar y corregir la discrepancia
-- [ ] Remover logs de debug
-- [ ] Testing E2E completo (3 rounds)
+- [ ] Backend: Eliminar totpu de LoginEcdhOutput y use-case
+- [ ] Frontend: Implementar generateTotpu() usando hmacKey + algoritmo TOTP
+- [ ] Frontend: qr-scan.service llama generateTotpu() al escanear
+- [ ] Frontend: Eliminar campo totpu de StoredSession (o hacerlo opcional)
+- [ ] Test: Verificar compatibilidad TOTP frontend/backend
+- [ ] E2E: Completar 3 rounds de asistencia
 - [ ] Build y tests pasando
-- [ ] Commit atómico
+- [ ] Commit atomico
 
 **Dependencias:** Requiere 22.6.1 COMPLETADA
 
 **Referencias:** 
-- `14-decision-totp-session-key.md` - Diseño original de TOTP
-- `spec-qr-validation.md` - Pipeline de validación
+- `14-decision-totp-session-key.md` - Seccion "Opcion Seleccionada: TOTPu basado en session_key"
+- `spec-qr-validation.md` - Pipeline de validacion stage 10
 
 ---
 
