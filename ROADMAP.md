@@ -679,12 +679,12 @@ Scan:
 
 **Criterio de éxito verificable:**
 
-- [ ] Cliente genera TOTP en tiempo real con hmacKey (no usa valor almacenado)
-- [ ] Servidor deriva hmacKey desde session_key de Valkey
-- [ ] Login response NO incluye campo `totpu`
-- [ ] E2E: Round 1 → Round 2 → Round 3 → asistencia registrada (sin expiración)
-- [ ] Tests unitarios para generación TOTP en cliente
-- [ ] Build y tests pasando
+- [x] Cliente genera TOTP en tiempo real con hmacKey (no usa valor almacenado)
+- [x] Servidor deriva hmacKey desde session_key de Valkey
+- [x] Login response NO incluye campo `totpu`
+- [x] E2E: Round 1 → Round 2 → Round 3 → asistencia registrada (sin expiración)
+- [x] Tests unitarios para generación TOTP en cliente
+- [x] Build y tests pasando (241/241)
 
 **Archivos a crear:**
 
@@ -701,17 +701,16 @@ Scan:
 
 **Tareas:**
 
-- [ ] Crear `frontend/shared/crypto/totp.ts` con función `generateTotp(hmacKey: CryptoKey): string`
-- [ ] Modificar `session-key.store.ts`: exponer método `getHmacKey(): CryptoKey | null`
-- [ ] Modificar `qr-scan.service.ts`: llamar `generateTotp(hmacKey)` en cada escaneo
-- [ ] Modificar `login-ecdh.use-case.ts`: eliminar generación de totpu en respuesta
-- [ ] Modificar `totp-validator.adapter.ts`: obtener session_key de Valkey, derivar hmacKey
-- [ ] Revertir `session/domain/models.ts`: eliminar campo `totpu?: string`
-- [ ] Revertir `session-key.repository.ts`: eliminar lógica de totpu
-- [ ] Agregar tests para `frontend/shared/crypto/totp.ts`
-- [ ] E2E: Verificar 3 rounds consecutivos funcionan
-- [ ] Build y tests pasando
-- [ ] Commit atómico
+- [x] Crear `frontend/shared/crypto/totp.ts` con función `generateTotp(hmacKey: CryptoKey): string`
+- [x] Modificar `session-key.store.ts`: exponer método `getHmacKey(): CryptoKey | null`
+- [x] Modificar `qr-scan.service.ts`: llamar `generateTotp(hmacKey)` en cada escaneo
+- [x] Modificar `login-ecdh.use-case.ts`: eliminar generación de totpu en respuesta
+- [x] Modificar `totp-validator.adapter.ts`: obtener session_key de Valkey, derivar hmacKey
+- [x] Agregar credentialId a SessionKey para derivación hmacKey
+- [x] Agregar método deriveHmacKeyFromSessionKey() en HkdfService
+- [x] E2E: Verificar 3 rounds consecutivos funcionan
+- [x] Build y tests pasando (241/241)
+- [x] Commits: 8250e9b, 13e4328, 3f0ff5a
 
 **Dependencias:** Requiere 22.6.2 COMPLETADA
 
@@ -731,7 +730,8 @@ Scan:
 **Modelo:** Opus
 **Severidad:** MAYOR
 **Referencia:** daRulez §7.1.1 (SoC, DRY, Cohesión)
-**Estado:** PENDIENTE
+**Estado:** COMPLETADA (2025-12-20)
+**Commit:** dce46e5
 
 **Causa raíz identificada:**
 
@@ -772,21 +772,21 @@ Extender `QRLifecycleService` para que sea autocontenido:
 
 **Criterio de éxito verificable:**
 
-- [ ] `QRLifecycleService.generateAndPublish()` llama `setActiveQR()` internamente
-- [ ] `ParticipationService` no llama `setActiveQR()` directamente (DRY)
-- [ ] E2E: Round 1 → Round 2 → Round 3 sin error WRONG_QR
-- [ ] Build y tests pasando
+- [x] `QRLifecycleService.generateAndPublish()` llama `setActiveQR()` internamente
+- [x] `ParticipationService` no llama `setActiveQR()` directamente (DRY)
+- [x] E2E: Round 1 → Round 2 → Round 3 sin error WRONG_QR
+- [x] Build y tests pasando (241/241)
 
 **Tareas:**
 
-- [ ] Agregar `StudentStateService` al constructor de `QRLifecycleService`
-- [ ] Llamar `setActiveQR()` en `generateAndPublish()` después de `generateAndProject()`
-- [ ] Actualizar `createCompleteScanDepsWithPersistence()` para inyectar `StudentStateService`
-- [ ] Eliminar llamadas a `setActiveQR()` en `ParticipationService.registerParticipation()`
-- [ ] Eliminar llamadas a `setActiveQR()` en `ParticipationService.requestNewQR()`
-- [ ] E2E: Completar 3 rounds consecutivos
-- [ ] Build y tests pasando
-- [ ] Commit atómico
+- [x] Agregar `StudentStateService` al constructor de `QRLifecycleService`
+- [x] Llamar `setActiveQR()` en `generateAndPublish()` después de `generateAndProject()`
+- [x] Actualizar `createCompleteScanDepsWithPersistence()` para inyectar `StudentStateService`
+- [x] Simplificar `ParticipationService.registerParticipation()` eliminando llamadas redundantes
+- [x] Simplificar `ParticipationService.requestNewQR()` eliminando llamadas redundantes
+- [x] E2E: Completar 3 rounds consecutivos → Asistencia registrada
+- [x] Build y tests pasando (241/241)
+- [x] Commit: dce46e5
 
 **Beneficios:**
 
