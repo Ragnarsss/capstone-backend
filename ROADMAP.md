@@ -1,9 +1,9 @@
 # ROADMAP - Fuente de Verdad del Proyecto
 
 > Ultima actualizacion: 2025-12-20
-> Base: fase-22.6.3-totp-session-key
+> Base: fase-22.6.4-qr-multiround-projection (dce46e5)
 > Build: OK | Tests: 241/241 pasando
-> Siguiente: fase-22.6.4-qr-multiround-projection
+> Siguiente: fase-22.6.5-pool-cleanup
 
 ---
 
@@ -27,7 +27,8 @@
 | **22.6.1** | **Fix Escaneo + uid + TOTPu Integration (MAYOR)** | **COMPLETADA** |
 | **22.6.2** | **Unificar Validacion TOTP con handshakeSecret (CRITICO)** | **COMPLETADA** |
 | **22.6.3** | **Alinear TOTPu con diseño session_key (CRITICO)** | **COMPLETADA** |
-| **22.6.4** | **Fix proyección QR multi-round sin falsos (MAYOR)** | **PENDIENTE** |
+| **22.6.4** | **Completar responsabilidad QRLifecycleService (MAYOR)** | **COMPLETADA** |
+| **22.6.5** | **Limpiar pool al completar asistencia (MENOR)** | **PENDIENTE** |
 | **22.7** | **Unificar Singleton SessionKeyStore (MENOR)** | **PENDIENTE** |
 | 22.8-22.9 | Inyeccion SessionKeyQuery, QR Ports, Participation, /dev/ | COMPLETADA |
 | 22.10.1-22.10.3 | Mover WebSocketAuth, JWT, Emojis, Zod | COMPLETADA |
@@ -59,7 +60,9 @@
 flowchart TB
     P0[22.6.1<br/>Fix Escaneo + uid + TOTPu<br/>COMPLETADA]
     P1[22.6.2<br/>Fix Validacion TOTPu<br/>COMPLETADA]
-    P1_1[22.6.3<br/>Alinear TOTPu session_key<br/>CRITICO]
+    P1_1[22.6.3<br/>Alinear TOTPu session_key<br/>COMPLETADA]
+    P1_2[22.6.4<br/>Completar QRLifecycleService<br/>COMPLETADA]
+    P1_3[22.6.5<br/>Limpiar pool al completar<br/>PENDIENTE]
     P2[22.7<br/>Singleton Unification<br/>MENOR]
     P3[23.1<br/>Restriction Integration<br/>MAYOR]
     P4[23.2<br/>Puente HTTP Node-PHP<br/>MAYOR]
@@ -68,7 +71,9 @@ flowchart TB
     
     P0 --> P1
     P1 --> P1_1
-    P1_1 --> P2
+    P1_1 --> P1_2
+    P1_2 --> P1_3
+    P1_3 --> P2
     P2 --> P3
     P3 --> P4
     P4 --> P5
@@ -76,7 +81,9 @@ flowchart TB
 
     style P0 fill:#90EE90
     style P1 fill:#90EE90
-    style P1_1 fill:#FF6B6B
+    style P1_1 fill:#90EE90
+    style P1_2 fill:#90EE90
+    style P1_3 fill:#FFD700
     style P2 fill:#90EE90
     style P3 fill:#FFD700
     style P4 fill:#FFD700
@@ -794,6 +801,61 @@ Extender `QRLifecycleService` para que sea autocontenido:
 
 **Referencias:**
 - daRulez §7.1.1 (SoC, DRY, Cohesión)
+- spec-qr-validation.md
+
+---
+
+### Fase 22.6.5: Limpiar pool al completar asistencia
+
+**Objetivo:** Remover al estudiante del pool de proyección cuando completa todos los rounds, evitando generación innecesaria de QRs y limpiando recursos.
+
+**Rama:** `fase-22.6.5-pool-cleanup`
+**Modelo:** Sonnet
+**Severidad:** MENOR
+**Referencia:** daRulez §7.1.1 (Cohesión - ciclo de vida completo)
+**Estado:** PENDIENTE
+
+**Situación actual:**
+
+- `complete-scan.usecase.ts` - Si `isComplete=true`, llama `generateAndPublish()` (innecesario)
+- `ProjectionPoolRepository` - No tiene método para remover estudiante
+- Pool Valkey mantiene entrada hasta TTL expira
+
+**Criterio de éxito verificable:**
+
+- [ ] `IQRLifecycleManager` tiene método `removeFromPool(sessionId, studentId)`
+- [ ] `QRLifecycleService` implementa `removeFromPool()`
+- [ ] `ProjectionPoolRepository` tiene `removeStudent(sessionId, studentId)`
+- [ ] `CompleteScanUseCase` llama `removeFromPool()` cuando `isComplete=true`
+- [ ] E2E: estudiante completado no aparece en pool
+- [ ] Build y tests pasando
+
+**Restricciones arquitectónicas:**
+
+- Mantener interface `IQRLifecycleManager` (daRulez §7.1.2 - ports)
+- Operación debe ser idempotente (daRulez §7.1.1)
+- No afectar flujo de rounds incompletos
+
+**Archivos a modificar:**
+
+- `shared/ports/qr-lifecycle.port.ts` - Agregar `removeFromPool()` a interface
+- `attendance/application/services/qr-lifecycle.service.ts` - Implementar método
+- `shared/infrastructure/valkey/projection-pool.repository.ts` - Agregar `removeStudent()`
+- `attendance/application/complete-scan.usecase.ts` - Condicional: si completo, limpiar pool
+
+**Tareas:**
+
+- [ ] Agregar `removeFromPool(sessionId: string, studentId: number): Promise<void>` a `IQRLifecycleManager`
+- [ ] Implementar en `QRLifecycleService` delegando a `poolRepo.removeStudent()`
+- [ ] Implementar `removeStudent()` en `ProjectionPoolRepository` (Redis DEL)
+- [ ] Modificar `CompleteScanUseCase`: si `isComplete`, llamar `removeFromPool()` en lugar de `generateAndPublish()`
+- [ ] Build y tests pasando
+- [ ] Commit atómico
+
+**Dependencias:** Requiere 22.6.4 COMPLETADA
+
+**Referencias:**
+- daRulez §7.1.1 (Cohesión)
 - spec-qr-validation.md
 
 ---
