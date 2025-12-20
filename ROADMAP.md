@@ -3,7 +3,7 @@
 > Ultima actualizacion: 2025-12-20
 > Base: fase-22.6.2-fix-totp-validation
 > Build: OK | Tests: 263/263 pasando
-> Siguiente: fase-22.7-unify-sessionkeystore-singleton
+> Siguiente: fase-22.6.3-totp-session-key
 
 ---
 
@@ -26,6 +26,7 @@
 | **22.6** | **Fix Session Key Encryption (CRITICO)** | **COMPLETADA** |
 | **22.6.1** | **Fix Escaneo + uid + TOTPu Integration (MAYOR)** | **COMPLETADA** |
 | **22.6.2** | **Unificar Validacion TOTP con handshakeSecret (CRITICO)** | **COMPLETADA** |
+| **22.6.3** | **Alinear TOTPu con diseño session_key (CRITICO)** | **PENDIENTE** |
 | **22.7** | **Unificar Singleton SessionKeyStore (MENOR)** | **PENDIENTE** |
 | 22.8-22.9 | Inyeccion SessionKeyQuery, QR Ports, Participation, /dev/ | COMPLETADA |
 | 22.10.1-22.10.3 | Mover WebSocketAuth, JWT, Emojis, Zod | COMPLETADA |
@@ -56,7 +57,8 @@
 ```mermaid
 flowchart TB
     P0[22.6.1<br/>Fix Escaneo + uid + TOTPu<br/>COMPLETADA]
-    P1[22.6.2<br/>Fix Validacion TOTPu<br/>MAYOR]
+    P1[22.6.2<br/>Fix Validacion TOTPu<br/>COMPLETADA]
+    P1_1[22.6.3<br/>Alinear TOTPu session_key<br/>CRITICO]
     P2[22.7<br/>Singleton Unification<br/>MENOR]
     P3[23.1<br/>Restriction Integration<br/>MAYOR]
     P4[23.2<br/>Puente HTTP Node-PHP<br/>MAYOR]
@@ -64,7 +66,8 @@ flowchart TB
     P6[25<br/>Testing E2E y Calidad<br/>MAYOR]
     
     P0 --> P1
-    P1 --> P2
+    P1 --> P1_1
+    P1_1 --> P2
     P2 --> P3
     P3 --> P4
     P4 --> P5
@@ -72,6 +75,7 @@ flowchart TB
 
     style P0 fill:#90EE90
     style P1 fill:#90EE90
+    style P1_1 fill:#FF6B6B
     style P2 fill:#90EE90
     style P3 fill:#FFD700
     style P4 fill:#FFD700
@@ -79,14 +83,15 @@ flowchart TB
     style P6 fill:#FFD700
 ```
 
-**Leyenda:** Verde claro = MENOR, Amarillo = MAYOR
+**Leyenda:** Verde claro = MENOR, Amarillo = MAYOR, Rojo = CRITICO
 
 **Prioridad:**
-1. **22.7** (MENOR) - Mejora arquitectónica de bajo riesgo, desbloquea consistencia
-2. **23.1** (MAYOR) - Integración crítica con PHP para restricciones
-3. **23.2** (MAYOR) - Completa comunicación bidireccional Node↔PHP
-4. **24** (MAYOR) - Preparación para producción
-5. **25** (MAYOR) - Validación final de calidad
+1. **22.6.3** (CRITICO) - Alinear TOTPu con diseño session_key, bloquea testing E2E
+2. **22.7** (MENOR) - Mejora arquitectónica de bajo riesgo, desbloquea consistencia
+3. **23.1** (MAYOR) - Integración crítica con PHP para restricciones
+4. **23.2** (MAYOR) - Completa comunicación bidireccional Node↔PHP
+5. **24** (MAYOR) - Preparación para producción
+6. **25** (MAYOR) - Validación final de calidad
 
 ---
 
@@ -600,6 +605,112 @@ attendance/domain/validation-pipeline/stages/
 - daRulez §7.1.1 (DRY, SoC, Acoplamiento)
 - daRulez §7.1.2 (Pipeline pattern)
 - `enrollment/infrastructure/crypto/hkdf.service.ts` - validateTotp() existente
+
+---
+
+### Fase 22.6.3: Alinear TOTPu con diseño session_key (CRITICO)
+
+**Objetivo:** Corregir la implementación de TOTPu para que ambos lados (cliente y servidor) generen el TOTP independientemente usando la session_key derivada del ECDH handshake, alineando con el diseño original en `14-decision-totp-session-key.md`.
+
+**Rama:** `fase-22.6.3-totp-session-key`
+**Modelo:** Opus (decisión criptográfica)
+**Severidad:** CRITICO
+**Referencia:** `documents/03-especificaciones-tecnicas/14-decision-totp-session-key.md`
+**Estado:** PENDIENTE
+
+**Problema detectado (auditoria 2025-12-20):**
+
+Discrepancia fundamental entre diseño e implementación:
+
+| Aspecto | Diseño (14-decision) | Implementación actual |
+|---------|----------------------|----------------------|
+| TOTPu base | `session_key` (ECDH) | `handshake_secret` (BD enrollment) |
+| Cliente genera | Sí, con hmacKey | No, recibe valor fijo del servidor |
+| Servidor genera | Sí, con session_key | Sí, pero con secreto equivocado |
+| Sincronización | Ambos calculan independientemente | Cliente tiene valor estático que expira |
+
+**Evidencia del fallo:**
+
+```
+[TotpValidator] userId=186875052, received=862478, expected=881322
+[Validate] Pipeline failed: code=TOTP_INVALID, trace=decrypt: OK -> totp-validation: FAIL
+```
+
+- Round 1 funciona (TOTP recién generado)
+- Round 2+ fallan (~60 segundos después, TOTP expirado)
+
+**Análisis de flujo actual (incorrecto):**
+
+```
+Login:
+  Server: totpu = TOTP(handshake_secret) → envia a cliente como valor fijo
+  Client: almacena totpu en sessionKeyStore (nunca cambia)
+
+Scan (30s después):
+  Client: envia totpu almacenado (valor de hace 30s)
+  Server: regenera expected = TOTP(handshake_secret) con timestamp actual
+  Result: received ≠ expected → FAIL
+```
+
+**Flujo corregido (según diseño):**
+
+```
+Login:
+  Server: NO envia totpu
+  Client: deriva hmacKey = HKDF(sharedSecret, 'attendance-hmac-key-v1:' + credentialId)
+  Client: almacena hmacKey (ya lo hace pero no lo usa)
+
+Scan:
+  Client: totpu = TOTP(hmacKey) en tiempo real
+  Server: session_key = Valkey.get(userId)
+  Server: hmacKey = HKDF(session_key, 'attendance-hmac-key-v1:' + credentialId)
+  Server: validates TOTP(hmacKey) con window ±30s
+  Result: ambos calculan con mismo secreto y tiempo → PASS
+```
+
+**Criterio de éxito verificable:**
+
+- [ ] Cliente genera TOTP en tiempo real con hmacKey (no usa valor almacenado)
+- [ ] Servidor deriva hmacKey desde session_key de Valkey
+- [ ] Login response NO incluye campo `totpu`
+- [ ] E2E: Round 1 → Round 2 → Round 3 → asistencia registrada (sin expiración)
+- [ ] Tests unitarios para generación TOTP en cliente
+- [ ] Build y tests pasando
+
+**Archivos a crear:**
+
+- `frontend/shared/crypto/totp.ts` - Generación TOTP cliente con hmacKey
+
+**Archivos a modificar:**
+
+- `session/application/use-cases/login-ecdh.use-case.ts` - Eliminar generación/envío de totpu
+- `enrollment/infrastructure/adapters/totp-validator.adapter.ts` - Derivar hmacKey desde session_key
+- `frontend/features/qr-reader/services/qr-scan.service.ts` - Generar TOTP en tiempo real
+- `frontend/shared/stores/session-key.store.ts` - Exponer hmacKey para TOTP
+- `session/domain/models.ts` - Eliminar campo totpu de SessionKey (revertir ad-hoc)
+- `session/infrastructure/repositories/session-key.repository.ts` - Eliminar persistencia totpu
+
+**Tareas:**
+
+- [ ] Crear `frontend/shared/crypto/totp.ts` con función `generateTotp(hmacKey: CryptoKey): string`
+- [ ] Modificar `session-key.store.ts`: exponer método `getHmacKey(): CryptoKey | null`
+- [ ] Modificar `qr-scan.service.ts`: llamar `generateTotp(hmacKey)` en cada escaneo
+- [ ] Modificar `login-ecdh.use-case.ts`: eliminar generación de totpu en respuesta
+- [ ] Modificar `totp-validator.adapter.ts`: obtener session_key de Valkey, derivar hmacKey
+- [ ] Revertir `session/domain/models.ts`: eliminar campo `totpu?: string`
+- [ ] Revertir `session-key.repository.ts`: eliminar lógica de totpu
+- [ ] Agregar tests para `frontend/shared/crypto/totp.ts`
+- [ ] E2E: Verificar 3 rounds consecutivos funcionan
+- [ ] Build y tests pasando
+- [ ] Commit atómico
+
+**Dependencias:** Requiere 22.6.2 COMPLETADA
+
+**Referencias:**
+- `documents/03-especificaciones-tecnicas/14-decision-totp-session-key.md`
+- daRulez §7.1.1 (Consistencia diseño-implementación)
+- RFC 6238 (TOTP)
+- Web Crypto API (HMAC key derivation)
 
 ---
 
