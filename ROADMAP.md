@@ -1,9 +1,9 @@
 # ROADMAP - Fuente de Verdad del Proyecto
 
 > Ultima actualizacion: 2025-12-21
-> Base: fase-22.7-unify-sessionkeystore-singleton (3b4595b)
+> Base: fase-22.7.1-fix-login-race-condition (616fa74)
 > Build: OK | Tests: 241/241 pasando
-> Siguiente: fase-23.1-restriction-integration
+> Siguiente: fase-22.7.2-silence-decoy-logging
 
 ---
 
@@ -30,7 +30,7 @@
 | **22.6.4** | **Completar responsabilidad QRLifecycleService (MAYOR)** | **COMPLETADA** |
 | **22.6.5** | **Limpiar pool al completar asistencia (MENOR)** | **COMPLETADA** |
 | **22.7** | **Unificar Singleton SessionKeyStore (MENOR)** | **COMPLETADA** |
-| **22.7.1** | **Fix Race Condition Login → State (CRITICO)** | **PENDIENTE** |
+| **22.7.1** | **Fix Login totpu Check (CRITICO)** | **COMPLETADA** |
 | **22.7.2** | **Silenciar Logging Decoys (MENOR)** | **PENDIENTE** |
 | 22.8-22.9 | Inyeccion SessionKeyQuery, QR Ports, Participation, /dev/ | COMPLETADA |
 | 22.10.1-22.10.3 | Mover WebSocketAuth, JWT, Emojis, Zod | COMPLETADA |
@@ -66,7 +66,7 @@ flowchart TB
     P1_2[22.6.4<br/>Completar QRLifecycleService<br/>COMPLETADA]
     P1_3[22.6.5<br/>Limpiar pool al completar<br/>COMPLETADA]
     P2[22.7<br/>Singleton Unification<br/>COMPLETADA]
-    P2_1[22.7.1<br/>Fix Login Race Condition<br/>CRITICO]
+    P2_1[22.7.1<br/>Fix Login totpu Check<br/>COMPLETADA]
     P2_2[22.7.2<br/>Silence Decoy Logging<br/>MENOR]
     P3[23.1<br/>Restriction Integration<br/>MAYOR]
     P4[23.2<br/>Puente HTTP Node-PHP<br/>MAYOR]
@@ -91,7 +91,7 @@ flowchart TB
     style P1_2 fill:#90EE90
     style P1_3 fill:#90EE90
     style P2 fill:#90EE90
-    style P2_1 fill:#FF6B6B
+    style P2_1 fill:#90EE90
     style P2_2 fill:#90EE90
     style P3 fill:#FFD700
     style P4 fill:#FFD700
@@ -102,12 +102,11 @@ flowchart TB
 **Leyenda:** Verde claro = MENOR, Amarillo = MAYOR, Rojo = CRITICO
 
 **Prioridad:**
-1. **22.7.1** (CRITICO) - Fix race condition login → access gateway, bloquea E2E post-enrollment
-2. **22.7.2** (MENOR) - Silenciar logging de decoys, mejora DX
-3. **23.1** (MAYOR) - Integración crítica con PHP para restricciones
-4. **23.2** (MAYOR) - Completa comunicación bidireccional Node↔PHP
-5. **24** (MAYOR) - Preparación para producción
-6. **25** (MAYOR) - Validación final de calidad
+1. **22.7.2** (MENOR) - Silenciar logging de decoys, mejora DX
+2. **23.1** (MAYOR) - Integración crítica con PHP para restricciones
+3. **23.2** (MAYOR) - Completa comunicación bidireccional Node↔PHP
+4. **24** (MAYOR) - Preparación para producción
+5. **25** (MAYOR) - Validación final de calidad
 
 ---
 
@@ -925,63 +924,49 @@ Tres componentes instancian `SessionKeyStore` directamente con `new SessionKeySt
 
 ---
 
-### Fase 22.7.1: Fix Race Condition Login → Access Gateway State
+### Fase 22.7.1: Fix Login totpu Check (anteriormente "Race Condition")
 
-**Objetivo:** Garantizar que `getState()` retorne `READY` inmediatamente después de login exitoso, eliminando la necesidad de recargar la página y el error 500 en validate.
+**Objetivo:** Corregir verificación incorrecta de `totpu` en `performLogin()` que causaba que login exitoso mostrara error.
 
 **Rama:** `fase-22.7.1-fix-login-race-condition`
 **Modelo:** Opus
 **Severidad:** CRITICO
-**Referencia:** daRulez §7.1.1 (SoC - dependencias explícitas, no temporales)
-**Estado:** PENDIENTE
+**Referencia:** daRulez §7.1.1 (SoC - dependencias explícitas)
+**Estado:** COMPLETADA (2025-12-21)
+**Commit:** 616fa74
 
-**Situación actual:**
+**Root cause identificado:**
 
-- `qr-reader/main.ts:315` - Después de `performLogin()`, llama `showReadyState()` sin verificar persistencia
-- `access-gateway.service.ts:72` - `hasActiveSession()` consulta Valkey
-- El frontend asume que session_key ya está en Valkey cuando `performLogin()` retorna
-- Si Valkey aún no tiene la clave, `getState()` retorna `ENROLLED_NO_SESSION`
-- Pipeline de validación usa fallback mock key → desencriptación falla → 500
+El problema NO era un race condition de Valkey. Era un bug de lógica simple:
+
+| Aspecto | Código | Problema |
+|---------|--------|----------|
+| Verificación | `!result.success \|\| !result.sessionKey \|\| !result.totpu` | Verifica `totpu` |
+| LoginService retorna | `{ success, sessionKey, deviceId }` | NO retorna `totpu` |
+| Resultado | `!result.totpu` siempre `true` | Login exitoso muestra error |
+
+**Nota:** `totpu` se genera DESPUÉS del login, al escanear QR usando `hmacKey` almacenada en `SessionKeyStore`.
 
 **Criterio de éxito verificable:**
 
-- [ ] Después de enrollment + login, estado es `READY` sin recargar página
-- [ ] `POST /attendance/validate` retorna 200 (no 500) para QR válido
-- [ ] Log `[Validate] Pipeline failed` no aparece para QRs legítimos
-- [ ] Build y tests pasando
+- [x] Después de enrollment + login, estado es `READY` sin recargar página
+- [x] `POST /attendance/validate` retorna 200 (no 500) para QR válido
+- [x] Build y tests: 241/241 pasando
 
-**Restricciones arquitectónicas:**
+**Archivos modificados:**
 
-- LoginService debe confirmar persistencia antes de retornar success
-- No polling - usar confirmación explícita del backend
-- Mantener separación frontend/backend (no acceso directo a Valkey)
-
-**Entregables mínimos:**
-
-- Login endpoint retorna confirmación de persistencia
-- Frontend espera confirmación antes de cambiar estado UI
-- Test que verifica secuencia login → getState → READY
-
-**Archivos a modificar:**
-
-- `frontend/features/qr-reader/main.ts` - Esperar confirmación de login
-- `frontend/shared/services/enrollment/login.service.ts` - Verificar respuesta incluye confirmación
-- `backend/session/presentation/routes.ts` - Confirmar persistencia en respuesta (si no existe)
+- `frontend/features/qr-reader/main.ts` - Eliminar verificación de `!result.totpu`
 
 **Tareas:**
 
-- [ ] Verificar que respuesta de `/session/login` incluye confirmación de persistencia en Valkey
-- [ ] Frontend: esperar confirmación de login antes de actualizar UI a estado READY
-- [ ] Eliminar transición a READY sin confirmación explícita del backend
-- [ ] Agregar log de diagnóstico que muestre secuencia: login → confirmación → getState
-- [ ] Verificar que `getState()` retorna READY inmediatamente después de login exitoso
-- [ ] E2E: enrollment → login → scan → validate retorna 200 (no 500)
-- [ ] Build y tests pasando
-- [ ] Commit atómico
+- [x] Identificar root cause: verificación incorrecta de `totpu` en `performLogin()`
+- [x] Eliminar `!result.totpu` de la condición de error
+- [x] Agregar comentario explicativo sobre cuándo se genera `totpu`
+- [x] Build y tests en contenedor (dev-1.md)
+- [x] E2E: enrollment → login → scan → validate OK
+- [x] Commit atómico: 616fa74
 
 **Dependencias:** Requiere Fase 22.7 COMPLETADA (singleton SessionKeyStore)
-
-**Referencias:** logse2e.md, 14-decision-totp-session-key.md
 
 ---
 
