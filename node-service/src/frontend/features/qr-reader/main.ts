@@ -341,12 +341,15 @@ class QRReaderApplication {
 
   /**
    * Realiza login ECDH para obtener session_key
+   * 
+   * NOTA: totpu NO se genera aquí - se genera al escanear QR usando hmacKey
+   * almacenada en SessionKeyStore
    */
   private async performLogin(credentialId: string): Promise<void> {
     try {
       const result = await this.loginService.performLogin(credentialId);
       
-      if (!result.success || !result.sessionKey || !result.totpu) {
+      if (!result.success || !result.sessionKey) {
         this.showLoginMessage(result.error || 'Error en login', 'error');
         if (this.loginBtn) this.loginBtn.disabled = false;
         return;
