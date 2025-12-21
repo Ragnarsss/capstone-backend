@@ -1,6 +1,6 @@
 # ROADMAP - Fuente de Verdad del Proyecto
 
-> Ultima actualizacion: 2025-12-20
+> Ultima actualizacion: 2025-12-21
 > Base: fase-22.7-unify-sessionkeystore-singleton (3b4595b)
 > Build: OK | Tests: 241/241 pasando
 > Siguiente: fase-23.1-restriction-integration
@@ -30,6 +30,8 @@
 | **22.6.4** | **Completar responsabilidad QRLifecycleService (MAYOR)** | **COMPLETADA** |
 | **22.6.5** | **Limpiar pool al completar asistencia (MENOR)** | **COMPLETADA** |
 | **22.7** | **Unificar Singleton SessionKeyStore (MENOR)** | **COMPLETADA** |
+| **22.7.1** | **Fix Race Condition Login → State (CRITICO)** | **PENDIENTE** |
+| **22.7.2** | **Silenciar Logging Decoys (MENOR)** | **PENDIENTE** |
 | 22.8-22.9 | Inyeccion SessionKeyQuery, QR Ports, Participation, /dev/ | COMPLETADA |
 | 22.10.1-22.10.3 | Mover WebSocketAuth, JWT, Emojis, Zod | COMPLETADA |
 | 22.10.4 | Centralizar secretos en .env | COMPLETADA |
@@ -63,7 +65,9 @@ flowchart TB
     P1_1[22.6.3<br/>Alinear TOTPu session_key<br/>COMPLETADA]
     P1_2[22.6.4<br/>Completar QRLifecycleService<br/>COMPLETADA]
     P1_3[22.6.5<br/>Limpiar pool al completar<br/>COMPLETADA]
-    P2[22.7<br/>Singleton Unification<br/>MENOR]
+    P2[22.7<br/>Singleton Unification<br/>COMPLETADA]
+    P2_1[22.7.1<br/>Fix Login Race Condition<br/>CRITICO]
+    P2_2[22.7.2<br/>Silence Decoy Logging<br/>MENOR]
     P3[23.1<br/>Restriction Integration<br/>MAYOR]
     P4[23.2<br/>Puente HTTP Node-PHP<br/>MAYOR]
     P5[24<br/>Infraestructura y Operaciones<br/>MAYOR]
@@ -74,7 +78,9 @@ flowchart TB
     P1_1 --> P1_2
     P1_2 --> P1_3
     P1_3 --> P2
-    P2 --> P3
+    P2 --> P2_1
+    P2_1 --> P2_2
+    P2_2 --> P3
     P3 --> P4
     P4 --> P5
     P5 --> P6
@@ -85,6 +91,8 @@ flowchart TB
     style P1_2 fill:#90EE90
     style P1_3 fill:#90EE90
     style P2 fill:#90EE90
+    style P2_1 fill:#FF6B6B
+    style P2_2 fill:#90EE90
     style P3 fill:#FFD700
     style P4 fill:#FFD700
     style P5 fill:#FFD700
@@ -94,8 +102,8 @@ flowchart TB
 **Leyenda:** Verde claro = MENOR, Amarillo = MAYOR, Rojo = CRITICO
 
 **Prioridad:**
-1. **22.6.3** (CRITICO) - Alinear TOTPu con diseño session_key, bloquea testing E2E
-2. **22.7** (MENOR) - Mejora arquitectónica de bajo riesgo, desbloquea consistencia
+1. **22.7.1** (CRITICO) - Fix race condition login → access gateway, bloquea E2E post-enrollment
+2. **22.7.2** (MENOR) - Silenciar logging de decoys, mejora DX
 3. **23.1** (MAYOR) - Integración crítica con PHP para restricciones
 4. **23.2** (MAYOR) - Completa comunicación bidireccional Node↔PHP
 5. **24** (MAYOR) - Preparación para producción
@@ -917,6 +925,119 @@ Tres componentes instancian `SessionKeyStore` directamente con `new SessionKeySt
 
 ---
 
+### Fase 22.7.1: Fix Race Condition Login → Access Gateway State
+
+**Objetivo:** Garantizar que `getState()` retorne `READY` inmediatamente después de login exitoso, eliminando la necesidad de recargar la página y el error 500 en validate.
+
+**Rama:** `fase-22.7.1-fix-login-race-condition`
+**Modelo:** Opus
+**Severidad:** CRITICO
+**Referencia:** daRulez §7.1.1 (SoC - dependencias explícitas, no temporales)
+**Estado:** PENDIENTE
+
+**Situación actual:**
+
+- `qr-reader/main.ts:315` - Después de `performLogin()`, llama `showReadyState()` sin verificar persistencia
+- `access-gateway.service.ts:72` - `hasActiveSession()` consulta Valkey
+- El frontend asume que session_key ya está en Valkey cuando `performLogin()` retorna
+- Si Valkey aún no tiene la clave, `getState()` retorna `ENROLLED_NO_SESSION`
+- Pipeline de validación usa fallback mock key → desencriptación falla → 500
+
+**Criterio de éxito verificable:**
+
+- [ ] Después de enrollment + login, estado es `READY` sin recargar página
+- [ ] `POST /attendance/validate` retorna 200 (no 500) para QR válido
+- [ ] Log `[Validate] Pipeline failed` no aparece para QRs legítimos
+- [ ] Build y tests pasando
+
+**Restricciones arquitectónicas:**
+
+- LoginService debe confirmar persistencia antes de retornar success
+- No polling - usar confirmación explícita del backend
+- Mantener separación frontend/backend (no acceso directo a Valkey)
+
+**Entregables mínimos:**
+
+- Login endpoint retorna confirmación de persistencia
+- Frontend espera confirmación antes de cambiar estado UI
+- Test que verifica secuencia login → getState → READY
+
+**Archivos a modificar:**
+
+- `frontend/features/qr-reader/main.ts` - Esperar confirmación de login
+- `frontend/shared/services/enrollment/login.service.ts` - Verificar respuesta incluye confirmación
+- `backend/session/presentation/routes.ts` - Confirmar persistencia en respuesta (si no existe)
+
+**Tareas:**
+
+- [ ] Verificar que respuesta de `/session/login` incluye confirmación de persistencia en Valkey
+- [ ] Frontend: esperar confirmación de login antes de actualizar UI a estado READY
+- [ ] Eliminar transición a READY sin confirmación explícita del backend
+- [ ] Agregar log de diagnóstico que muestre secuencia: login → confirmación → getState
+- [ ] Verificar que `getState()` retorna READY inmediatamente después de login exitoso
+- [ ] E2E: enrollment → login → scan → validate retorna 200 (no 500)
+- [ ] Build y tests pasando
+- [ ] Commit atómico
+
+**Dependencias:** Requiere Fase 22.7 COMPLETADA (singleton SessionKeyStore)
+
+**Referencias:** logse2e.md, 14-decision-totp-session-key.md
+
+---
+
+### Fase 22.7.2: Silenciar Logging de Decoys Esperados
+
+**Objetivo:** Reducir ruido en consola cambiando nivel de log para errores de desencriptación esperados (QRs decoy).
+
+**Rama:** `fase-22.7.2-silence-decoy-logging`
+**Modelo:** Sonnet
+**Severidad:** MENOR
+**Referencia:** daRulez §7.1.1 (cohesión - logging apropiado al contexto)
+**Estado:** PENDIENTE
+
+**Situación actual:**
+
+- `qr-scan.service.ts:188` - `console.warn` para TODOS los errores de desencriptación
+- QRs decoy están diseñados para fallar desencriptación (clave aleatoria)
+- Resultado: 100+ warnings en consola durante escaneo normal
+- Dificulta debugging de errores reales
+
+**Criterio de éxito verificable:**
+
+- [ ] Escanear QRs decoy no genera `console.warn`
+- [ ] Errores de desencriptación usan `console.debug`
+- [ ] Errores reales (ej: session_key inválida) siguen siendo visibles en nivel apropiado
+- [ ] Build pasando
+
+**Restricciones arquitectónicas:**
+
+- Mantener logging para errores inesperados
+- No eliminar manejo de errores, solo cambiar nivel de log
+- Compatible con configuración de nivel de log del navegador
+
+**Entregables mínimos:**
+
+- Cambio de `console.warn` a `console.debug` en catch de desencriptación
+- Comentario explicando por qué es debug (errores esperados)
+
+**Archivos a modificar:**
+
+- `frontend/features/qr-reader/services/qr-scan.service.ts` - Cambiar nivel de log
+
+**Tareas:**
+
+- [ ] Cambiar nivel de log de `console.warn` a `console.debug` para errores de desencriptación en QR scanning
+- [ ] Agregar comentario explicativo indicando que los errores de desencriptación son esperados para QRs decoy
+- [ ] Verificar que errores inesperados (ej: network, timeout) mantienen nivel de log apropiado
+- [ ] Build pasando
+- [ ] Commit atómico
+
+**Dependencias:** Ninguna (independiente de 22.7.1)
+
+**Referencias:** logse2e.md, spec-qr-validation.md (sección decoys)
+
+---
+
 ### Fase 22.10.4: Centralizar secretos en .env y validar en runtime
 
 **Rama:** `fase-22.10.4-centralize-secrets`
@@ -1220,24 +1341,24 @@ Ejecutar en orden de prioridad:
 
 ### Pendientes por Completar
 
-1. **[CRITICO]** **22.6.3** - Fix Generacion QR Round 2+ (NUEVO)
-   - Impacto: Alto, bloquea flujo E2E completo
-   - Esfuerzo: ~2-4 horas (diagnosticar flujo de generacion QR post-round)
-   - Riesgo: Medio (requiere analisis de QRLifecycleService)
-   - Problema: Round 1 valida OK pero Round 2 falla desencriptacion
+1. **[CRITICO]** **22.7.1** - Fix Race Condition Login → Access Gateway State
+   - Impacto: Alto, bloquea flujo E2E post-enrollment
+   - Esfuerzo: ~2-4 horas
+   - Riesgo: Bajo (cambio localizado en frontend/session)
+   - Problema: Login exitoso pero getState() retorna ENROLLED_NO_SESSION → validate 500
    - **SIGUIENTE TAREA - BLOQUEANTE**
 
-2. **[MENOR]** **22.7** - Unificar Singleton SessionKeyStore
-   - Impacto: Bajo, mejora consistencia arquitectónica
-   - Esfuerzo: ~1-2 horas
-   - Riesgo: Minimo
-   - Dependencias: 22.6.3 completado
+2. **[MENOR]** **22.7.2** - Silenciar Logging de Decoys
+   - Impacto: Bajo, mejora experiencia de debugging
+   - Esfuerzo: ~30 minutos
+   - Riesgo: Mínimo
+   - Dependencias: Ninguna (independiente)
 
 3. **[MAYOR]** **23.1** - Implementar Restriction Service
    - Impacto: Alto, integracion critica con PHP
    - Esfuerzo: ~1-2 dias
    - Riesgo: Medio (requiere coordinacion con equipo PHP)
-   - Dependencias: 22.7 completado
+   - Dependencias: 22.7.1 completado
 
 4. **[MAYOR]** **23.2** - Puente HTTP Node-PHP
    - Impacto: Alto, completa comunicacion bidireccional
