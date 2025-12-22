@@ -183,9 +183,10 @@ export class QRScanService {
 
     } catch (error) {
       // Si falla desencriptacion o parseo, asumimos que no es un QR para nosotros
-      // o que la clave es incorrecta. Ignoramos silenciosamente.
+      // o que la clave es incorrecta. Esto incluye QRs decoy (diseñados para fallar).
+      // Usamos console.debug en lugar de warn para evitar ruido (100+ msgs esperados).
       if (error instanceof Error) {
-        console.warn('[QRScanService] Error procesando QR:', error.message);
+        console.debug('[QRScanService] Error procesando QR (decoy o inválido):', error.message);
       }
       this.validating = false;
     }
