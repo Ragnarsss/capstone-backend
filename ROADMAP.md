@@ -10,7 +10,7 @@
 ## Resumen de Estado
 
 | Fase | Descripcion | Estado |
-|------|-------------|--------|
+| ---- | ----------- | ------ |
 | 1-18 | Fundamentos, FIDO2, QR, Pipeline, SoC, Access Gateway | COMPLETADA |
 | 19-20 | Separacion Dominios y Limpieza Legacy | COMPLETADA |
 | 21.1-21.3 | Unificar Frontend, Access Gateway, Eliminar guest/ | COMPLETADA |
@@ -50,7 +50,7 @@
 ## Politica de Seleccion de Modelo IA
 
 | Modelo | Usar cuando |
-|--------|-------------|
+| ------ | ----------- |
 | Sonnet | Tareas bien especificadas, patrones existentes, refactoring mecanico |
 | Opus | Decisiones arquitectonicas, ambiguedad, razonamiento complejo, seguridad, criptografia |
 
@@ -60,39 +60,21 @@
 
 ```mermaid
 flowchart TB
-    P0[22.6.1<br/>Fix Escaneo + uid + TOTPu<br/>COMPLETADA]
-    P1[22.6.2<br/>Fix Validacion TOTPu<br/>COMPLETADA]
-    P1_1[22.6.3<br/>Alinear TOTPu session_key<br/>COMPLETADA]
-    P1_2[22.6.4<br/>Completar QRLifecycleService<br/>COMPLETADA]
-    P1_3[22.6.5<br/>Limpiar pool al completar<br/>COMPLETADA]
-    P2[22.7<br/>Singleton Unification<br/>COMPLETADA]
-    P2_1[22.7.1<br/>Fix Login totpu Check<br/>COMPLETADA]
-    P2_2[22.7.2<br/>Silence Decoy Logging<br/>COMPLETADA]
+    P0[<b>22.6</b><br/>22.6.1, 22.6.2, 22.6.3,<br/> 22.6.4, 22.6.5<br/><b>COMPLETADA</b>]
+    P2[<b>22.7</b><br/>22.7.1, 22.7.2,<br/><b>COMPLETADA</b>]
     P3[23.1<br/>Restriction Integration<br/>MAYOR]
     P4[23.2<br/>Puente HTTP Node-PHP<br/>MAYOR]
     P5[24<br/>Infraestructura y Operaciones<br/>MAYOR]
     P6[25<br/>Testing E2E y Calidad<br/>MAYOR]
 
-    P0 --> P1
-    P1 --> P1_1
-    P1_1 --> P1_2
-    P1_2 --> P1_3
-    P1_3 --> P2
-    P2 --> P2_1
-    P2_1 --> P2_2
-    P2_2 --> P3
+    P0 --> P2
+    P2 --> P3
     P3 --> P4
     P4 --> P5
     P5 --> P6
 
     style P0 fill:#90EE90
-    style P1 fill:#90EE90
-    style P1_1 fill:#90EE90
-    style P1_2 fill:#90EE90
-    style P1_3 fill:#90EE90
     style P2 fill:#90EE90
-    style P2_1 fill:#90EE90
-    style P2_2 fill:#90EE90
     style P3 fill:#FFD700
     style P4 fill:#FFD700
     style P5 fill:#FFD700
@@ -102,6 +84,7 @@ flowchart TB
 **Leyenda:** Verde claro = MENOR, Amarillo = MAYOR, Rojo = CRITICO
 
 **Prioridad:**
+
 1. **23.1** (MAYOR) - Integración crítica con PHP para restricciones
 2. **23.2** (MAYOR) - Completa comunicación bidireccional Node↔PHP
 3. **24** (MAYOR) - Preparación para producción
@@ -113,7 +96,7 @@ flowchart TB
 
 Segun `spec-architecture.md` y `Caracterizacion del Ecosistema`:
 
-```
+```bash
 backend/
 ├── access/          # Gateway lectura (4 capas: domain, application, infrastructure, presentation)
 ├── attendance/      # Validacion QR (Pipeline 12 stages, Stats, Fraud Metrics)
@@ -129,6 +112,7 @@ backend/
 ## Fases Completadas (Resumen)
 
 ### Fase 22.2: Session Key Binding con credentialId
+
 **Estado:** COMPLETADA (2025-12-18) | **Commit:** 5c2c473
 
 Vincula session_key al dispositivo físico incluyendo credentialId en derivación HKDF. Info string: `'attendance-session-key-v1:' + credentialId`. Build: 161/161 pasando.
@@ -136,6 +120,7 @@ Vincula session_key al dispositivo físico incluyendo credentialId en derivació
 ---
 
 ### Fase 22.3: Validar AAGUID de dispositivo
+
 **Estado:** COMPLETADA (2025-12-18) | **Commit:** 0844ede, 1296c0a
 
 Rechaza enrollment de dispositivos FIDO2 no autorizados. Whitelist ~20 AAGUIDs. Modo permisivo `AAGUID_ALLOW_UNKNOWN`. Build: 178/178 pasando.
@@ -143,10 +128,11 @@ Rechaza enrollment de dispositivos FIDO2 no autorizados. Whitelist ~20 AAGUIDs. 
 ---
 
 ### Fases 22.3.1-22.3.4: Tests Unitarios Críticos
+
 **Estado:** COMPLETADA (2025-12-18)
 
 | Fase | Componente | Tests | Commit |
-|------|------------|-------|--------|
+| ---- | ---------- | ----- | ------ |
 | 22.3.1 | Login ECDH Use Case | 15 | 65f0168 |
 | 22.3.2 | QR Generator | 29 | b8b3f1d |
 | 22.3.3 | HKDF Compatibility | 9 | 9a2a24a |
@@ -155,6 +141,7 @@ Rechaza enrollment de dispositivos FIDO2 no autorizados. Whitelist ~20 AAGUIDs. 
 ---
 
 ### Fase 22.5: Stats + QR Lifecycle
+
 **Estado:** COMPLETADA (2025-12-18)
 
 Desacopla estadísticas y QR de `CompleteScanUseCase`. Ports: `IAttendanceStatsCalculator`, `IQRLifecycleManager`. Build: 262/262 pasando.
@@ -162,6 +149,7 @@ Desacopla estadísticas y QR de `CompleteScanUseCase`. Ports: `IAttendanceStatsC
 ---
 
 ### Fase 22.6: Fix Session Key Encryption
+
 **Estado:** COMPLETADA (2025-12-19) | **Commit:** 9a7d544
 
 Corrige encriptación QRs con session_key real. Soluciona error exportKey con dual-key (AES + HMAC). Build: 262/262 pasando.
@@ -169,6 +157,7 @@ Corrige encriptación QRs con session_key real. Soluciona error exportKey con du
 ---
 
 ### Fase 22.6.1: Fix Escaneo + uid + TOTPu
+
 **Estado:** COMPLETADA (2025-12-19) | **Commits:** e44be7a, a88ce29
 
 Corrige race condition setTimeout, uid correcto (studentId), integra TOTPu. Build: 263/263 pasando.
@@ -176,6 +165,7 @@ Corrige race condition setTimeout, uid correcto (studentId), integra TOTPu. Buil
 ---
 
 ### Fase 22.6.2: Unificar Validacion TOTP
+
 **Estado:** COMPLETADA (2025-12-20) | **Commit:** 6a4d987
 
 Port `ITotpValidator` encapsula validación TOTP. Reutiliza `HkdfService.validateTotp()`. Elimina duplicación otplib. Build: 263/263 pasando.
@@ -183,6 +173,7 @@ Port `ITotpValidator` encapsula validación TOTP. Reutiliza `HkdfService.validat
 ---
 
 ### Fase 22.6.3: Alinear TOTPu con session_key
+
 **Estado:** COMPLETADA (2025-12-20) | **Commits:** 8250e9b, 13e4328, 3f0ff5a
 
 Cliente genera TOTP en tiempo real con hmacKey. Servidor deriva hmacKey desde session_key. E2E: Round 1→2→3 sin expiración. Build: 241/241 pasando.
@@ -190,6 +181,7 @@ Cliente genera TOTP en tiempo real con hmacKey. Servidor deriva hmacKey desde se
 ---
 
 ### Fase 22.6.4: Completar QRLifecycleService
+
 **Estado:** COMPLETADA (2025-12-20) | **Commit:** dce46e5
 
 `generateAndPublish()` llama `setActiveQR()` internamente. Elimina bug WRONG_QR en Round 2+. Build: 241/241 pasando.
@@ -197,6 +189,7 @@ Cliente genera TOTP en tiempo real con hmacKey. Servidor deriva hmacKey desde se
 ---
 
 ### Fase 22.6.5: Limpiar pool al completar
+
 **Estado:** COMPLETADA (2025-12-20) | **Commit:** fa10726
 
 `removeFromPool()` implementado. Pool limpiado al completar asistencia. Build pasando.
@@ -204,6 +197,7 @@ Cliente genera TOTP en tiempo real con hmacKey. Servidor deriva hmacKey desde se
 ---
 
 ### Fase 22.7: Unificar Singleton SessionKeyStore
+
 **Estado:** COMPLETADA (2025-12-20) | **Commit:** 3b4595b
 
 Uso consistente de `getSessionKeyStore()`. Elimina instanciación directa. Build: 241/241 pasando.
@@ -211,6 +205,7 @@ Uso consistente de `getSessionKeyStore()`. Elimina instanciación directa. Build
 ---
 
 ### Fase 22.7.1: Fix Login totpu Check
+
 **Estado:** COMPLETADA (2025-12-21) | **Commit:** 616fa74
 
 Elimina verificación incorrecta de `!result.totpu`. Login exitoso muestra estado READY. Build: 241/241 pasando.
@@ -218,6 +213,7 @@ Elimina verificación incorrecta de `!result.totpu`. Login exitoso muestra estad
 ---
 
 ### Fases 22.10.4-22.10.10: Limpieza Arquitectónica
+
 **Estado:** COMPLETADA (2025-12-18)
 
 Centralización secretos, eliminación microservicios, segmentación access, traducción comentarios, logger estructurado.
@@ -266,6 +262,7 @@ Centralización secretos, eliminación microservicios, segmentación access, tra
 - [x] Commit atómico: f37f1d6
 
 **Dependencias:** Requiere Fase 22.7.1 COMPLETADA
+
 - [ ] Agregar comentario explicativo indicando que los errores de desencriptación son esperados para QRs decoy
 - [ ] Verificar que errores inesperados (ej: network, timeout) mantienen nivel de log apropiado
 - [ ] Build pasando
@@ -389,7 +386,7 @@ Centralización secretos, eliminación microservicios, segmentación access, tra
 ## Documentos de Referencia
 
 | Documento | Proposito | Ubicacion |
-|-----------|-----------|-----------|
+| --------- | --------- | --------- |
 | `daRulez.md` | Reglas de desarrollo (FUENTE DE VERDAD) | Raiz |
 | `spec-architecture.md` | Arquitectura y dominios | Raiz |
 | `spec-qr-validation.md` | Flujo de validacion QR | Raiz |

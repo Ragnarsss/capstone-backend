@@ -1,7 +1,7 @@
 # Especificacion de Arquitectura: Dominios y Access Gateway
 
 > Fuente de verdad para la arquitectura del sistema.
-> Ultima actualizacion: 2025-12-14
+> Ultima actualizacion: 2025-12-22
 
 ---
 
@@ -70,7 +70,7 @@ El sistema se divide en **tres dominios** mas un **gateway de lectura**.
 ### Endpoints
 
 | Endpoint | Metodo | Descripcion |
-|----------|--------|-------------|
+| -------- | ------ | ----------- |
 | `/api/enrollment/start` | POST | Genera challenge WebAuthn |
 | `/api/enrollment/finish` | POST | Verifica y persiste dispositivo |
 | `/api/enrollment/devices/:id` | DELETE | Revoca dispositivo |
@@ -78,7 +78,7 @@ El sistema se divide en **tres dominios** mas un **gateway de lectura**.
 ### Componentes
 
 | Componente | Responsabilidad |
-|------------|-----------------|
+| ---------- | --------------- |
 | `StartEnrollmentUseCase` | Solo: generar challenge + opciones WebAuthn |
 | `FinishEnrollmentUseCase` | Solo: verificar credential + derivar HKDF + persistir |
 | `OneToOnePolicyService` | Validar y revocar violaciones de politica 1:1 |
@@ -114,7 +114,7 @@ Cuando un usuario intenta enrollar un dispositivo, el sistema **automáticamente
 **Responsabilidad de cada capa:**
 
 | Capa | Responsabilidad |
-|------|----------------|
+| ---- | -------------- |
 | `FinishEnrollmentController` | Orquestar: revocar conflictos → persistir → retornar |
 | `OneToOnePolicyService` | Ejecutar lógica de revocación en BD |
 | `FinishEnrollmentUseCase` | Solo: verificar WebAuthn + derivar HKDF + persistir (NO revocación) |
@@ -136,17 +136,17 @@ not_enrolled ──► pending ──► enrolled
 
 **Responsabilidad unica:** Establecer y terminar sesiones ECDH.
 
-### Endpoints
+### Endpoints - Session
 
 | Endpoint | Metodo | Descripcion |
-|----------|--------|-------------|
+| -------- | ------ | ----------- |
 | `/api/session/login` | POST | ECDH key exchange, deriva session_key |
 | `/api/session` | DELETE | Invalida session_key (opcional) |
 
-### Componentes
+### Componentes - Session
 
 | Componente | Responsabilidad |
-|------------|-----------------|
+| ---------- | --------------- |
 | `LoginEcdhUseCase` | Solo: ECDH + derivar session_key + generar TOTPu |
 | `SessionStateMachine` | Verificar si estado permite sesion (`isEnabled()`) |
 | `SessionKeyRepository` | CRUD en Valkey con TTL 2 horas |
@@ -162,6 +162,20 @@ not_enrolled ──► pending ──► enrolled
 6. Respuesta: { serverPublicKey, totpu }
 7. Cliente deriva session_key localmente
 ```
+
+### Deuda Tecnica: Dependencias Inter-Dominio
+
+Actualmente `LoginEcdhUseCase` importa directamente de Enrollment:
+
+- `DeviceRepository` (para buscar dispositivo por credentialId)
+- `EcdhService`, `HkdfService` (para derivacion de claves)
+
+Esto viola el principio de dominios independientes. La solucion ideal seria:
+
+- Crear puertos en `shared/ports/` para estas dependencias
+- Session usaria adaptadores que implementan los puertos
+
+**Estado:** Documentado como deuda tecnica. El acoplamiento es funcional y no causa problemas en la practica actual. Se priorizara desacoplar si Session crece en complejidad.
 
 ---
 
@@ -253,7 +267,7 @@ async getState(userId: number, deviceFingerprint: string): Promise<AccessState> 
 ## Estados del Sistema
 
 | Estado | Descripcion | Accion |
-|--------|-------------|--------|
+| ------ | ----------- | ------- |
 | `NOT_ENROLLED` | Usuario sin dispositivo registrado | `enroll` |
 | `ENROLLED_NO_SESSION` | Tiene dispositivo pero sin session_key | `login` |
 | `READY` | Tiene session_key activa | `scan` |
@@ -266,7 +280,7 @@ async getState(userId: number, deviceFingerprint: string): Promise<AccessState> 
 Cada feature frontend tiene una responsabilidad específica y DEBE consultar Access Gateway antes de operar.
 
 | Feature | Responsabilidad | Verifica Access Gateway |
-|---------|-----------------|-------------------------|
+| ------- | --------------- | ----------------------- |
 | `enrollment/` | UI de enrollment + login ECDH. Punto de entrada para nuevos usuarios | ✓ Sí (en mount) |
 | `qr-reader/` | UI de escaneo QR. Requiere estado `READY` para operar | ✓ **SÍ (OBLIGATORIO antes de escanear)** |
 | `qr-host/` | Proyector de QRs. No requiere enrollment (solo sesión activa) | ✗ No (solo verifica clase activa) |
