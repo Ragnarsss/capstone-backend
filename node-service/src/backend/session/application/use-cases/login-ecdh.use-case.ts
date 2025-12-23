@@ -67,7 +67,9 @@ export class LoginEcdhUseCase {
     }
 
     // 2. Verificar que el dispositivo pertenece al usuario
-    if (device.userId !== userId) {
+    // IMPORTANTE: Convertir a número para evitar problemas con BIGINT que PostgreSQL puede retornar como string
+    const deviceUserId = typeof device.userId === 'string' ? parseInt(device.userId, 10) : device.userId;
+    if (deviceUserId !== userId) {
       throw new Error('DEVICE_NOT_OWNED: El dispositivo no pertenece a este usuario');
     }
 

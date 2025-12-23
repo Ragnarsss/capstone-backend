@@ -92,6 +92,25 @@ describe('LoginEcdhUseCase', () => {
       await expect(loginEcdhUseCase.execute(mockInput)).rejects.toThrow('DEVICE_NOT_OWNED');
     });
 
+    it('debe manejar correctamente comparación de userId cuando device.userId es string', async () => {
+      // BUG CRÍTICO RESUELTO: PostgreSQL puede retornar userId como string si es BIGINT
+      // El código ahora convierte explícitamente a número antes de comparar
+      
+      // Arrange - Simular que DB retorna userId como string
+      const deviceConUserIdString = { 
+        ...mockDevice, 
+        userId: '42' as any  // Runtime: string, TypeScript: number
+      };
+      mockDeviceRepository.findByCredentialId.mockResolvedValue(deviceConUserIdString);
+
+      // Act - Ahora DEBE funcionar porque el código convierte a número
+      const result = await loginEcdhUseCase.execute(mockInput);
+
+      // Assert - Login exitoso
+      expect(result).toBeDefined();
+      expect(result.deviceId).toBe(mockDevice.deviceId);
+    });
+
     it('debe lanzar error SESSION_NOT_ALLOWED si dispositivo está revocado', async () => {
       // Arrange
       const deviceRevocado = { ...mockDevice, status: 'revoked' };

@@ -18,7 +18,8 @@ node-service/src/frontend/**/*.js.map
 .vscode/
 .idea/
 .claude/
-
+.cursorrules
+coverage/
 # OS
 .DS_Store
 Thumbs.db

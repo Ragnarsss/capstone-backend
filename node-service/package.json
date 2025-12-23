@@ -15,7 +15,9 @@
     "type-check": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "test:report": "./scripts/test-report.sh",
+    "test:report:quick": "./scripts/test-report.sh --no-coverage"
   },
   "dependencies": {
     "@fastify/http-proxy": "^9.5.0",
@@ -40,6 +42,7 @@
     "@types/ws": "^8.5.10",
     "@vitest/coverage-v8": "^2.1.8",
     "concurrently": "^9.1.0",
+    "dotenv": "^17.2.3",
     "tsx": "^4.16.2",
     "typescript": "5.5.4",
     "vite": "^6.0.1",

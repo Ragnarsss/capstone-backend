@@ -11,21 +11,26 @@
 
 require_once __DIR__ . '/../../config/Config.php';
 
+// Constantes de sesión legacy Hawaii (K_USER, K_ID, K_ROOT)
+if (!defined('K_USER')) define('K_USER', 'user');
+if (!defined('K_ID')) define('K_ID', 'id');
+if (!defined('K_ROOT')) define('K_ROOT', 'root');
+
 class LegacySessionAdapter
 {
     /**
      * Verifica si usuario está autenticado
      * 
-     * NOTA: En modo development (sin sesion real), retorna true para permitir pruebas
+     * Compatible con sistema legacy Hawaii que usa $_SESSION[K_USER] y $_SESSION[K_ID]
      * 
      * @return bool True si hay sesión activa con usuario
      */
     public function isAuthenticated(): bool
     {
-        // Primero verificar si hay sesion real con datos
+        // Verificar sesión con variables legacy Hawaii
         if (session_status() === PHP_SESSION_ACTIVE && 
-            isset($_SESSION['user_id']) && 
-            isset($_SESSION['username'])) {
+            isset($_SESSION[K_USER]) && 
+            isset($_SESSION[K_ID])) {
             return true;
         }
         
@@ -34,59 +39,123 @@ class LegacySessionAdapter
     }
 
     /**
-     * Obtiene ID de usuario de la sesión
+     * Obtiene ID de usuario de la sesión legacy Hawaii
+     * 
+     * En el sistema legacy:
+     * - Si es profesor: $_SESSION['id'] contiene el ID del profesor
+     * - Si es alumno: $_SESSION['id'] = -1
+     * 
+     * Para generar un ID numérico único cuando es alumno (id=-1),
+     * usamos CRC32 del email/RUT
      * 
      * @return int|null ID de usuario o null si no está autenticado
      */
     public function getUserId(): ?int
     {
-        if (session_status() !== PHP_SESSION_ACTIVE || !isset($_SESSION['user_id'])) {
+        if (session_status() !== PHP_SESSION_ACTIVE || !isset($_SESSION[K_ID])) {
             return $this->isTestMode() ? 1 : null;
         }
         
-        return (int)$_SESSION['user_id'];
+        $id = (int)$_SESSION[K_ID];
+        
+        // Si es alumno (id = -1), generar ID desde el RUT/email
+        if ($id === -1 && isset($_SESSION[K_USER])) {
+            return abs(crc32($_SESSION[K_USER]));
+        }
+        
+        return $id;
     }
 
     /**
-     * Obtiene username de la sesión
+     * Obtiene username de la sesión legacy Hawaii
      * 
-     * @return string|null Username o null si no está autenticado
+     * En el sistema legacy:
+     * - Si es profesor: $_SESSION['user'] contiene el email
+     * - Si es alumno: $_SESSION['user'] contiene el RUT sin formato
+     * 
+     * @return string|null Username (email o RUT) o null si no está autenticado
      */
     public function getUsername(): ?string
     {
-        if (session_status() !== PHP_SESSION_ACTIVE || !isset($_SESSION['username'])) {
+        if (session_status() !== PHP_SESSION_ACTIVE || !isset($_SESSION[K_USER])) {
             return $this->isTestMode() ? 'demo@test.cl' : null;
         }
         
-        return $_SESSION['username'];
+        return $_SESSION[K_USER];
     }
 
     /**
      * Obtiene nombre completo de la sesión
      * 
+     * Si está disponible en sesión lo retorna, sino intenta obtenerlo de BD
+     * 
      * @return string|null Nombre completo o null si no está disponible
      */
     public function getFullName(): ?string
     {
-        if (session_status() !== PHP_SESSION_ACTIVE || !isset($_SESSION['nombre_completo'])) {
+        if (session_status() !== PHP_SESSION_ACTIVE) {
             return $this->isTestMode() ? 'Usuario Demo' : null;
         }
         
-        return $_SESSION['nombre_completo'];
+        // Si ya está en sesión, retornar
+        if (isset($_SESSION['nombre_completo'])) {
+            return $_SESSION['nombre_completo'];
+        }
+        
+        // Intentar obtener de funciones legacy si existen
+        if (function_exists('get_def_profesor') && $this->isProfesor()) {
+            $profesor = @get_def_profesor($_SESSION[K_USER]);
+            return $profesor['nombre'] ?? null;
+        }
+        
+        return null;
     }
 
     /**
      * Obtiene rol de usuario de la sesión
      * 
-     * @return string Rol del usuario (default: usuario)
+     * Determina el rol basándose en $_SESSION['id']:
+     * - id = -1 → alumno
+     * - id > 0 → profesor
+     * 
+     * @return string Rol del usuario (profesor o alumno)
      */
     public function getRole(): string
     {
-        if (session_status() !== PHP_SESSION_ACTIVE) {
-            return $this->isTestMode() ? 'profesor' : 'usuario';
+        if (session_status() !== PHP_SESSION_ACTIVE || !isset($_SESSION[K_ID])) {
+            return $this->isTestMode() ? 'profesor' : 'alumno';
         }
         
-        return $_SESSION['rol'] ?? 'usuario';
+        $id = (int)$_SESSION[K_ID];
+        return $id === -1 ? 'alumno' : 'profesor';
+    }
+    
+    /**
+     * Verifica si el usuario actual es profesor
+     * 
+     * @return bool True si es profesor (id != -1)
+     */
+    public function isProfesor(): bool
+    {
+        if (session_status() !== PHP_SESSION_ACTIVE || !isset($_SESSION[K_ID])) {
+            return $this->isTestMode();
+        }
+        
+        return (int)$_SESSION[K_ID] !== -1;
+    }
+    
+    /**
+     * Verifica si el usuario actual es alumno
+     * 
+     * @return bool True si es alumno (id = -1)
+     */
+    public function isAlumno(): bool
+    {
+        if (session_status() !== PHP_SESSION_ACTIVE || !isset($_SESSION[K_ID])) {
+            return false;
+        }
+        
+        return (int)$_SESSION[K_ID] === -1;
     }
 
     /**

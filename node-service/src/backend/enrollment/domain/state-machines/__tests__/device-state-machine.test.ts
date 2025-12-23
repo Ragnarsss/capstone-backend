@@ -90,6 +90,18 @@ describe('DeviceStateMachine', () => {
         expect(DeviceStateMachine.canTransition('revoked', 'revoked')).toBe(false);
       });
     });
+
+    describe('desde estado invalido', () => {
+      it('retorna false para estado origen inexistente', () => {
+        // @ts-expect-error - testing invalid state
+        expect(DeviceStateMachine.canTransition('invalid_state', 'pending')).toBe(false);
+      });
+
+      it('retorna false cuando origen es invalido sin importar destino', () => {
+        // @ts-expect-error - testing invalid state
+        expect(DeviceStateMachine.canTransition('unknown', 'enrolled')).toBe(false);
+      });
+    });
   });
 
   describe('getValidTransitions', () => {

@@ -2,6 +2,9 @@
  * Domain models para Enrollment (FIDO2/WebAuthn)
  */
 
+// Re-export Device entity
+export type { Device, CreateDeviceDto, UpdateCounterDto } from './entities/device.entity';
+
 // ============================================================================
 // State Machine Types
 // ============================================================================
