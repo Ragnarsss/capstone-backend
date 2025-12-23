@@ -51,7 +51,7 @@ describe("QRGeneratorAdapter", () => {
       expect(result.payload).toHaveProperty("sid");
       expect(result.payload).toHaveProperty("uid");
       expect(result.payload.sid).toBe("session-123");
-      expect(result.payload.uid).toBe(789);
+      expect(result.payload.uid).toBe(456); // userId es el estudiante
     });
 
     it("debe generar nonce único por cada llamada", () => {
