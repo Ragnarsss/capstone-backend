@@ -19,6 +19,7 @@ describe('ParticipationService', () => {
 
         mockQRLifecycle = {
             generateAndProject: vi.fn(),
+            generateAndPublish: vi.fn(),
             balancePool: vi.fn(),
             getStoredPayload: vi.fn(),
         } as any;
@@ -55,6 +56,7 @@ describe('ParticipationService', () => {
 
             vi.mocked(mockStudentState.registerStudent).mockResolvedValue(mockState);
             vi.mocked(mockQRLifecycle.generateAndProject).mockResolvedValue(mockQR);
+            vi.mocked(mockQRLifecycle.generateAndPublish).mockResolvedValue(mockQR);
 
             const result = await service.registerParticipation('session-123', 1001);
 
@@ -292,6 +294,7 @@ describe('ParticipationService', () => {
                 canRetry: true,
             });
             vi.mocked(mockQRLifecycle.generateAndProject).mockResolvedValue(mockQR);
+            vi.mocked(mockQRLifecycle.generateAndPublish).mockResolvedValue(mockQR);
 
             const result = await service.requestNewQR('session-123', 1001);
 

@@ -18,7 +18,6 @@ describe("PoolFeeder", () => {
     sessionId: "session-123",
     studentId: 12345,
     roundNumber: 1,
-    hostUserId: 99,
   };
 
   beforeEach(() => {
@@ -104,7 +103,7 @@ describe("PoolFeeder", () => {
         expect(result.payload).toMatchObject({
           v: 1,
           sid: "session-123",
-          uid: 99,
+          uid: 12345,
           r: 1,
         });
         expect(result.payload?.ts).toBeGreaterThan(0);
@@ -454,7 +453,7 @@ describe("PoolFeeder", () => {
       // Arrange
       const payload = PayloadBuilder.buildStudentPayload({
         sessionId: "session-test",
-        hostUserId: 123,
+        hostId: 123,
         roundNumber: 1,
       });
 
@@ -470,12 +469,12 @@ describe("PoolFeeder", () => {
       // Arrange
       const payload1 = PayloadBuilder.buildStudentPayload({
         sessionId: "session-1",
-        hostUserId: 123,
+        hostId: 123,
         roundNumber: 1,
       });
       const payload2 = PayloadBuilder.buildStudentPayload({
         sessionId: "session-2",
-        hostUserId: 123,
+        hostId: 123,
         roundNumber: 1,
       });
 

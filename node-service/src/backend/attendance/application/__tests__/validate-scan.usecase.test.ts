@@ -10,7 +10,7 @@ import {
 import type { AesGcmService } from "../../../../shared/infrastructure/crypto";
 import type { QRStateLoader } from "../../domain/validation-pipeline/stages/load-qr-state.stage";
 import type { StudentStateLoader } from "../../domain/validation-pipeline/stages/load-student-state.stage";
-import type { ISessionKeyQuery } from "../../../../shared/ports";
+import type { ISessionKeyQuery, ITotpValidator } from "../../../../shared/ports";
 import { totp } from "otplib";
 
 describe("ValidateScanUseCase", () => {
@@ -19,6 +19,7 @@ describe("ValidateScanUseCase", () => {
   let mockQRStateLoader: QRStateLoader;
   let mockStudentStateLoader: StudentStateLoader;
   let mockSessionKeyQuery: ISessionKeyQuery;
+  let mockTotpValidator: ITotpValidator;
   let deps: ValidateScanDependencies;
 
   beforeEach(() => {
@@ -74,11 +75,16 @@ describe("ValidateScanUseCase", () => {
       }),
     } as ISessionKeyQuery;
 
+    mockTotpValidator = {
+      validate: vi.fn().mockReturnValue(true),
+    } as ITotpValidator;
+
     deps = {
       aesGcmService: mockAesService,
       qrStateLoader: mockQRStateLoader,
       studentStateLoader: mockStudentStateLoader,
       sessionKeyQuery: mockSessionKeyQuery,
+      totpValidator: mockTotpValidator,
     };
 
     useCase = new ValidateScanUseCase(deps);
@@ -235,6 +241,7 @@ describe("createValidateScanUseCase()", () => {
       qrStateLoader: mockQRStateLoader,
       studentStateLoader: mockStudentStateLoader,
       sessionKeyQuery: mockSessionKeyQuery,
+      totpValidator: mockTotpValidator,
     });
 
     expect(useCase).toBeDefined();
@@ -251,6 +258,7 @@ describe("createValidateScanUseCase()", () => {
       qrStateLoader: mockQRStateLoader,
       studentStateLoader: mockStudentStateLoader,
       sessionKeyQuery: mockSessionKeyQuery,
+      totpValidator: mockTotpValidator,
     });
 
     expect(useCase).toBeDefined();

@@ -41,7 +41,7 @@ describe('PayloadBuilder', () => {
         it('debería construir payload con todos los campos', () => {
             const input: StudentPayloadInput = {
                 sessionId: 'session-123',
-                hostUserId: 1001,
+                studentId: 1001,
                 roundNumber: 2,
                 timestamp: 1234567890,
                 nonce: 'custom-nonce-abc',
@@ -65,7 +65,7 @@ describe('PayloadBuilder', () => {
 
             const input: StudentPayloadInput = {
                 sessionId: 'session-123',
-                hostUserId: 1001,
+                studentId: 1001,
                 roundNumber: 1,
             };
 
@@ -78,7 +78,7 @@ describe('PayloadBuilder', () => {
         it('debería generar nonce automático si no se provee', () => {
             const input: StudentPayloadInput = {
                 sessionId: 'session-123',
-                hostUserId: 1001,
+                studentId: 1001,
                 roundNumber: 1,
             };
 
@@ -91,7 +91,7 @@ describe('PayloadBuilder', () => {
         it('debería usar nonce personalizado si se provee', () => {
             const input: StudentPayloadInput = {
                 sessionId: 'session-123',
-                hostUserId: 1001,
+                studentId: 1001,
                 roundNumber: 1,
                 nonce: 'my-custom-nonce',
             };
@@ -105,7 +105,7 @@ describe('PayloadBuilder', () => {
         it('debería soportar múltiples rounds', () => {
             const input: StudentPayloadInput = {
                 sessionId: 'session-123',
-                hostUserId: 1001,
+                studentId: 1001,
                 roundNumber: 5,
             };
 
@@ -117,7 +117,7 @@ describe('PayloadBuilder', () => {
         it('debería soportar userId grande', () => {
             const input: StudentPayloadInput = {
                 sessionId: 'session-123',
-                hostUserId: 999999999,
+                studentId: 999999999,
                 roundNumber: 1,
             };
 
@@ -355,7 +355,7 @@ describe('PayloadBuilder', () => {
         it('debería serializar y deserializar correctamente', () => {
             const input: StudentPayloadInput = {
                 sessionId: 'session-xyz',
-                hostUserId: 2002,
+                studentId: 2002,
                 roundNumber: 3,
                 timestamp: 9999999999,
                 nonce: 'abcdef0123456789abcdef0123456789', // 32 chars hex
