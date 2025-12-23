@@ -1,7 +1,8 @@
 /**
- * Servicio de ciclo de vida de QRs: generar, almacenar y proyectar.
+ * Servicio de ciclo de vida de QRs: generar, almacenar, proyectar y activar.
  * 
  * Implementa IQRLifecycleManager para permitir inyección en CompleteScanUseCase.
+ * Responsabilidad completa: genera QR, lo almacena, lo proyecta Y actualiza el nonce activo.
  */
 import type { 
   IQRGenerator, 
@@ -15,6 +16,8 @@ import type {
 import type { QRPayloadV1 } from '../../../../shared/types';
 import { ProjectionPoolRepository } from '../../../../shared/infrastructure/valkey';
 import { logger } from '../../../../shared/infrastructure/logger';
+import type { StudentEncryptionService } from './student-encryption.service';
+import type { StudentStateService } from './student-state.service';
 
 export class QRLifecycleService implements IQRLifecycleManager {
   constructor(
@@ -22,12 +25,15 @@ export class QRLifecycleService implements IQRLifecycleManager {
     private readonly payloadRepo: IQRPayloadRepository,
     private readonly poolRepo: ProjectionPoolRepository = new ProjectionPoolRepository(),
     private readonly poolBalancer: IPoolBalancer | null = null,
-    private readonly defaultHostUserId: number = 1
+    private readonly defaultHostUserId: number = 1,
+    private readonly encryptionService?: StudentEncryptionService,
+    private readonly studentStateService?: StudentStateService
   ) {}
 
   /**
    * Implementación de IQRLifecycleManager.generateAndPublish
-   * Genera y publica el siguiente QR para un estudiante
+   * Genera, publica y ACTIVA el siguiente QR para un estudiante.
+   * Responsabilidad completa: el caller no necesita llamar setActiveQR() por separado.
    */
   async generateAndPublish(options: NextQROptions): Promise<NextQRResult> {
     const { sessionId, studentId, round, qrTTL } = options;
@@ -41,6 +47,14 @@ export class QRLifecycleService implements IQRLifecycleManager {
       hostUserId: this.defaultHostUserId,
       ttl: qrTTL,
     });
+
+    // Actualizar el nonce activo del estudiante para que la validación funcione
+    if (this.studentStateService) {
+      await this.studentStateService.setActiveQR(sessionId, studentId, payload.n);
+      logger.debug(`[QRLifecycle] Nonce activo actualizado: ${payload.n.substring(0, 8)}...`);
+    } else {
+      logger.warn(`[QRLifecycle] Sin StudentStateService, nonce activo NO actualizado`);
+    }
 
     logger.debug(`[QRLifecycle] QR publicado: nonce=${payload.n.substring(0, 8)}...`);
 
@@ -61,12 +75,24 @@ export class QRLifecycleService implements IQRLifecycleManager {
   }): Promise<{ payload: QRPayloadV1; encrypted: string }> {
     const { sessionId, studentId, round, hostUserId, ttl } = options;
 
-    const { payload, encrypted } = this.qrGenerator.generateForStudent({
+    // Generar payload (retorna plaintext y encrypted con mock key)
+    const { payload, plaintext, encrypted: mockEncrypted } = this.qrGenerator.generateForStudent({
       sessionId,
       userId: studentId,
       round,
       hostUserId,
     });
+
+    // Encriptar con session_key real del estudiante si está disponible
+    let encrypted: string;
+    if (this.encryptionService) {
+      const result = await this.encryptionService.encryptForStudent(studentId, plaintext);
+      encrypted = result.encrypted;
+    } else {
+      // Sin servicio de encriptación, usar mock encrypted
+      encrypted = mockEncrypted;
+      logger.warn(`[QRLifecycle] Sin StudentEncryptionService, usando mock key`);
+    }
 
     await this.payloadRepo.store(payload, encrypted, ttl);
     await this.poolRepo.upsertStudentQR(sessionId, studentId, encrypted, round);
@@ -81,5 +107,14 @@ export class QRLifecycleService implements IQRLifecycleManager {
   async balancePool(sessionId: string): Promise<void> {
     if (!this.poolBalancer) return;
     await this.poolBalancer.balance(sessionId);
+  }
+
+  /**
+   * Implementación de IQRLifecycleManager.removeFromPool
+   * Remueve al estudiante del pool cuando completa todos los rounds
+   */
+  async removeFromPool(sessionId: string, studentId: number): Promise<void> {
+    logger.debug(`[QRLifecycle] Removiendo student=${studentId} de pool session=${sessionId.substring(0, 8)}...`);
+    await this.poolRepo.removeStudent(sessionId, studentId);
   }
 }

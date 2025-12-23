@@ -8,6 +8,8 @@
 import type { CompleteScanDependencies, PersistenceDependencies, ServiceDependencies } from '../../application/complete-scan.usecase';
 import { AttendancePersistenceService } from '../../application/services/attendance-persistence.service';
 import { QRLifecycleService } from '../../application/services/qr-lifecycle.service';
+import { StudentEncryptionService } from '../../application/services/student-encryption.service';
+import { StudentStateService } from '../../application/services/student-state.service';
 import { AttendanceStatsCalculator } from '../../domain/services/attendance-stats-calculator.service';
 import { AesGcmService } from '../../../../shared/infrastructure/crypto';
 import { QRPayloadRepository } from '../../../qr-projection/infrastructure/qr-payload.repository';
@@ -20,6 +22,8 @@ import { StudentStateAdapter } from './student-state.adapter';
 import { SessionKeyQueryAdapter } from './session-key-query.adapter';
 import { SessionKeyRepository } from '../../../session/infrastructure/repositories/session-key.repository';
 import { ValidationRepository, ResultRepository, RegistrationRepository } from '../repositories';
+import { HkdfService } from '../../../enrollment/infrastructure/crypto/hkdf.service';
+import { TotpValidatorAdapter } from '../../../enrollment/infrastructure/adapters';
 import { logger } from '../../../../shared/infrastructure/logger';
 
 /**
@@ -77,6 +81,10 @@ export function createCompleteScanDepsWithPersistence(
   const qrStateLoader = new QRStateAdapter(poolRepo, cfg.qrTTL);
   const studentStateLoader = new StudentStateAdapter(studentRepo);
   const sessionKeyQuery = new SessionKeyQueryAdapter(sessionKeyRepo);
+  
+  // TOTP validator usando session_key de Valkey (segun diseno 14-decision-totp-session-key.md)
+  const hkdfService = new HkdfService();
+  const totpValidator = new TotpValidatorAdapter(sessionKeyQuery, hkdfService);
 
   const deps: CompleteScanDependencies = {
     // Para ValidateScanUseCase (pipeline)
@@ -84,6 +92,7 @@ export function createCompleteScanDepsWithPersistence(
     qrStateLoader,
     studentStateLoader,
     sessionKeyQuery,
+    totpValidator,
 
     // Side effects
     markQRConsumed: async (nonce: string, studentId: number) => {
@@ -109,12 +118,21 @@ export function createCompleteScanDepsWithPersistence(
 
   // Servicios inyectados (extraídos del UseCase)
   const statsCalculator = new AttendanceStatsCalculator();
+  
+  // StudentEncryptionService para encriptar QRs con session_key real
+  const studentEncryptionService = new StudentEncryptionService(sessionKeyQuery);
+  
+  // StudentStateService para actualizar nonce activo en generateAndPublish()
+  const studentStateService = new StudentStateService(studentRepo);
+  
   const qrLifecycleManager = new QRLifecycleService(
     qrGenerator,
     payloadRepo,
     poolRepo,
     null,
-    cfg.mockHostUserId
+    cfg.mockHostUserId,
+    studentEncryptionService,
+    studentStateService
   );
   
   const services: ServiceDependencies = {

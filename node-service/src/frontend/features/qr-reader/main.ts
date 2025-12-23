@@ -25,7 +25,7 @@ import { LegacyContextStore } from '../../shared/stores/legacy-context.store';
 import {
   EnrollmentService,
   LoginService,
-  SessionKeyStore,
+  getSessionKeyStore,
   AccessService,
   type AccessState,
 } from '../../shared/services/enrollment';
@@ -76,7 +76,7 @@ class QRReaderApplication {
     this.attendanceApi = new AttendanceApiClient();
     this.enrollmentService = new EnrollmentService();
     this.loginService = new LoginService(this.authClient);
-    this.sessionKeyStore = new SessionKeyStore();
+    this.sessionKeyStore = getSessionKeyStore();
     this.accessService = new AccessService(() => this.authClient.getToken());
     const component = new CameraViewComponent();
     const cameraManager = new CameraManager('camera-feed');
@@ -341,20 +341,22 @@ class QRReaderApplication {
 
   /**
    * Realiza login ECDH para obtener session_key
+   * 
+   * NOTA: totpu NO se genera aquí - se genera al escanear QR usando hmacKey
+   * almacenada en SessionKeyStore
    */
   private async performLogin(credentialId: string): Promise<void> {
     try {
       const result = await this.loginService.performLogin(credentialId);
       
-      if (!result.success || !result.sessionKey || !result.totpu) {
+      if (!result.success || !result.sessionKey) {
         this.showLoginMessage(result.error || 'Error en login', 'error');
         if (this.loginBtn) this.loginBtn.disabled = false;
         return;
       }
 
-      // Almacenar session_key
-      await this.sessionKeyStore.storeSessionKey(result.sessionKey, result.totpu);
-      console.log('[QRReader] Session key almacenada');
+      // LoginService ya almacenó las session keys (sessionKey + hmacKey)
+      console.log('[QRReader] Login exitoso, session keys almacenadas');
 
       // Mostrar estado listo
       this.showReadyState();

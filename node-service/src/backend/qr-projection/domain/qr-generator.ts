@@ -128,21 +128,25 @@ export class QRGenerator implements IQRGenerator {
    * 
    * Implementa IQRGenerator.generateForStudent
    * 
+   * Retorna plaintext para que el caller pueda re-encriptar con session_key real.
+   * También retorna encrypted (con mock key) para fallback o decoys.
+   * 
    * @param options - Opciones de generación
-   * @returns Payload y string encriptado
+   * @returns Payload, plaintext y encrypted
    */
   generateForStudent(options: GenerateStudentQROptions): GenerateQRResult {
     const payload: QRPayloadV1 = {
       v: 1,
       sid: options.sessionId,
-      uid: options.hostUserId,
+      uid: options.userId,
       r: options.round,
       ts: Date.now(),
       n: this.generateNonce(),
     };
 
+    const plaintext = this.toQRString(payload);
     const encrypted = this.encryptPayload(payload);
 
-    return { payload, encrypted };
+    return { payload, plaintext, encrypted };
   }
 }

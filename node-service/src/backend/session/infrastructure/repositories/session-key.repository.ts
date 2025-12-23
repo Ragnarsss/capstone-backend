@@ -14,6 +14,7 @@ export class SessionKeyRepository {
       sessionKey: sessionKey.sessionKey.toString('base64'),
       userId: sessionKey.userId.toString(),
       deviceId: sessionKey.deviceId.toString(),
+      credentialId: sessionKey.credentialId,
       createdAt: sessionKey.createdAt.toString(),
     };
 
@@ -33,6 +34,7 @@ export class SessionKeyRepository {
       sessionKey: Buffer.from(parsed.sessionKey, 'base64'),
       userId: parseInt(parsed.userId, 10),
       deviceId: parseInt(parsed.deviceId, 10),
+      credentialId: parsed.credentialId || '',
       createdAt: parseInt(parsed.createdAt, 10),
     };
   }

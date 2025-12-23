@@ -68,6 +68,10 @@ export const config = {
     // Intervalo de regeneracion de QR (en milisegundos)
     // 333ms = exactamente 3 QRs por segundo
     regenerationInterval: 333,
+    // Tiempo de vida de payloads en Valkey (segundos)
+    payloadTTL: parseInt(process.env.QR_TTL_SECONDS || '60', 10),
+    // Tamano minimo del pool (incluye QRs reales + decoys)
+    minPoolSize: parseInt(process.env.MIN_POOL_SIZE || '10', 10),
   },
   jwt: {
     // Secret para validar JWT desde PHP (debe coincidir con JWT_SECRET de PHP)

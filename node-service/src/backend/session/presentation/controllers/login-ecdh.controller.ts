@@ -56,7 +56,6 @@ export class LoginEcdhController {
         success: true,
         session: {
           serverPublicKey: output.serverPublicKey,
-          totpu: output.totpu,
           deviceId: output.deviceId,
         },
         message: 'Sesion establecida exitosamente',

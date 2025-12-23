@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { ParticipationService } from '../application/participation.service';
 import { ValidateScanUseCase } from '../application/validate-scan.usecase';
 import { CompleteScanUseCase } from '../application/complete-scan.usecase';
-import { StudentStateService, QRLifecycleService } from '../application/services';
+import { StudentStateService, QRLifecycleService, StudentEncryptionService } from '../application/services';
 import { ActiveSessionRepository, ProjectionPoolRepository } from '../../../shared/infrastructure/valkey';
 import { StudentSessionRepository } from '../infrastructure/student-session.repository';
 import { 
@@ -16,6 +16,8 @@ import {
 } from '../infrastructure/adapters';
 import { AesGcmService } from '../../../shared/infrastructure/crypto';
 import { SessionKeyRepository } from '../../session/infrastructure/repositories/session-key.repository';
+import { HkdfService } from '../../enrollment/infrastructure/crypto/hkdf.service';
+import { TotpValidatorAdapter } from '../../enrollment/infrastructure/adapters';
 import { mapValidationError } from './error-mapper';
 import { logger } from '../../../shared/infrastructure/logger';
 import { DEFAULT_QR_TTL_SECONDS, DEFAULT_MIN_POOL_SIZE } from '../../../shared/config';
@@ -69,7 +71,21 @@ export async function registerAttendanceRoutes(
   // Servicios de dominio
   const studentRepo = new StudentSessionRepository();
   const studentStateService = new StudentStateService(studentRepo);
-  const qrLifecycleService = new QRLifecycleService(qrGenerator, payloadRepo, poolRepo, poolBalancer);
+
+  // Session key query para encriptación de estudiantes
+  const sessionKeyQuery = new SessionKeyQueryAdapter(new SessionKeyRepository());
+  const studentEncryptionService = new StudentEncryptionService(sessionKeyQuery);
+
+  // QR Lifecycle con encriptación por estudiante y actualización de nonce activo
+  const qrLifecycleService = new QRLifecycleService(
+    qrGenerator,
+    payloadRepo,
+    poolRepo,
+    poolBalancer,
+    1, // defaultHostUserId
+    studentEncryptionService,
+    studentStateService // para setActiveQR() en generateAndPublish()
+  );
 
   // Instanciar ParticipationService con dependencias inyectadas
   const participation = participationService ?? new ParticipationService(
@@ -80,14 +96,18 @@ export async function registerAttendanceRoutes(
   const activeSessionRepo = new ActiveSessionRepository();
 
   // UseCases con pipeline
-  
+
+  // TOTP validator usando session_key de Valkey (segun diseno 14-decision-totp-session-key.md)
+  const hkdfService = new HkdfService();
+  const totpValidator = new TotpValidatorAdapter(sessionKeyQuery, hkdfService);
+
   // UseCase para solo validación (debugging)
-  const sessionKeyQuery = new SessionKeyQueryAdapter(new SessionKeyRepository());
   const validateScanUseCase = new ValidateScanUseCase({
     aesGcmService: new AesGcmService(),
     qrStateLoader: new QRStateAdapter(poolRepo),
     studentStateLoader: new StudentStateAdapter(studentRepo),
     sessionKeyQuery,
+    totpValidator,
   });
 
   // UseCase completo (validación + side effects)
@@ -199,6 +219,9 @@ export async function registerAttendanceRoutes(
       const result = await completeScanUseCase.execute(encrypted, studentId);
 
       if (!result.valid) {
+        // Log para diagnostico
+        logger.warn(`[Validate] Pipeline failed: code=${result.errorCode}, trace=${result.trace}`);
+        
         const errorResponse = result.error 
           ? mapValidationError(result.error)
           : { httpStatus: 400, code: 'UNKNOWN_ERROR', message: 'Error de validación' };

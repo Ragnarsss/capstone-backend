@@ -6,7 +6,7 @@ import { type QRPayloadV1, isQRPayloadV1 } from '../../../../shared/types';
  */
 export interface StudentPayloadInput {
   readonly sessionId: string;
-  readonly hostUserId: number;
+  readonly studentId: number;
   readonly roundNumber: number;
   readonly timestamp?: number;
   readonly nonce?: string;
@@ -61,7 +61,7 @@ export class PayloadBuilder {
     return {
       v: 1,
       sid: input.sessionId,
-      uid: input.hostUserId,
+      uid: input.studentId,
       r: input.roundNumber,
       ts: input.timestamp ?? Date.now(),
       n: input.nonce ?? PayloadBuilder.generateNonce(),

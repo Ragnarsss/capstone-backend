@@ -6,7 +6,9 @@
 
 ## Resumen
 
-El modulo **Attendance** gestiona la validacion de escaneos QR por parte de los estudiantes. Implementa un **pipeline de validacion** con 10 etapas, deteccion de fraude, y persistencia de resultados.
+El modulo **Attendance** gestiona la validacion de escaneos QR por parte de los estudiantes. Implementa un **pipeline de validacion** con 12 etapas, deteccion de fraude, y persistencia de resultados.
+
+> Ultima actualizacion: 2025-12-22
 
 ---
 
@@ -41,7 +43,7 @@ src/backend/attendance/
 │       ├── runner.ts                 # Pipeline runner
 │       ├── stage.interface.ts        # Interface Stage
 │       ├── pipeline.factory.ts       # Factory de pipeline
-│       └── stages/                   # 10 stages individuales
+│       └── stages/                   # 12 stages individuales
 ├── infrastructure/
 │   ├── adapters/                     # Adaptadores para pipeline
 │   ├── repositories/                 # PostgreSQL repos
@@ -58,22 +60,24 @@ src/backend/attendance/
 
 ## Pipeline de Validacion
 
-El pipeline ejecuta 10 etapas en secuencia. Si alguna falla, se detiene inmediatamente.
+El pipeline ejecuta 12 etapas en secuencia. Si alguna falla, se detiene inmediatamente.
 
 ```mermaid
 flowchart TD
     A[encrypted + studentId] --> B[1. Decrypt]
-    B --> C[2. Validate Structure]
-    C --> D[3. Validate Ownership]
-    D --> E[4. Load QR State]
-    E --> F[5. Validate QR Exists]
-    F --> G[6. Validate QR Not Consumed]
-    G --> H[7. Load Student State]
-    H --> I[8. Validate Not Duplicate]
-    I --> J[9. Validate Not Paused]
-    J --> K[10. Validate Round Match]
-    K --> L[VALIDO]
-    
+    B --> C[2. TOTP Validation]
+    C --> D[3. Validate Structure]
+    D --> E[4. Validate Ownership]
+    E --> F[5. Load QR State]
+    F --> G[6. Validate QR Not Expired]
+    G --> H[7. Validate QR Not Consumed]
+    H --> I[8. Load Student State]
+    I --> J[9. Validate Student Registered]
+    J --> K[10. Validate Student Active]
+    K --> L[11. Validate Student Owns QR]
+    L --> M[12. Validate Round Match]
+    M --> N[VALIDO]
+
     B -.->|Error| X[INVALIDO]
     C -.->|Error| X
     D -.->|Error| X
@@ -84,22 +88,26 @@ flowchart TD
     I -.->|Error| X
     J -.->|Error| X
     K -.->|Error| X
+    L -.->|Error| X
+    M -.->|Error| X
 ```
 
 ### Etapas del Pipeline
 
 | Stage | Tipo | Responsabilidad |
 |-------|------|-----------------|
-| `decryptPayloadStage` | Sync | Descifra QR con AES-GCM |
-| `validateStructureStage` | Sync | Valida formato QRPayloadV1 |
-| `validateOwnershipStage` | Sync | Verifica que uid coincide con estudiante |
-| `loadQrStateStage` | Async | Carga estado del QR desde Valkey |
-| `validateQrExistsStage` | Sync | Verifica que QR existe |
-| `validateQrNotConsumedStage` | Sync | Verifica QR no consumido |
-| `loadStudentStateStage` | Async | Carga estado estudiante desde Valkey |
-| `validateStudentNotDuplicateStage` | Sync | Verifica no duplicado en round |
-| `validateStudentNotPausedStage` | Sync | Verifica estudiante no pausado |
-| `validateRoundMatchStage` | Sync | Verifica round del QR coincide con actual |
+| `DecryptStage` | Async | Descifra QR con AES-GCM usando session_key |
+| `TOTPValidationStage` | Async | Valida TOTPu derivado de session_key |
+| `ValidateStructureStage` | Sync | Valida formato QRPayloadV1 |
+| `ValidateOwnershipStage` | Sync | Verifica que uid coincide con estudiante |
+| `LoadQRStateStage` | Async | Carga estado del QR desde Valkey |
+| `ValidateQRNotExpiredStage` | Sync | Verifica QR no expirado (TTL) |
+| `ValidateQRNotConsumedStage` | Sync | Verifica QR no consumido |
+| `LoadStudentStateStage` | Async | Carga estado estudiante desde Valkey |
+| `ValidateStudentRegisteredStage` | Sync | Verifica estudiante registrado en sesion |
+| `ValidateStudentActiveStage` | Sync | Verifica estudiante no completado/fallido |
+| `ValidateStudentOwnsQRStage` | Sync | Verifica nonce activo coincide |
+| `ValidateRoundMatchStage` | Sync | Verifica round del QR coincide con esperado |
 
 ---
 
@@ -223,12 +231,15 @@ Proposito:
 El sistema rastrea intentos sospechosos:
 
 ```typescript
-// Tipos de fraude detectados
-type FraudType = 
-  | 'invalid_qr'      // QR no descifrable
-  | 'fake_qr'         // QR falso detectado
-  | 'repeated_scan'   // Intento duplicado
-  | 'expired_qr';     // QR expirado/consumido
+// Tipos de fraude detectados (7 categorias)
+type FraudType =
+  | 'DECRYPT_FAILED'   // QR no descifrable (clave incorrecta)
+  | 'INVALID_FORMAT'   // Estructura QR invalida
+  | 'QR_NOT_FOUND'     // QR no existe en Valkey
+  | 'QR_EXPIRED'       // QR expirado (TTL)
+  | 'QR_ALREADY_USED'  // QR ya consumido
+  | 'WRONG_OWNER'      // QR pertenece a otro estudiante
+  | 'ROUND_MISMATCH';  // Round incorrecto
 ```
 
 Almacenamiento en Valkey:
@@ -251,18 +262,14 @@ Almacenamiento en Valkey:
 | GET | `/asistencia/api/attendance/status` | Consulta estado del estudiante |
 | POST | `/asistencia/api/attendance/refresh-qr` | Solicita nuevo QR |
 
-### Endpoints de Desarrollo
-
-Requieren `DEV_ENDPOINTS=true`:
+### Endpoints Adicionales
 
 | Metodo | Endpoint | Descripcion |
 |--------|----------|-------------|
-| POST | `/attendance/dev/fakes` | Inyectar fakes manualmente |
-| POST | `/attendance/dev/balance` | Balancear pool |
-| GET | `/attendance/dev/pool/:sessionId` | Ver contenido del pool |
-| GET | `/attendance/dev/fraud/:sessionId` | Ver metricas de fraude |
-| GET | `/attendance/dev/config` | Ver configuracion |
-| PATCH | `/attendance/dev/config` | Actualizar configuracion |
+| GET | `/asistencia/api/attendance/health` | Health check del modulo |
+| POST | `/asistencia/api/attendance/validate-debug` | Validacion sin side effects (desarrollo) |
+
+> **Nota:** Los endpoints `/dev/*` fueron eliminados en fase 22.9 por seguridad.
 
 ---
 

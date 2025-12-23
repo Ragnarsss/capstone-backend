@@ -17,3 +17,4 @@ export * from './qr-payload-repository.port';
 export * from './session-key-query.interface';
 export * from './attendance-stats.port';
 export * from './qr-lifecycle.port';
+export * from './totp-validator.port';

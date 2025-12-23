@@ -242,6 +242,9 @@ export class CompleteScanUseCase {
       
       logger.debug(`[CompleteScan] Asistencia completada para student=${studentId}, session=${sessionId}`);
 
+      // Limpiar estudiante del pool (ya no necesita QRs)
+      await this.services.qrLifecycleManager.removeFromPool(sessionId, studentId);
+
       // Persistir resultado completo en PostgreSQL usando servicio
       if (this.persistenceService) {
         await this.persistenceService.saveCompleteAttendance(

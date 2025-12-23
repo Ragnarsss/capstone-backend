@@ -18,7 +18,6 @@ export interface LoginEcdhInput {
  */
 export interface LoginEcdhOutput {
   serverPublicKey: string; // Base64 - clave ECDH del servidor
-  totpu: string; // TOTP de usuario para validacion
   deviceId: number;
 }
 
@@ -42,9 +41,8 @@ export interface LoginEcdhOutput {
  * 4. Realizar ECDH key exchange
  * 5. Derivar session_key con HKDF
  * 6. Guardar session_key en Valkey (TTL 2 horas)
- * 7. Generar TOTPu con handshake_secret
- * 8. Actualizar last_used_at
- * 9. Retornar serverPublicKey + TOTPu
+ * 7. Actualizar last_used_at
+ * 8. Retornar serverPublicKey
  *
  * Seguridad:
  * - El credentialId identifica unívocamente al dispositivo enrolado
@@ -97,21 +95,17 @@ export class LoginEcdhUseCase {
       sessionKey: sessionKeyBuffer,
       userId,
       deviceId: device.deviceId,
+      credentialId,
       createdAt: Date.now(),
     };
     await this.sessionKeyRepository.save(sessionKey, 7200);
 
-    // 7. Generar TOTPu con handshake_secret
-    const handshakeSecretBuffer = Buffer.from(device.handshakeSecret, 'base64');
-    const totpu = this.hkdfService.generateTotp(handshakeSecretBuffer);
-
-    // 8. Actualizar last_used_at del dispositivo
+    // 7. Actualizar last_used_at del dispositivo
     await this.deviceRepository.updateLastUsed(device.deviceId);
 
-    // 9. Retornar respuesta
+    // 8. Retornar respuesta
     return {
       serverPublicKey: keyExchangeResult.serverPublicKey,
-      totpu,
       deviceId: device.deviceId,
     };
   }

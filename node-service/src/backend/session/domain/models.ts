@@ -29,5 +29,6 @@ export interface SessionKey {
   readonly sessionKey: Buffer;
   readonly userId: number;
   readonly deviceId: number;
+  readonly credentialId: string;
   readonly createdAt: number;
 }

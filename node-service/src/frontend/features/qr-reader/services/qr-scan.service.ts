@@ -7,7 +7,8 @@ import { CameraManager } from './camera-manager';
 import type { CameraViewComponent } from '../ui/camera-view.component';
 import { AttendanceApiClient } from './attendance-api.client';
 import { AuthClient } from '../../../shared/auth/auth-client';
-import { decryptQR, encryptPayload } from '../../../shared/crypto/aes-gcm';
+import { decryptQR, encryptPayload, generateTotp } from '../../../shared/crypto';
+import { getSessionKeyStore } from '../../../shared/services/enrollment/session-key.store';
 
 // Tiempo de espera entre rondas (segundos)
 const COOLDOWN_SECONDS = 3;
@@ -94,15 +95,9 @@ export class QRScanService {
 
     const scannedText = result.text;
     
-    // Debug: mostrar lo que se escaneo
-    console.log('[QRScanService] QR detectado, longitud:', scannedText.length);
-    console.log('[QRScanService] Primeros 50 chars:', scannedText.substring(0, 50));
-    
     try {
       // 1. Intentar desencriptar
-      console.log('[QRScanService] Intentando desencriptar...');
       const payloadJson = await decryptQR(scannedText);
-      console.log('[QRScanService] Desencriptado OK:', payloadJson);
       const payload = JSON.parse(payloadJson);
 
       // 2. Verificar formato basico
@@ -113,51 +108,56 @@ export class QRScanService {
       // 3. Obtener ID estudiante
       const studentId = this.authClient.getUserId();
       if (studentId === null) {
-        console.log('[QRScanService] No hay usuario autenticado');
         return;
       }
 
       // 4. Verificar que el QR es para este estudiante
-      // En produccion con ECDH, solo se descifraria el propio
-      // En desarrollo con mock key, filtramos por uid
       if (payload.uid !== studentId) {
-        // Ignorar silenciosamente - no es nuestro QR
         return;
       }
 
       // 5. Verificar ronda esperada
       if (payload.r !== this.expectedRound) {
-        console.log(`[QRScanService] Ronda incorrecta. Esperada: ${this.expectedRound}, Recibida: ${payload.r}`);
         return; // Ignorar silenciosamente
       }
 
-      console.log(`[QRScanService] QR VALIDO encontrado! uid=${payload.uid}, r=${payload.r}`);
+      console.log(`[QRScanService] QR valido: uid=${payload.uid}, round=${payload.r}`);
 
       // --- INICIO VALIDACION ---
       this.validating = true;
       this.component.showValidating();
-      console.log(`[QRScanService] Validando ronda ${payload.r}...`);
 
-      // 6. Construir respuesta con payload original desencriptado
+      // 6. Obtener hmacKey del store y generar TOTP en tiempo real
+      const sessionKeyStore = getSessionKeyStore();
+      const hmacKey = await sessionKeyStore.getHmacKey();
+      
+      if (!hmacKey) {
+        console.error('[QRScanService] No hay hmacKey almacenada - sesion no valida');
+        this.component.showValidationError('Sesion expirada. Por favor inicie sesion nuevamente.');
+        this.validating = false;
+        return;
+      }
+
+      // Generar TOTP en tiempo real (no usar valor almacenado)
+      const totpu = await generateTotp(hmacKey);
+
+      // 7. Construir respuesta con payload original desencriptado + TOTPu
       const responsePayload = {
         original: payload,           // Payload desencriptado del QR
         studentId: studentId,        // ID del alumno que escanea
         receivedAt: Date.now(),      // Timestamp de recepcion
-        // TODO: totp debe derivarse de session_key del estudiante (enrolamiento)
-        // Por ahora omitido hasta integrar con modulo de enrollment
+        totpu: totpu,                // TOTP derivado de session_key
       };
       
-      // 7. Encriptar respuesta completa
+      // 8. Encriptar respuesta completa
       const encryptedResponse = await encryptPayload(JSON.stringify(responsePayload));
-      console.log(`[QRScanService] Respuesta encriptada, enviando al servidor...`);
 
-      // 8. Enviar al backend
+      // 9. Enviar al backend
       const validationResult = await this.attendanceApi.validatePayload(encryptedResponse, studentId);
-      console.log(`[QRScanService] Resultado validacion:`, JSON.stringify(validationResult));
 
       if (validationResult.valid) {
         if (validationResult.status === 'completed') {
-          console.log(`[QRScanService] COMPLETADO! sessionId=${validationResult.sessionId}`);
+          console.log(`[QRScanService] Asistencia completada para sesion ${validationResult.sessionId}`);
           this.component.showValidationSuccess('Asistencia completada!');
           await this.stop();
           
@@ -165,17 +165,16 @@ export class QRScanService {
           // El parent decide qué hacer (redirigir, mostrar mensaje, etc.)
           this.notifyParentCompletion(studentId, validationResult.sessionId);
         } else {
-          // Partial success - usar cooldown con cuenta regresiva
+          // Partial success - actualizar round esperado y mostrar cooldown
           this.component.showPartialSuccess(`Ronda ${payload.r} completada`);
           this.expectedRound = validationResult.nextRound || (this.expectedRound + 1);
           
-          // Cooldown visual antes de siguiente ronda
-          setTimeout(() => {
-            this.component.showCooldown(COOLDOWN_SECONDS, () => {
-              this.validating = false;
-              this.component.showScanning();
-            });
-          }, 500); // Breve pausa para mostrar el exito
+          // Cooldown visual con reanudación automática
+          this.component.showCooldown(COOLDOWN_SECONDS, () => {
+            this.validating = false;
+            this.component.showScanning();
+            console.log(`[QRScanService] Reanudando escaneo, round esperado: ${this.expectedRound}`);
+          });
         }
       } else {
         this.component.showValidationError(validationResult.message);
@@ -184,9 +183,10 @@ export class QRScanService {
 
     } catch (error) {
       // Si falla desencriptacion o parseo, asumimos que no es un QR para nosotros
-      // o que la clave es incorrecta. Ignoramos silenciosamente.
+      // o que la clave es incorrecta. Esto incluye QRs decoy (diseñados para fallar).
+      // Usamos console.debug en lugar de warn para evitar ruido (100+ msgs esperados).
       if (error instanceof Error) {
-        console.warn('[QRScanService] Error procesando QR:', error.message);
+        console.debug('[QRScanService] Error procesando QR (decoy o inválido):', error.message);
       }
       this.validating = false;
     }

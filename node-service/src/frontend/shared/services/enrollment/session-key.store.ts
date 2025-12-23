@@ -3,15 +3,19 @@
  * Responsabilidad: Almacenar y gestionar session_key derivada de ECDH
  *
  * Almacenamiento:
- * - sessionStorage: Clave exportada en formato JWK (JSON Web Key)
+ * - sessionStorage: Claves exportadas en formato JWK (JSON Web Key)
  * - No usar localStorage por seguridad (persiste entre sesiones)
+ *
+ * Almacena dos claves derivadas del mismo shared secret:
+ * - sessionKey (AES-GCM): para encriptar/desencriptar payloads QR
+ * - hmacKey (HMAC-SHA256): para generar TOTPu sin necesidad de exportKey
  *
  * NOTA: Servicio compartido usado por enrollment, guest y qr-reader features
  */
 
 export interface StoredSession {
   sessionKey: JsonWebKey;
-  totpu: string;
+  hmacKey: JsonWebKey;
   deviceId: number;
   createdAt: number;
   expiresAt: number;
@@ -22,25 +26,30 @@ const SESSION_TTL_MS = 2 * 60 * 60 * 1000; // 2 horas
 
 export class SessionKeyStore {
   /**
-   * Almacena session_key derivada de ECDH
+   * Almacena session_key y hmacKey derivadas de ECDH
    */
-  async storeSessionKey(sessionKey: CryptoKey, totpu: string, deviceId: number): Promise<void> {
+  async storeSessionKey(
+    sessionKey: CryptoKey,
+    hmacKey: CryptoKey,
+    deviceId: number
+  ): Promise<void> {
     try {
-      // Exportar clave a formato JWK
-      const keyData = await crypto.subtle.exportKey('jwk', sessionKey);
+      // Exportar ambas claves a formato JWK
+      const sessionKeyData = await crypto.subtle.exportKey('jwk', sessionKey);
+      const hmacKeyData = await crypto.subtle.exportKey('jwk', hmacKey);
 
       const session: StoredSession = {
-        sessionKey: keyData,
-        totpu,
+        sessionKey: sessionKeyData,
+        hmacKey: hmacKeyData,
         deviceId,
         createdAt: Date.now(),
         expiresAt: Date.now() + SESSION_TTL_MS,
       };
 
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify(session));
-      console.log('[SessionKeyStore] Session key almacenada, deviceId:', deviceId);
+      console.log('[SessionKeyStore] Session keys almacenadas, deviceId:', deviceId);
     } catch (error) {
-      console.error('[SessionKeyStore] Error almacenando session key:', error);
+      console.error('[SessionKeyStore] Error almacenando session keys:', error);
       throw error;
     }
   }
@@ -84,19 +93,46 @@ export class SessionKeyStore {
   }
 
   /**
+   * Recupera la hmacKey almacenada como CryptoKey
+   * Usada para generar TOTPu sin necesidad de exportKey
+   */
+  async getHmacKey(): Promise<CryptoKey | null> {
+    const session = this.getStoredSession();
+
+    if (!session || this.isExpired(session)) {
+      this.clear();
+      return null;
+    }
+
+    // Compatibilidad: si no hay hmacKey (sesion antigua), retornar null
+    if (!session.hmacKey) {
+      console.warn('[SessionKeyStore] Sesion sin hmacKey, requiere re-login');
+      return null;
+    }
+
+    try {
+      return await crypto.subtle.importKey(
+        'jwk',
+        session.hmacKey,
+        {
+          name: 'HMAC',
+          hash: 'SHA-256',
+        },
+        false,
+        ['sign']
+      );
+    } catch (error) {
+      console.error('[SessionKeyStore] Error importando hmac key:', error);
+      return null;
+    }
+  }
+
+  /**
    * Obtiene el deviceId del dispositivo actual
    */
   getDeviceId(): number | null {
     const session = this.getStoredSession();
     return session?.deviceId ?? null;
-  }
-
-  /**
-   * Obtiene el TOTPu almacenado
-   */
-  getTotpu(): string | null {
-    const session = this.getStoredSession();
-    return session?.totpu ?? null;
   }
 
   /**

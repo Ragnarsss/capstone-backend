@@ -105,16 +105,22 @@ export class LoginService {
       // 5. Derivar shared secret usando ECDH
       const sharedSecret = await this.deriveSharedSecret(keyPair.privateKey, serverPublicKey);
 
-      // 6. Derivar session_key usando HKDF (vinculada al credentialId)
+      // 6. Derivar session_key (AES-GCM) usando HKDF
       const sessionKey = await this.deriveSessionKey(sharedSecret, credentialId);
+      
+      // 7. Exportar session_key a bytes para derivar hmacKey
+      // Esto asegura que backend y frontend deriven hmacKey de la misma fuente
+      const sessionKeyBytes = await crypto.subtle.exportKey('raw', sessionKey);
+      
+      // 8. Derivar hmacKey desde session_key (no desde sharedSecret)
+      const hmacKey = await this.deriveHmacKey(sessionKeyBytes, credentialId);
 
-      // 7. Almacenar automáticamente en SessionKeyStore
-      await this.sessionKeyStore.storeSessionKey(sessionKey, data.totpu, data.deviceId);
+      // 9. Almacenar ambas claves en SessionKeyStore
+      await this.sessionKeyStore.storeSessionKey(sessionKey, hmacKey, data.deviceId);
 
       return {
         success: true,
         sessionKey,
-        totpu: data.totpu,
         deviceId: data.deviceId,
       };
     } catch (error) {
@@ -229,6 +235,43 @@ export class LoginService {
       },
       true,
       ['encrypt', 'decrypt']
+    );
+  }
+
+  /**
+   * Deriva hmacKey desde session_key usando HKDF
+   * Usada para generar TOTPu - ambos lados derivan de session_key
+   * 
+   * @param sessionKeyBytes - Bytes raw de la session_key derivada
+   * @param credentialId - ID único de la credencial FIDO2 para binding
+   */
+  private async deriveHmacKey(sessionKeyBytes: ArrayBuffer, credentialId: string): Promise<CryptoKey> {
+    const baseKey = await crypto.subtle.importKey(
+      'raw',
+      sessionKeyBytes,
+      'HKDF',
+      false,
+      ['deriveKey']
+    );
+
+    // Info diferente para generar clave HMAC distinta a la session_key
+    const info = new TextEncoder().encode('attendance-hmac-key-v1:' + credentialId);
+
+    return await crypto.subtle.deriveKey(
+      {
+        name: 'HKDF',
+        hash: 'SHA-256',
+        salt: new Uint8Array(0),
+        info,
+      },
+      baseKey,
+      {
+        name: 'HMAC',
+        hash: 'SHA-256',
+        length: 256,
+      },
+      true,
+      ['sign']
     );
   }
 

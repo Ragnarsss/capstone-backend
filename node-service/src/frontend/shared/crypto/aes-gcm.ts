@@ -35,8 +35,8 @@ async function getSessionKey(): Promise<CryptoKey> {
     if (!sessionKeyStorePromise) {
       sessionKeyStorePromise = import('../services/enrollment');
     }
-    const { SessionKeyStore } = await sessionKeyStorePromise;
-    const store = new SessionKeyStore();
+    const { getSessionKeyStore } = await sessionKeyStorePromise;
+    const store = getSessionKeyStore();
     
     if (store.hasSessionKey()) {
       const realKey = await store.getSessionKey();

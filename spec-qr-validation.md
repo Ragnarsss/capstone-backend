@@ -1,7 +1,7 @@
 # Flujo de Validacion QR con Rounds e Intentos
 
 **Fecha:** 2025-11-28
-**Actualizado:** 2025-12-13
+**Actualizado:** 2025-12-22
 **Estado:** Especificacion Tecnica
 
 ---
@@ -142,25 +142,29 @@ Ver `spec-enrollment.md` para el flujo de enrollment y login.
 │ 2. Valida TOTPu, payload, timestamp, etc.                      │
 │ 3. Calcula RT (Response Time)                                  │
 │                                                                 │
-│ 4. SIEMPRE responde con expectedRound:                         │
+│ 4. Respuestas:                                                  │
 │                                                                 │
 │    Si VALIDO y round < maxRounds:                              │
-│      → {success: true, expectedRound: round + 1}               │
+│      → {success: true, data: {status: 'partial',               │
+│         next_round: round + 1}}                                 │
 │                                                                 │
-│    Si VALIDO y round === maxRounds:                            │
-│      → {success: true, complete: true, certainty: X}           │
+│    Si VALIDO y round >= maxRounds:                             │
+│      → {success: true, data: {status: 'completed',             │
+│         stats: {roundsCompleted, avgResponseTime, certainty}}} │
+│      (Usar >= para robustez en caso de salto de round)         │
 │                                                                 │
-│    Si INVALIDO y quedan intentos:                              │
-│      → Consume intento SILENCIOSAMENTE                         │
-│      → {success: true, expectedRound: 1}  ← REINICIA           │
-│        (Cliente no sabe que fallo)                              │
-│                                                                 │
-│    Si INVALIDO y NO quedan intentos:                           │
-│      → {success: false, noMoreAttempts: true,                  │
-│         message: "Acercate al profesor/oficina"}               │
+│    Si INVALIDO:                                                 │
+│      → {success: false, error: {code, message}}                │
+│      (El cliente recibe el error y puede mostrar feedback)     │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+**DEUDA TECNICA:** Reintento silencioso (consumir intento sin informar al cliente) fue considerado pero no implementado. Requiere investigacion para evaluar:
+
+- Beneficios de seguridad: atacante no sabe cuando falla
+- Desventajas UX: usuario sin feedback de error
+- Complejidad: requiere estado de intentos en el flujo de respuesta
 
 ### Fase 3: Cliente Continua
 
@@ -171,18 +175,18 @@ Ver `spec-enrollment.md` para el flujo de enrollment y login.
 │                                                                 │
 │ Recibe respuesta:                                               │
 │                                                                 │
-│ Si complete:                                                    │
+│ Si status === 'completed':                                      │
 │   → Muestra "Asistencia registrada" + certeza                  │
 │   → Cierra lector                                               │
 │                                                                 │
-│ Si noMoreAttempts:                                              │
-│   → Muestra "Acercate al profesor/oficina"                     │
-│   → Cierra lector                                               │
-│                                                                 │
-│ Si success con expectedRound:                                   │
-│   → expectedRound = response.expectedRound                     │
+│ Si status === 'partial':                                        │
+│   → next_round = response.data.next_round                      │
 │   → REANUDA captura de QRs                                     │
-│   → Busca QR con r === expectedRound                           │
+│   → Busca QR con r === next_round                              │
+│                                                                 │
+│ Si error:                                                       │
+│   → Muestra mensaje de error al usuario                        │
+│   → Puede reintentar escaneo                                   │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -194,47 +198,46 @@ Ver `spec-enrollment.md` para el flujo de enrollment y login.
 ### Escenario 1: Exito Directo
 
 ```text
-Configuracion: maxRounds=3, maxAttempts=3
+Configuracion: maxRounds=3
 
-Cliente: expectedRound = 1
+Cliente: next_round = 1
 Escanea → encuentra QR con r=1 → envia
-Servidor: OK → responde {success: true, expectedRound: 2}
-Cliente: expectedRound = 2, reanuda
+Servidor: OK → responde {success: true, data: {status: 'partial', next_round: 2}}
+Cliente: next_round = 2, reanuda
 
 Escanea → encuentra QR con r=2 → envia
-Servidor: OK → responde {success: true, expectedRound: 3}
-Cliente: expectedRound = 3, reanuda
+Servidor: OK → responde {success: true, data: {status: 'partial', next_round: 3}}
+Cliente: next_round = 3, reanuda
 
 Escanea → encuentra QR con r=3 → envia
-Servidor: OK → responde {complete: true, certainty: 85}
+Servidor: OK → responde {success: true, data: {status: 'completed', stats: {...}}}
 Cliente: Muestra exito, cierra
 ```
 
-### Escenario 2: Fallo Silencioso en Round 2
+### Escenario 2: Fallo con Error Visible
 
 ```text
-Cliente: expectedRound = 1
+Cliente: next_round = 1
 Escanea → encuentra QR con r=1 → envia
-Servidor: OK → responde {success: true, expectedRound: 2}
-Cliente: expectedRound = 2, reanuda
+Servidor: OK → responde {success: true, data: {status: 'partial', next_round: 2}}
+Cliente: next_round = 2, reanuda
 
 Escanea → encuentra QR con r=2 → envia
-Servidor: FALLA (ej: timeout)
-         → consume intento 1 (quedan 2)
-         → responde {success: true, expectedRound: 1}  ← REINICIA
-Cliente: expectedRound = 1, reanuda (no sabe que fallo)
-
-Escanea → encuentra QR con r=1 → envia
-... continua desde round 1 ...
+Servidor: FALLA (ej: TOTP invalido)
+         → responde {success: false, error: {code: 'TOTP_INVALID', message: '...'}}
+Cliente: Muestra error, puede reintentar escaneo
 ```
 
-### Escenario 3: Agotar Intentos
+### Escenario 3: QR Expirado
 
 ```text
-(3 fallos consecutivos)
-Servidor: FALLA, intento 3 agotado
-         → responde {success: false, noMoreAttempts: true}
-Cliente: Muestra "Acercate al profesor/oficina", cierra
+Cliente: next_round = 2
+QR actual expira (TTL 60s)
+
+Cliente: POST /attendance/refresh-qr {sessionId, studentId}
+Servidor: Genera nuevo QR para round 2
+         → responde {success: true, data: {next_round: 2, qrTTL: 60}}
+Cliente: Continua esperando QR con r=2
 ```
 
 ---
@@ -243,10 +246,19 @@ Cliente: Muestra "Acercate al profesor/oficina", cierra
 
 - El QR del alumno se genera al momento de **registrar participacion** (POST `/asistencia/api/attendance/register`)
 - El servidor agrega el QR encriptado al **pool de proyeccion** en Valkey
-- Cada QR tiene un TTL controlado por backend (default: 30 segundos)
+- Cada QR tiene un TTL controlado por backend (default: 60 segundos)
 - Si el QR expira antes de usarse, el servidor genera uno nuevo automaticamente y lo agrega al pool
 - El **proyector** cicla QRs del pool (QRs de estudiantes + QRs falsos) cada ~500ms
 - La vigencia del QR es independiente del estado de la app del cliente
+
+### Manejo de QR Expirado
+
+Si el QR expira antes de ser escaneado:
+
+1. Cliente puede solicitar `POST /attendance/refresh-qr {sessionId, studentId}`
+2. Servidor genera nuevo QR para el round actual
+3. Se actualiza el pool de proyeccion
+4. Respuesta: `{success: true, data: {next_round, qrTTL}}`
 
 ---
 
@@ -256,7 +268,7 @@ El cliente identifica que un QR le pertenece cuando:
 
 1. Puede descifrarlo exitosamente con su session_key
 2. El campo `uid` del payload coincide con su userId
-3. El campo `r` coincide con su `expectedRound`
+3. El campo `r` coincide con su `next_round` esperado
 
 QRs de otros estudiantes o con rounds incorrectos son ignorados silenciosamente.
 

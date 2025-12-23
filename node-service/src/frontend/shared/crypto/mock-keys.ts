@@ -31,7 +31,7 @@ export async function getMockSessionKey(): Promise<CryptoKey> {
     'raw',
     keyData,
     { name: 'AES-GCM', length: 256 },
-    false, // extractable
+    true, // extractable - necesario para TOTP
     ['encrypt', 'decrypt']
   );
 }

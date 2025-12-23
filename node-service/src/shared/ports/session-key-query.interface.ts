@@ -14,6 +14,7 @@ export interface SessionKeyData {
   sessionKey: Buffer;
   userId: number;
   deviceId: number;
+  credentialId: string;
   createdAt: number;
 }
 
