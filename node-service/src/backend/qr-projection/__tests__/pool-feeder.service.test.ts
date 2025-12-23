@@ -192,5 +192,66 @@ describe('PoolFeeder', () => {
             expect(typeof nonce).toBe('string');
             expect(nonce.length).toBeGreaterThan(0);
         });
+
+        it('debería retornar nonce único para cada payload', () => {
+            const payload1 = PayloadBuilder.buildStudentPayload({
+                sessionId: 'session-123',
+                studentId: 5000,
+                roundNumber: 1,
+            });
+
+            const payload2 = PayloadBuilder.buildStudentPayload({
+                sessionId: 'session-123',
+                studentId: 5000,
+                roundNumber: 1,
+            });
+
+            const nonce1 = PoolFeeder.getNonce(payload1);
+            const nonce2 = PoolFeeder.getNonce(payload2);
+
+            expect(nonce1).not.toBe(nonce2);
+        });
+    });
+
+    describe('feedMultiple() - casos adicionales', () => {
+        it('debería manejar array vacío', async () => {
+            const results = await service.feedMultiple([]);
+
+            expect(results).toHaveLength(0);
+            expect(mockPoolRepo.upsertStudentQR).not.toHaveBeenCalled();
+        });
+
+        it('debería procesar un solo estudiante correctamente', async () => {
+            const inputs: FeedStudentInput[] = [
+                { sessionId: 'session-single', studentId: 9001, roundNumber: 1 },
+            ];
+
+            const results = await service.feedMultiple(inputs);
+
+            expect(results).toHaveLength(1);
+            expect(results[0].success).toBe(true);
+            expect(mockPoolRepo.upsertStudentQR).toHaveBeenCalledTimes(1);
+        });
+
+        it('debería continuar procesando después de un error', async () => {
+            const inputs: FeedStudentInput[] = [
+                { sessionId: 'session-123', studentId: 1001, roundNumber: 1 },
+                { sessionId: 'session-123', studentId: 1002, roundNumber: 1 },
+                { sessionId: 'session-123', studentId: 1003, roundNumber: 1 },
+            ];
+
+            // Falla el segundo, los demás exitosos
+            vi.mocked(mockPoolRepo.upsertStudentQR)
+                .mockResolvedValueOnce('pool-1')
+                .mockRejectedValueOnce(new Error('Network error'))
+                .mockResolvedValueOnce('pool-3');
+
+            const results = await service.feedMultiple(inputs);
+
+            expect(results).toHaveLength(3);
+            expect(results[0].success).toBe(true);
+            expect(results[1].success).toBe(false);
+            expect(results[2].success).toBe(true);
+        });
     });
 });
