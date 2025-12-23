@@ -52,7 +52,15 @@ npm run test:coverage
 
 ---
 
-## 🐛 Bugs y Problemas
+## � Integración y Migración
+
+| Documento                                                              | Descripción                                                     |
+| ---------------------------------------------------------------------- | --------------------------------------------------------------- |
+| [DEPLOY-STAGING-CLOUDFLARE.md](./DEPLOY-STAGING-CLOUDFLARE.md)         | ⚡ **FASE 1:** Despliegue staging con Cloudflare Tunnel         |
+| [MIGRACION-ENDPOINT-TOKEN.md](./MIGRACION-ENDPOINT-TOKEN.md)           | **FASE 2:** Migrar `api_get_asistencia_token.php` al módulo PHP |
+| [COMPONENTES-PHP-REUTILIZABLES.md](./COMPONENTES-PHP-REUTILIZABLES.md) | Qué componentes conservar vs config de desarrollo               |
+
+## �🐛 Bugs y Problemas
 
 | Documento                                              | Descripción                    |
 | ------------------------------------------------------ | ------------------------------ |

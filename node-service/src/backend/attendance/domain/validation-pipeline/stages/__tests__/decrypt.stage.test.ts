@@ -1,6 +1,6 @@
 /**
  * Tests para DecryptStage
- * 
+ *
  * Verifica:
  * - Desencriptación con session_key real del estudiante
  * - Fallback a mock key cuando no existe session_key
@@ -8,18 +8,18 @@
  * - Modo STUB_MODE: conversión de QRPayloadV1 a StudentResponse
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createDecryptStage } from '../decrypt.stage';
-import type { ValidationContext } from '../../context';
-import { AesGcmService } from '../../../../../../shared/infrastructure/crypto';
-import type { ISessionKeyQuery } from '../../../../../../shared/ports';
-import type { QRPayloadV1 } from '../../../../../../shared/types';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { createDecryptStage } from "../decrypt.stage";
+import type { ValidationContext } from "../../context";
+import { AesGcmService } from "../../../../../../shared/infrastructure/crypto";
+import type { ISessionKeyQuery } from "../../../../../../shared/ports";
+import type { QRPayloadV1 } from "../../../../../../shared/types";
 
-describe('DecryptStage', () => {
-  const MOCK_SESSION_KEY = '12345678901234567890123456789012'; // 32 bytes
-  const REAL_SESSION_KEY = 'abcdefghijklmnopqrstuvwxyz123456'; // 32 bytes
+describe("DecryptStage", () => {
+  const MOCK_SESSION_KEY = "12345678901234567890123456789012"; // 32 bytes
+  const REAL_SESSION_KEY = "abcdefghijklmnopqrstuvwxyz123456"; // 32 bytes
   const STUDENT_ID = 12345;
-  
+
   let fallbackAesGcmService: AesGcmService;
   let mockSessionKeyQuery: ISessionKeyQuery;
   let originalStubMode: string | undefined;
@@ -41,24 +41,26 @@ describe('DecryptStage', () => {
   // Desencriptación con session_key real
   // ========================================
 
-  describe('Desencriptación con session_key del estudiante', () => {
-    it('usa session_key real cuando existe en Valkey', async () => {
+  describe("Desencriptación con session_key del estudiante", () => {
+    it("usa session_key real cuando existe en Valkey", async () => {
       // Arrange
       const realAesService = new AesGcmService(REAL_SESSION_KEY);
       const studentResponse = {
         original: {
           v: 1,
-          sid: 'session-123',
+          sid: "session-123",
           uid: STUDENT_ID,
           r: 1,
           ts: Date.now(),
-          n: 'nonce-abc123',
+          n: "nonce-abc123",
         } as QRPayloadV1,
         studentId: STUDENT_ID,
         receivedAt: Date.now(),
       };
 
-      const encrypted = realAesService.encryptToPayload(JSON.stringify(studentResponse)).encrypted;
+      const encrypted = realAesService.encryptToPayload(
+        JSON.stringify(studentResponse)
+      ).encrypted;
 
       vi.mocked(mockSessionKeyQuery.findByUserId).mockResolvedValue({
         userId: STUDENT_ID,
@@ -72,7 +74,7 @@ describe('DecryptStage', () => {
       });
 
       const ctx: ValidationContext = {
-        sessionId: 'session-123',
+        sessionId: "session-123",
         studentId: STUDENT_ID,
         encrypted,
         timestamp: Date.now(),
@@ -89,24 +91,26 @@ describe('DecryptStage', () => {
       expect(ctx.error).toBeUndefined();
     });
 
-    it('desencripta correctamente StudentResponse con session_key real', async () => {
+    it("desencripta correctamente StudentResponse con session_key real", async () => {
       // Arrange
       const realAesService = new AesGcmService(REAL_SESSION_KEY);
       const expectedResponse = {
         original: {
           v: 1,
-          sid: 'session-456',
+          sid: "session-456",
           uid: STUDENT_ID,
           r: 2,
           ts: 1702900000000,
-          n: 'nonce-xyz789',
+          n: "nonce-xyz789",
         } as QRPayloadV1,
         studentId: STUDENT_ID,
         receivedAt: 1702900001000,
-        totpu: 'totp-123456',
+        totpu: "totp-123456",
       };
 
-      const encrypted = realAesService.encryptToPayload(JSON.stringify(expectedResponse)).encrypted;
+      const encrypted = realAesService.encryptToPayload(
+        JSON.stringify(expectedResponse)
+      ).encrypted;
 
       vi.mocked(mockSessionKeyQuery.findByUserId).mockResolvedValue({
         userId: STUDENT_ID,
@@ -120,7 +124,7 @@ describe('DecryptStage', () => {
       });
 
       const ctx: ValidationContext = {
-        sessionId: 'session-456',
+        sessionId: "session-456",
         studentId: STUDENT_ID,
         encrypted,
         timestamp: Date.now(),
@@ -132,7 +136,7 @@ describe('DecryptStage', () => {
       // Assert
       expect(result).toBe(true);
       expect(ctx.response).toEqual(expectedResponse);
-      expect(ctx.response?.totpu).toBe('totp-123456');
+      expect(ctx.response?.totpu).toBe("totp-123456");
     });
   });
 
@@ -140,23 +144,25 @@ describe('DecryptStage', () => {
   // Fallback a mock key
   // ========================================
 
-  describe('Fallback a mock key cuando no existe session_key', () => {
-    it('usa fallbackAesGcmService cuando no hay session_key en Valkey', async () => {
+  describe("Fallback a mock key cuando no existe session_key", () => {
+    it("usa fallbackAesGcmService cuando no hay session_key en Valkey", async () => {
       // Arrange
       const studentResponse = {
         original: {
           v: 1,
-          sid: 'session-fallback',
+          sid: "session-fallback",
           uid: STUDENT_ID,
           r: 1,
           ts: Date.now(),
-          n: 'nonce-fallback',
+          n: "nonce-fallback",
         } as QRPayloadV1,
         studentId: STUDENT_ID,
         receivedAt: Date.now(),
       };
 
-      const encrypted = fallbackAesGcmService.encryptToPayload(JSON.stringify(studentResponse)).encrypted;
+      const encrypted = fallbackAesGcmService.encryptToPayload(
+        JSON.stringify(studentResponse)
+      ).encrypted;
 
       vi.mocked(mockSessionKeyQuery.findByUserId).mockResolvedValue(null);
 
@@ -166,7 +172,7 @@ describe('DecryptStage', () => {
       });
 
       const ctx: ValidationContext = {
-        sessionId: 'session-fallback',
+        sessionId: "session-fallback",
         studentId: STUDENT_ID,
         encrypted,
         timestamp: Date.now(),
@@ -182,22 +188,24 @@ describe('DecryptStage', () => {
       expect(ctx.error).toBeUndefined();
     });
 
-    it('desencripta correctamente con fallback en modo desarrollo', async () => {
+    it("desencripta correctamente con fallback en modo desarrollo", async () => {
       // Arrange
       const studentResponse = {
         original: {
           v: 1,
-          sid: 'dev-session',
+          sid: "dev-session",
           uid: 999,
           r: 3,
           ts: 1702900000000,
-          n: 'dev-nonce',
+          n: "dev-nonce",
         } as QRPayloadV1,
         studentId: 999,
         receivedAt: 1702900002000,
       };
 
-      const encrypted = fallbackAesGcmService.encryptToPayload(JSON.stringify(studentResponse)).encrypted;
+      const encrypted = fallbackAesGcmService.encryptToPayload(
+        JSON.stringify(studentResponse)
+      ).encrypted;
 
       vi.mocked(mockSessionKeyQuery.findByUserId).mockResolvedValue(null);
 
@@ -207,7 +215,7 @@ describe('DecryptStage', () => {
       });
 
       const ctx: ValidationContext = {
-        sessionId: 'dev-session',
+        sessionId: "dev-session",
         studentId: 999,
         encrypted,
         timestamp: Date.now(),
@@ -226,8 +234,8 @@ describe('DecryptStage', () => {
   // Manejo de errores
   // ========================================
 
-  describe('Manejo de errores de formato y desencriptación', () => {
-    it('retorna error INVALID_FORMAT si el payload no es válido', async () => {
+  describe("Manejo de errores de formato y desencriptación", () => {
+    it("retorna error INVALID_FORMAT si el payload no es válido", async () => {
       // Arrange
       vi.mocked(mockSessionKeyQuery.findByUserId).mockResolvedValue(null);
 
@@ -237,9 +245,9 @@ describe('DecryptStage', () => {
       });
 
       const ctx: ValidationContext = {
-        sessionId: 'session-invalid',
+        sessionId: "session-invalid",
         studentId: STUDENT_ID,
-        encrypted: 'formato-invalido-sin-puntos',
+        encrypted: "formato-invalido-sin-puntos",
         timestamp: Date.now(),
       };
 
@@ -249,18 +257,22 @@ describe('DecryptStage', () => {
       // Assert
       expect(result).toBe(false);
       expect(ctx.error).toEqual({
-        code: 'INVALID_FORMAT',
-        message: 'Formato de payload invalido',
+        code: "INVALID_FORMAT",
+        message: "Formato de payload invalido",
       });
       expect(ctx.response).toBeUndefined();
     });
 
-    it('retorna error DECRYPTION_FAILED si no puede desencriptar', async () => {
+    it("retorna error DECRYPTION_FAILED si no puede desencriptar", async () => {
       // Arrange
-      const wrongKeyService = new AesGcmService('00000000000000000000000000000000'); // 32 bytes
+      const wrongKeyService = new AesGcmService(
+        "00000000000000000000000000000000"
+      ); // 32 bytes
       const realAesService = new AesGcmService(REAL_SESSION_KEY);
-      
-      const encrypted = realAesService.encryptToPayload(JSON.stringify({ test: 'data' })).encrypted;
+
+      const encrypted = realAesService.encryptToPayload(
+        JSON.stringify({ test: "data" })
+      ).encrypted;
 
       vi.mocked(mockSessionKeyQuery.findByUserId).mockResolvedValue(null);
 
@@ -270,7 +282,7 @@ describe('DecryptStage', () => {
       });
 
       const ctx: ValidationContext = {
-        sessionId: 'session-wrong-key',
+        sessionId: "session-wrong-key",
         studentId: STUDENT_ID,
         encrypted,
         timestamp: Date.now(),
@@ -282,17 +294,18 @@ describe('DecryptStage', () => {
       // Assert
       expect(result).toBe(false);
       expect(ctx.error).toEqual({
-        code: 'DECRYPTION_FAILED',
-        message: 'No se pudo desencriptar la respuesta',
+        code: "DECRYPTION_FAILED",
+        message: "No se pudo desencriptar la respuesta",
       });
       expect(ctx.response).toBeUndefined();
     });
 
-    it('retorna error DECRYPTION_FAILED si el JSON no es parseable', async () => {
+    it("retorna error DECRYPTION_FAILED si el JSON no es parseable", async () => {
       // Arrange
       // Crear payload encriptado con string inválido JSON
-      const invalidJson = '{invalid-json-syntax';
-      const encrypted = fallbackAesGcmService.encryptToPayload(invalidJson).encrypted;
+      const invalidJson = "{invalid-json-syntax";
+      const encrypted =
+        fallbackAesGcmService.encryptToPayload(invalidJson).encrypted;
 
       vi.mocked(mockSessionKeyQuery.findByUserId).mockResolvedValue(null);
 
@@ -302,7 +315,7 @@ describe('DecryptStage', () => {
       });
 
       const ctx: ValidationContext = {
-        sessionId: 'session-invalid-json',
+        sessionId: "session-invalid-json",
         studentId: STUDENT_ID,
         encrypted,
         timestamp: Date.now(),
@@ -314,8 +327,8 @@ describe('DecryptStage', () => {
       // Assert
       expect(result).toBe(false);
       expect(ctx.error).toEqual({
-        code: 'DECRYPTION_FAILED',
-        message: 'No se pudo desencriptar la respuesta',
+        code: "DECRYPTION_FAILED",
+        message: "No se pudo desencriptar la respuesta",
       });
     });
   });
@@ -324,21 +337,23 @@ describe('DecryptStage', () => {
   // Modo STUB_MODE
   // ========================================
 
-  describe('STUB_MODE: conversión de QRPayloadV1 a StudentResponse', () => {
-    it('convierte QRPayloadV1 del servidor a StudentResponse en STUB_MODE', async () => {
+  describe("STUB_MODE: conversión de QRPayloadV1 a StudentResponse", () => {
+    it("convierte QRPayloadV1 del servidor a StudentResponse en STUB_MODE", async () => {
       // Arrange
       // Nota: Este test verifica el comportamiento SOLO si ENROLLMENT_STUB_MODE=true al iniciar
       // Si la variable no está configurada, el test puede fallar o pasar dependiendo del entorno
       const qrPayload: QRPayloadV1 = {
         v: 1,
-        sid: 'stub-session',
+        sid: "stub-session",
         uid: STUDENT_ID,
         r: 1,
         ts: 1702900000000,
-        n: 'stub-nonce-abc',
+        n: "stub-nonce-abc",
       };
 
-      const encrypted = fallbackAesGcmService.encryptToPayload(JSON.stringify(qrPayload)).encrypted;
+      const encrypted = fallbackAesGcmService.encryptToPayload(
+        JSON.stringify(qrPayload)
+      ).encrypted;
 
       vi.mocked(mockSessionKeyQuery.findByUserId).mockResolvedValue(null);
 
@@ -348,7 +363,7 @@ describe('DecryptStage', () => {
       });
 
       const ctx: ValidationContext = {
-        sessionId: 'stub-session',
+        sessionId: "stub-session",
         studentId: STUDENT_ID,
         encrypted,
         timestamp: Date.now(),
@@ -362,7 +377,7 @@ describe('DecryptStage', () => {
       expect(ctx.response).toBeDefined();
       // En STUB_MODE: ctx.response.original es el QRPayloadV1
       // Sin STUB_MODE: ctx.response es tratado como StudentResponse normal
-      if (process.env.ENROLLMENT_STUB_MODE === 'true') {
+      if (process.env.ENROLLMENT_STUB_MODE === "true") {
         expect(ctx.response?.original).toEqual(qrPayload);
         expect(ctx.response?.studentId).toBe(STUDENT_ID);
         expect(ctx.response?.receivedAt).toBeGreaterThan(0);
@@ -370,22 +385,24 @@ describe('DecryptStage', () => {
       expect(ctx.error).toBeUndefined();
     });
 
-    it('procesa StudentResponse normal en STUB_MODE sin conversión', async () => {
+    it("procesa StudentResponse normal en STUB_MODE sin conversión", async () => {
       // Arrange
       const studentResponse = {
         original: {
           v: 1,
-          sid: 'stub-session-2',
+          sid: "stub-session-2",
           uid: STUDENT_ID,
           r: 2,
           ts: Date.now(),
-          n: 'nonce-xyz',
+          n: "nonce-xyz",
         } as QRPayloadV1,
         studentId: STUDENT_ID,
         receivedAt: Date.now(),
       };
 
-      const encrypted = fallbackAesGcmService.encryptToPayload(JSON.stringify(studentResponse)).encrypted;
+      const encrypted = fallbackAesGcmService.encryptToPayload(
+        JSON.stringify(studentResponse)
+      ).encrypted;
 
       vi.mocked(mockSessionKeyQuery.findByUserId).mockResolvedValue(null);
 
@@ -395,7 +412,7 @@ describe('DecryptStage', () => {
       });
 
       const ctx: ValidationContext = {
-        sessionId: 'stub-session-2',
+        sessionId: "stub-session-2",
         studentId: STUDENT_ID,
         encrypted,
         timestamp: Date.now(),
@@ -409,15 +426,17 @@ describe('DecryptStage', () => {
       expect(ctx.response).toEqual(studentResponse);
     });
 
-    it('solo convierte a StudentResponse si el payload es QRPayloadV1 válido', async () => {
+    it("solo convierte a StudentResponse si el payload es QRPayloadV1 válido", async () => {
       // Arrange
       const invalidPayload = {
         v: 1,
-        sid: 'test',
+        sid: "test",
         // Falta uid, r, ts, n - no es QRPayloadV1 válido
       };
 
-      const encrypted = fallbackAesGcmService.encryptToPayload(JSON.stringify(invalidPayload)).encrypted;
+      const encrypted = fallbackAesGcmService.encryptToPayload(
+        JSON.stringify(invalidPayload)
+      ).encrypted;
 
       vi.mocked(mockSessionKeyQuery.findByUserId).mockResolvedValue(null);
 
@@ -427,7 +446,7 @@ describe('DecryptStage', () => {
       });
 
       const ctx: ValidationContext = {
-        sessionId: 'test-session',
+        sessionId: "test-session",
         studentId: STUDENT_ID,
         encrypted,
         timestamp: Date.now(),
@@ -444,26 +463,27 @@ describe('DecryptStage', () => {
   });
 
   // ========================================
-  // Integración: session_key query
+  // isQRPayloadV1: Tests de cobertura para validación
   // ========================================
 
-  describe('Integración con SessionKeyQuery', () => {
-    it('llama findByUserId con el studentId correcto', async () => {
+  describe("isQRPayloadV1: Validación de campos", () => {
+    // Estos tests cubren la función isQRPayloadV1 (líneas 98-112)
+    // probando todos los casos de validación sin requerir STUB_MODE activo
+
+    it("debe rechazar payload sin campo v", async () => {
       // Arrange
-      const studentResponse = {
-        original: {
-          v: 1,
-          sid: 'integration-test',
-          uid: 777,
-          r: 1,
-          ts: Date.now(),
-          n: 'nonce-integration',
-        } as QRPayloadV1,
-        studentId: 777,
-        receivedAt: Date.now(),
+      const invalidPayload = {
+        // v: 1, // Falta v
+        sid: "test",
+        uid: 123,
+        r: 1,
+        ts: Date.now(),
+        n: "nonce",
       };
 
-      const encrypted = fallbackAesGcmService.encryptToPayload(JSON.stringify(studentResponse)).encrypted;
+      const encrypted = fallbackAesGcmService.encryptToPayload(
+        JSON.stringify(invalidPayload)
+      ).encrypted;
 
       vi.mocked(mockSessionKeyQuery.findByUserId).mockResolvedValue(null);
 
@@ -473,7 +493,333 @@ describe('DecryptStage', () => {
       });
 
       const ctx: ValidationContext = {
-        sessionId: 'integration-test',
+        sessionId: "test-session",
+        studentId: STUDENT_ID,
+        encrypted,
+        timestamp: Date.now(),
+      };
+
+      // Act
+      const result = await stage.execute(ctx);
+
+      // Assert
+      expect(result).toBe(true);
+      // No se convierte porque falta v, se trata como StudentResponse normal
+      expect(ctx.response).toEqual(invalidPayload);
+    });
+
+    it("debe rechazar payload con v diferente de 1", async () => {
+      // Arrange
+      const invalidPayload = {
+        v: 2, // Versión incorrecta
+        sid: "test",
+        uid: 123,
+        r: 1,
+        ts: Date.now(),
+        n: "nonce",
+      };
+
+      const encrypted = fallbackAesGcmService.encryptToPayload(
+        JSON.stringify(invalidPayload)
+      ).encrypted;
+
+      vi.mocked(mockSessionKeyQuery.findByUserId).mockResolvedValue(null);
+
+      const stage = createDecryptStage({
+        fallbackAesGcmService,
+        sessionKeyQuery: mockSessionKeyQuery,
+      });
+
+      const ctx: ValidationContext = {
+        sessionId: "test-session",
+        studentId: STUDENT_ID,
+        encrypted,
+        timestamp: Date.now(),
+      };
+
+      // Act
+      const result = await stage.execute(ctx);
+
+      // Assert
+      expect(result).toBe(true);
+      expect(ctx.response).toEqual(invalidPayload);
+    });
+
+    it("debe rechazar payload con sid que no es string", async () => {
+      // Arrange
+      const invalidPayload = {
+        v: 1,
+        sid: 123, // Debería ser string
+        uid: 123,
+        r: 1,
+        ts: Date.now(),
+        n: "nonce",
+      };
+
+      const encrypted = fallbackAesGcmService.encryptToPayload(
+        JSON.stringify(invalidPayload)
+      ).encrypted;
+
+      vi.mocked(mockSessionKeyQuery.findByUserId).mockResolvedValue(null);
+
+      const stage = createDecryptStage({
+        fallbackAesGcmService,
+        sessionKeyQuery: mockSessionKeyQuery,
+      });
+
+      const ctx: ValidationContext = {
+        sessionId: "test-session",
+        studentId: STUDENT_ID,
+        encrypted,
+        timestamp: Date.now(),
+      };
+
+      // Act
+      const result = await stage.execute(ctx);
+
+      // Assert
+      expect(result).toBe(true);
+      expect(ctx.response).toEqual(invalidPayload);
+    });
+
+    it("debe rechazar payload con uid que no es number", async () => {
+      // Arrange
+      const invalidPayload = {
+        v: 1,
+        sid: "test",
+        uid: "not-a-number", // Debería ser number
+        r: 1,
+        ts: Date.now(),
+        n: "nonce",
+      };
+
+      const encrypted = fallbackAesGcmService.encryptToPayload(
+        JSON.stringify(invalidPayload)
+      ).encrypted;
+
+      vi.mocked(mockSessionKeyQuery.findByUserId).mockResolvedValue(null);
+
+      const stage = createDecryptStage({
+        fallbackAesGcmService,
+        sessionKeyQuery: mockSessionKeyQuery,
+      });
+
+      const ctx: ValidationContext = {
+        sessionId: "test-session",
+        studentId: STUDENT_ID,
+        encrypted,
+        timestamp: Date.now(),
+      };
+
+      // Act
+      const result = await stage.execute(ctx);
+
+      // Assert
+      expect(result).toBe(true);
+      expect(ctx.response).toEqual(invalidPayload);
+    });
+
+    it("debe rechazar payload con r que no es number", async () => {
+      // Arrange
+      const invalidPayload = {
+        v: 1,
+        sid: "test",
+        uid: 123,
+        r: "not-a-number", // Debería ser number
+        ts: Date.now(),
+        n: "nonce",
+      };
+
+      const encrypted = fallbackAesGcmService.encryptToPayload(
+        JSON.stringify(invalidPayload)
+      ).encrypted;
+
+      vi.mocked(mockSessionKeyQuery.findByUserId).mockResolvedValue(null);
+
+      const stage = createDecryptStage({
+        fallbackAesGcmService,
+        sessionKeyQuery: mockSessionKeyQuery,
+      });
+
+      const ctx: ValidationContext = {
+        sessionId: "test-session",
+        studentId: STUDENT_ID,
+        encrypted,
+        timestamp: Date.now(),
+      };
+
+      // Act
+      const result = await stage.execute(ctx);
+
+      // Assert
+      expect(result).toBe(true);
+      expect(ctx.response).toEqual(invalidPayload);
+    });
+
+    it("debe rechazar payload con ts que no es number", async () => {
+      // Arrange
+      const invalidPayload = {
+        v: 1,
+        sid: "test",
+        uid: 123,
+        r: 1,
+        ts: "not-a-timestamp", // Debería ser number
+        n: "nonce",
+      };
+
+      const encrypted = fallbackAesGcmService.encryptToPayload(
+        JSON.stringify(invalidPayload)
+      ).encrypted;
+
+      vi.mocked(mockSessionKeyQuery.findByUserId).mockResolvedValue(null);
+
+      const stage = createDecryptStage({
+        fallbackAesGcmService,
+        sessionKeyQuery: mockSessionKeyQuery,
+      });
+
+      const ctx: ValidationContext = {
+        sessionId: "test-session",
+        studentId: STUDENT_ID,
+        encrypted,
+        timestamp: Date.now(),
+      };
+
+      // Act
+      const result = await stage.execute(ctx);
+
+      // Assert
+      expect(result).toBe(true);
+      expect(ctx.response).toEqual(invalidPayload);
+    });
+
+    it("debe rechazar payload con n que no es string", async () => {
+      // Arrange
+      const invalidPayload = {
+        v: 1,
+        sid: "test",
+        uid: 123,
+        r: 1,
+        ts: Date.now(),
+        n: 12345, // Debería ser string
+      };
+
+      const encrypted = fallbackAesGcmService.encryptToPayload(
+        JSON.stringify(invalidPayload)
+      ).encrypted;
+
+      vi.mocked(mockSessionKeyQuery.findByUserId).mockResolvedValue(null);
+
+      const stage = createDecryptStage({
+        fallbackAesGcmService,
+        sessionKeyQuery: mockSessionKeyQuery,
+      });
+
+      const ctx: ValidationContext = {
+        sessionId: "test-session",
+        studentId: STUDENT_ID,
+        encrypted,
+        timestamp: Date.now(),
+      };
+
+      // Act
+      const result = await stage.execute(ctx);
+
+      // Assert
+      expect(result).toBe(true);
+      expect(ctx.response).toEqual(invalidPayload);
+    });
+
+    it("debe rechazar payload null", async () => {
+      // Arrange
+      const encrypted = fallbackAesGcmService.encryptToPayload(
+        JSON.stringify(null)
+      ).encrypted;
+
+      vi.mocked(mockSessionKeyQuery.findByUserId).mockResolvedValue(null);
+
+      const stage = createDecryptStage({
+        fallbackAesGcmService,
+        sessionKeyQuery: mockSessionKeyQuery,
+      });
+
+      const ctx: ValidationContext = {
+        sessionId: "test-session",
+        studentId: STUDENT_ID,
+        encrypted,
+        timestamp: Date.now(),
+      };
+
+      // Act
+      const result = await stage.execute(ctx);
+
+      // Assert
+      expect(result).toBe(true);
+      expect(ctx.response).toBe(null);
+    });
+
+    it("debe rechazar payload que no es objeto", async () => {
+      // Arrange
+      const encrypted = fallbackAesGcmService.encryptToPayload(
+        JSON.stringify("not an object")
+      ).encrypted;
+
+      vi.mocked(mockSessionKeyQuery.findByUserId).mockResolvedValue(null);
+
+      const stage = createDecryptStage({
+        fallbackAesGcmService,
+        sessionKeyQuery: mockSessionKeyQuery,
+      });
+
+      const ctx: ValidationContext = {
+        sessionId: "test-session",
+        studentId: STUDENT_ID,
+        encrypted,
+        timestamp: Date.now(),
+      };
+
+      // Act
+      const result = await stage.execute(ctx);
+
+      // Assert
+      expect(result).toBe(true);
+      expect(ctx.response).toBe("not an object");
+    });
+  });
+
+  // ========================================
+  // Integración: session_key query
+  // ========================================
+
+  describe("Integración con SessionKeyQuery", () => {
+    it("llama findByUserId con el studentId correcto", async () => {
+      // Arrange
+      const studentResponse = {
+        original: {
+          v: 1,
+          sid: "integration-test",
+          uid: 777,
+          r: 1,
+          ts: Date.now(),
+          n: "nonce-integration",
+        } as QRPayloadV1,
+        studentId: 777,
+        receivedAt: Date.now(),
+      };
+
+      const encrypted = fallbackAesGcmService.encryptToPayload(
+        JSON.stringify(studentResponse)
+      ).encrypted;
+
+      vi.mocked(mockSessionKeyQuery.findByUserId).mockResolvedValue(null);
+
+      const stage = createDecryptStage({
+        fallbackAesGcmService,
+        sessionKeyQuery: mockSessionKeyQuery,
+      });
+
+      const ctx: ValidationContext = {
+        sessionId: "integration-test",
         studentId: 777,
         encrypted,
         timestamp: Date.now(),
@@ -487,25 +833,27 @@ describe('DecryptStage', () => {
       expect(mockSessionKeyQuery.findByUserId).toHaveBeenCalledWith(777);
     });
 
-    it('crea nueva instancia de AesGcmService con session_key específica', async () => {
+    it("crea nueva instancia de AesGcmService con session_key específica", async () => {
       // Arrange
-      const specificKey = 'zyxwvutsrqponmlkjihgfedcba654321'; // 32 bytes
+      const specificKey = "zyxwvutsrqponmlkjihgfedcba654321"; // 32 bytes
       const specificService = new AesGcmService(specificKey);
-      
+
       const studentResponse = {
         original: {
           v: 1,
-          sid: 'specific-key-test',
+          sid: "specific-key-test",
           uid: 888,
           r: 1,
           ts: Date.now(),
-          n: 'nonce-specific',
+          n: "nonce-specific",
         } as QRPayloadV1,
         studentId: 888,
         receivedAt: Date.now(),
       };
 
-      const encrypted = specificService.encryptToPayload(JSON.stringify(studentResponse)).encrypted;
+      const encrypted = specificService.encryptToPayload(
+        JSON.stringify(studentResponse)
+      ).encrypted;
 
       vi.mocked(mockSessionKeyQuery.findByUserId).mockResolvedValue({
         userId: 888,
@@ -519,7 +867,7 @@ describe('DecryptStage', () => {
       });
 
       const ctx: ValidationContext = {
-        sessionId: 'specific-key-test',
+        sessionId: "specific-key-test",
         studentId: 888,
         encrypted,
         timestamp: Date.now(),

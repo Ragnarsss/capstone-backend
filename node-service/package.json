@@ -15,7 +15,9 @@
     "type-check": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "test:report": "./scripts/test-report.sh",
+    "test:report:quick": "./scripts/test-report.sh --no-coverage"
   },
   "dependencies": {
     "@fastify/http-proxy": "^9.5.0",
