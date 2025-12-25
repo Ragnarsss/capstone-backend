@@ -64,8 +64,8 @@ export async function registerAccessRoutes(fastify: FastifyInstance): Promise<vo
     // Aplicar autenticación a todas las rutas de access
     accessRoutes.addHook('preHandler', authMiddleware.authenticate());
 
-    // GET /api/access/state?deviceFingerprint={fingerprint}
-    accessRoutes.get('/api/access/state', {
+    // GET /asistencia/api/access/state?deviceFingerprint={fingerprint}
+    accessRoutes.get('/asistencia/api/access/state', {
       handler: accessStateController.handle.bind(accessStateController),
     });
   });

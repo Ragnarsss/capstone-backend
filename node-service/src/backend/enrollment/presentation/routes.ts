@@ -82,20 +82,20 @@ export async function registerEnrollmentRoutes(fastify: FastifyInstance): Promis
     // Aplicar autenticación a todas las rutas de enrollment
     enrollmentRoutes.addHook('preHandler', authMiddleware.authenticate());
 
-    // POST /api/enrollment/start
-    enrollmentRoutes.post('/api/enrollment/start', {
+    // POST /asistencia/api/enrollment/start
+    enrollmentRoutes.post('/asistencia/api/enrollment/start', {
       preHandler: [jsonOnly, enrollmentRateLimit],
       handler: startEnrollmentController.handle.bind(startEnrollmentController),
     });
 
-    // POST /api/enrollment/finish
-    enrollmentRoutes.post('/api/enrollment/finish', {
+    // POST /asistencia/api/enrollment/finish
+    enrollmentRoutes.post('/asistencia/api/enrollment/finish', {
       preHandler: [jsonOnly, enrollmentRateLimit],
       handler: finishEnrollmentController.handle.bind(finishEnrollmentController),
     });
 
-    // GET /api/enrollment/devices - Listar dispositivos
-    enrollmentRoutes.get('/api/enrollment/devices', {
+    // GET /asistencia/api/enrollment/devices - Listar dispositivos
+    enrollmentRoutes.get('/asistencia/api/enrollment/devices', {
       handler: async (request, reply) => {
         const userId = request.user?.userId;
         if (!userId) {
@@ -107,13 +107,13 @@ export async function registerEnrollmentRoutes(fastify: FastifyInstance): Promis
       },
     });
 
-    // DELETE /api/enrollment/devices/:deviceId - Revocar dispositivo
-    enrollmentRoutes.delete('/api/enrollment/devices/:deviceId', {
+    // DELETE /asistencia/api/enrollment/devices/:deviceId - Revocar dispositivo
+    enrollmentRoutes.delete('/asistencia/api/enrollment/devices/:deviceId', {
       handler: revokeDeviceController.handle.bind(revokeDeviceController),
     });
 
-    // POST /api/enrollment/client-log - Recibir logs del frontend
-    enrollmentRoutes.post('/api/enrollment/client-log', {
+    // POST /asistencia/api/enrollment/client-log - Recibir logs del frontend
+    enrollmentRoutes.post('/asistencia/api/enrollment/client-log', {
       preHandler: [jsonOnly],
       handler: async (request, reply) => {
         const body = request.body as { logs?: Array<{ level: string; message: string; data?: unknown; timestamp: string }> };

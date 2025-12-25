@@ -29,8 +29,6 @@ services:
     depends_on:
       - node-service
       - postgres
-    networks:
-      - asistencia-network
 
   # Servicio Node.js con Fastify y WebSocket
   node-service:
@@ -61,8 +59,6 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
-    networks:
-      - asistencia-network
     expose:
       - "3000"
 
@@ -76,8 +72,6 @@ services:
       - POSTGRES_USER=${POSTGRES_USER:-asistencia}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-asistencia_pass}
       - POSTGRES_DB=${POSTGRES_DB:-asistencia_db}
-    networks:
-      - asistencia-network
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./database:/docker-entrypoint-initdb.d:ro
@@ -92,8 +86,6 @@ services:
   valkey:
     image: valkey/valkey:7-alpine
     container_name: asistencia-valkey
-    networks:
-      - asistencia-network
     volumes:
       - valkey-data:/data
     command: ["valkey-server", "--appendonly", "yes"]
@@ -105,9 +97,9 @@ services:
       start_period: 5s
 
 networks:
-  asistencia-network:
-    driver: bridge
-
 volumes:
   postgres-data:
   valkey-data:
+
+networks:
+  default:
