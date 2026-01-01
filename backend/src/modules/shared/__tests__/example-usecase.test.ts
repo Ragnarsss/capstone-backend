@@ -17,13 +17,13 @@ import {
     resetAllMocks,
     expectMockCalledWith,
     expectMockCalledTimes,
-} from '@backend/shared/__tests__/mock-factories';
+} from './mock-factories';
 
 import {
     createValidContext,
     generateRandomNonce,
     timestampSecondsAgo,
-} from '@backend/shared/__tests__/test-helpers';
+} from './test-helpers';
 
 /**
  * EJEMPLO: Test de un Use Case hipotético

@@ -5,10 +5,10 @@
  * y contextos válidos en los tests.
  */
 
-import type { ValidationContext } from '@backend/attendance/domain/validation-pipeline/context';
-import { createContext } from '@backend/attendance/domain/validation-pipeline/context';
+import type { ValidationContext } from '../../attendance/domain/validation-pipeline/context';
+import { createContext } from '../../attendance/domain/validation-pipeline/context';
 import jwt from 'jsonwebtoken';
-import type { JWTPayload } from '@backend/auth/domain/models';
+import type { JWTPayload } from '../../auth/domain/models';
 
 // ==================== ATTENDANCE HELPERS ====================
 
