@@ -26,9 +26,10 @@ jobs:
 
       - name: Instalar Node.js 20 en Rocky Linux
         run: |
-          dnf install -y nodejs npm git curl
+          dnf install -y --allowerasing nodejs npm git
           node --version
           npm --version
+          git --version
 
       - name: Instalar dependencias
         working-directory: node-service
@@ -92,12 +93,14 @@ jobs:
 
       - name: Instalar PHP ${{ matrix.php-version }} en Rocky Linux
         run: |
-          dnf install -y epel-release git
+          dnf install -y --allowerasing epel-release git
           dnf install -y https://rpms.remirepo.net/enterprise/remi-release-9.rpm
           dnf module reset php -y
           dnf module enable php:remi-${{ matrix.php-version }} -y
-          dnf install -y php php-mbstring php-pdo php-pgsql php-json php-xml php-pecl-xdebug composer
+          dnf install -y php php-mbstring php-pdo php-pgsql php-json php-xml php-pecl-xdebug
           php --version
+          # Instalar Composer manualmente
+          curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
           composer --version
 
       - name: Validar composer.json
@@ -151,9 +154,10 @@ jobs:
 
       - name: Instalar Node.js en Rocky Linux
         run: |
-          dnf install -y nodejs npm git
+          dnf install -y --allowerasing nodejs npm git
           node --version
           npm --version
+          git --version
 
       - name: Instalar dependencias Node
         working-directory: node-service
@@ -170,10 +174,14 @@ jobs:
 
       - name: Instalar PHP para linting en Rocky Linux
         run: |
-          dnf install -y php php-mbstring composer
+          dnf install -y --allowerasing php php-mbstring
+          # Instalar Composer
+          curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+          composer --version
+          # Instalar php-cs-fixer globalmente
           if ! command -v php-cs-fixer &> /dev/null; then
             composer global require friendsofphp/php-cs-fixer
-            echo "export PATH=\$PATH:\$HOME/.composer/vendor/bin" >> $HOME/.bashrc
+            export PATH="$PATH:$HOME/.composer/vendor/bin"
           fi
 
       - name: Verificar estilo PHP (PHP CS Fixer)
@@ -199,9 +207,10 @@ jobs:
 
       - name: Instalar Node.js en Rocky Linux
         run: |
-          dnf install -y nodejs npm git
+          dnf install -y --allowerasing nodejs npm git
           node --version
           npm --version
+          git --version
 
       - name: Instalar dependencias
         working-directory: node-service
