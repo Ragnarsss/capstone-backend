@@ -17,7 +17,7 @@ jobs:
   test-node:
     name: Tests Node.js (Vitest)
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout código
         uses: actions/checkout@v4
@@ -25,20 +25,20 @@ jobs:
       - name: Setup Node.js 20 (método estándar GitHub Actions)
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: node-service/package-lock.json
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: backend/package-lock.json
 
       - name: Instalar dependencias
-        working-directory: node-service
+        working-directory: backend
         run: npm ci
 
       - name: Type checking (TypeScript)
-        working-directory: node-service
+        working-directory: backend
         run: npm run type-check
 
       - name: Ejecutar tests con Vitest
-        working-directory: node-service
+        working-directory: backend
         run: npm run test:coverage
         env:
           # Variables de entorno necesarias para tests
@@ -57,14 +57,14 @@ jobs:
         uses: codecov/codecov-action@v4
         if: always()
         with:
-          files: ./node-service/coverage/coverage-final.json
-          flags: node-service
-          name: codecov-node-service
+          files: ./backend/coverage/coverage-final.json
+          flags: backend
+          name: codecov-backend
           fail_ci_if_error: false
 
       - name: Generar resumen de cobertura
         if: always()
-        working-directory: node-service
+        working-directory: backend
         run: |
           if [ -f coverage/coverage-summary.json ]; then
             echo "## 📊 Cobertura de Tests Node.js" >> $GITHUB_STEP_SUMMARY
@@ -151,16 +151,16 @@ jobs:
       - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: node-service/package-lock.json
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: backend/package-lock.json
 
       - name: Instalar dependencias Node
-        working-directory: node-service
+        working-directory: backend
         run: npm ci
 
       - name: Verificar formato de código (ESLint)
-        working-directory: node-service
+        working-directory: backend
         run: |
           if [ -f .eslintrc.js ] || [ -f .eslintrc.json ] || [ -f eslint.config.js ]; then
             npm run lint || echo "⚠️ ESLint no configurado aún"
@@ -171,7 +171,7 @@ jobs:
       - name: Instalar PHP para linting
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '7.4'
+          php-version: "7.4"
           tools: php-cs-fixer
 
       - name: Verificar estilo PHP (PHP CS Fixer)
@@ -196,53 +196,78 @@ jobs:
       - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: node-service/package-lock.json
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: backend/package-lock.json
 
-      - name: Instalar dependencias
-        working-directory: node-service
+      - name: Instalar dependencias backend
+        working-directory: backend
         run: npm ci
 
-      - name: Build backend + frontend
-        working-directory: node-service
+      - name: Instalar dependencias frontend
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build backend
+        working-directory: backend
         run: npm run build
         env:
           NODE_ENV: production
 
-      - name: Verificar artefactos generados
-        working-directory: node-service
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Verificar artefactos backend
+        working-directory: backend
         run: |
-          echo "## 📦 Artefactos Generados" >> $GITHUB_STEP_SUMMARY
+          echo "## 📦 Artefactos Backend" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
           if [ -d dist ]; then
-            echo "✅ Directorio dist/ creado" >> $GITHUB_STEP_SUMMARY
+            echo "✅ Backend dist/ creado" >> $GITHUB_STEP_SUMMARY
             
             if [ -f dist/index.js ]; then
               echo "✅ Backend compilado: dist/index.js" >> $GITHUB_STEP_SUMMARY
             else
               echo "❌ Backend NO compilado: dist/index.js no encontrado" >> $GITHUB_STEP_SUMMARY
-            fi
-            
-            if [ -d dist/frontend ]; then
-              echo "✅ Frontend compilado: dist/frontend/" >> $GITHUB_STEP_SUMMARY
-              echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-              ls -lh dist/frontend/ >> $GITHUB_STEP_SUMMARY
-              echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-            else
-              echo "❌ Frontend NO compilado: dist/frontend/ no encontrado" >> $GITHUB_STEP_SUMMARY
+              exit 1
             fi
           else
             echo "❌ Directorio dist/ no creado" >> $GITHUB_STEP_SUMMARY
             exit 1
           fi
 
-      - name: Guardar artefactos de build
+      - name: Verificar artefactos frontend
+        working-directory: frontend
+        run: |
+          echo "## 📦 Artefactos Frontend" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -d dist ]; then
+            echo "✅ Frontend dist/ creado" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            ls -lh dist/ >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Frontend dist/ no creado" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+      - name: Guardar artefactos backend
         uses: actions/upload-artifact@v4
         with:
-          name: build-artifacts
-          path: node-service/dist/
+          name: backend-artifacts
+          path: backend/dist/
+          retention-days: 7
+
+      - name: Guardar artefactos frontend
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-artifacts
+          path: frontend/dist/
           retention-days: 7
 
   # Job 5: Resumen final
