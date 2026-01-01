@@ -1,5 +1,10 @@
 # Sistema de Asistencia con Autenticación Criptográfica
 
+[![CI/CD Pipeline](https://github.com/Ragnarsss/capstone-backend/actions/workflows/ci.yml/badge.svg)](https://github.com/Ragnarsss/capstone-backend/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/Ragnarsss/capstone-backend/branch/main/graph/badge.svg)](https://codecov.io/gh/Ragnarsss/capstone-backend)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D20.0.0-brightgreen)](https://nodejs.org/)
+[![PHP Version](https://img.shields.io/badge/php-7.4%20%7C%208.0%20%7C%208.1-blue)](https://www.php.net/)
+
 Sistema de validación de asistencia universitaria con autenticación JWT y WebSocket seguro.
 
 **Gobernanza:** Ver [PROJECT-CONSTITUTION.md](PROJECT-CONSTITUTION.md) (principios y límites) y [daRulez.md](daRulez.md) (reglas de desarrollo).
@@ -30,14 +35,14 @@ podman compose down
 
 ### Puertos y Acceso
 
-| Servicio | Puerto | URL | Entorno |
-|----------|--------|-----|---------|
-| **Frontend Principal (HTTP)** | 9500 | http://localhost:9500 | Todos |
-| **Frontend Principal (HTTPS)** | 9505 | https://localhost:9505 | Todos |
-| PostgreSQL | 9501 | localhost:9501 | Dev |
-| Valkey (Redis) | 9502 | localhost:9502 | Dev |
-| Node.js API (directo) | 9503 | http://localhost:9503 | **Solo Dev** |
-| Vite Dev Server | 9504 | http://localhost:9504 | **Solo Dev** |
+| Servicio                       | Puerto | URL                    | Entorno      |
+| ------------------------------ | ------ | ---------------------- | ------------ |
+| **Frontend Principal (HTTP)**  | 9500   | http://localhost:9500  | Todos        |
+| **Frontend Principal (HTTPS)** | 9505   | https://localhost:9505 | Todos        |
+| PostgreSQL                     | 9501   | localhost:9501         | Dev          |
+| Valkey (Redis)                 | 9502   | localhost:9502         | Dev          |
+| Node.js API (directo)          | 9503   | http://localhost:9503  | **Solo Dev** |
+| Vite Dev Server                | 9504   | http://localhost:9504  | **Solo Dev** |
 
 **Nota:** En producción, Node.js NO está expuesto. Todo pasa por Apache (puerto 9500 HTTP / 9505 HTTPS).
 
@@ -68,14 +73,14 @@ Cliente → Node.js Backend (Puerto 3000 interno)
 
 ## Stack Tecnológico
 
-| Componente | Tecnología | Versión |
-|------------|------------|---------|
-| Frontend (PHP) | PHP + Apache | 7.4 / 2.4 |
-| Frontend (TS) | TypeScript + Vite | Latest |
-| Backend | Node.js + Fastify | 20 LTS |
-| Base de Datos | PostgreSQL | 18 |
-| Cache | Valkey | 7 |
-| Contenedores | Podman | Latest |
+| Componente     | Tecnología        | Versión   |
+| -------------- | ----------------- | --------- |
+| Frontend (PHP) | PHP + Apache      | 7.4 / 2.4 |
+| Frontend (TS)  | TypeScript + Vite | Latest    |
+| Backend        | Node.js + Fastify | 20 LTS    |
+| Base de Datos  | PostgreSQL        | 18        |
+| Cache          | Valkey            | 7         |
+| Contenedores   | Podman            | Latest    |
 
 ---
 
