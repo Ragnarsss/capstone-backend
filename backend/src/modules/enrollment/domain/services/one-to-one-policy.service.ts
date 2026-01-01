@@ -1,0 +1,150 @@
+/**
+ * OneToOnePolicyService
+ *
+ * Enforces 1:1 policy for device enrollment:
+ * - 1 user = max 1 active device
+ * - 1 device = max 1 active user
+ *
+ * SoC: This service ONLY handles policy validation and enforcement.
+ * It does NOT handle FIDO2 verification, HKDF derivation, or persistence.
+ */
+
+import type { Device } from '../entities';
+
+/**
+ * Result of policy validation
+ */
+export interface PolicyValidationResult {
+  compliant: boolean;
+  violations?: {
+    /** Device is already enrolled by another user */
+    deviceConflict?: { userId: number; credentialId: string };
+    /** User has other active devices */
+    userConflict?: { deviceIds: number[] };
+  };
+}
+
+/**
+ * Result of revoking policy violations
+ */
+export interface RevokeResult {
+  /** Previous user unlinked from device (device conflict resolved) */
+  previousUserUnlinked?: { userId: number; reason: string };
+  /** Number of user's own devices revoked (user conflict resolved) */
+  ownDevicesRevoked: number;
+}
+
+/**
+ * Interface for device repository operations needed by policy service
+ * This allows for dependency injection and testing with mocks
+ */
+export interface IDeviceRepositoryForPolicy {
+  findByCredentialIdIncludingInactive(credentialId: string): Promise<Device | null>;
+  findActiveByDeviceFingerprint(deviceFingerprint: string): Promise<Device[]>;
+  findByUserId(userId: number): Promise<Device[]>;
+  revoke(deviceId: number, reason: string): Promise<void>;
+  revokeAllByUserId(userId: number, reason: string): Promise<number>;
+}
+
+/**
+ * OneToOnePolicyService
+ *
+ * Validates and enforces 1:1 enrollment policy.
+ */
+export class OneToOnePolicyService {
+  constructor(
+    private readonly deviceRepository: IDeviceRepositoryForPolicy
+  ) {}
+
+  /**
+   * Valida si un nuevo enrolamiento violaria la politica 1:1
+   *
+   * @param userId - Usuario intentando enrolamiento
+   * @param credentialId - Credential ID del dispositivo a enrolar
+   * @returns PolicyValidationResult con estado de cumplimiento y violaciones
+   */
+  async validate(userId: number, credentialId: string): Promise<PolicyValidationResult> {
+    const violations: PolicyValidationResult['violations'] = {};
+
+    // Verificar conflicto de dispositivo: otro usuario tiene este dispositivo activo
+    const existingDevice = await this.deviceRepository.findByCredentialIdIncludingInactive(credentialId);
+
+    if (existingDevice?.isActive && existingDevice.userId !== userId) {
+      violations.deviceConflict = {
+        userId: existingDevice.userId,
+        credentialId: existingDevice.credentialId,
+      };
+    }
+
+    // Verificar conflicto de usuario: usuario tiene otros dispositivos activos
+    const userDevices = await this.deviceRepository.findByUserId(userId);
+    const otherActiveDevices = userDevices.filter(d => d.credentialId !== credentialId);
+
+    if (otherActiveDevices.length > 0) {
+      violations.userConflict = {
+        deviceIds: otherActiveDevices.map(d => d.deviceId),
+      };
+    }
+
+    const hasViolations = Object.keys(violations).length > 0;
+
+    return {
+      compliant: !hasViolations,
+      violations: hasViolations ? violations : undefined,
+    };
+  }
+
+  /**
+   * Revoca todas las violaciones de politica para permitir nuevo enrolamiento
+   *
+   * Usa deviceFingerprint para identificar dispositivo fisico:
+   * - deviceFingerprint: Hash de propiedades browser/hardware (identifica dispositivo fisico)
+   * - credentialId: Generado por WebAuthn (unico por ceremonia de enrolamiento)
+   *
+   * @param userId - Usuario realizando enrolamiento
+   * @param deviceFingerprint - Huella del dispositivo a enrolar
+   * @returns RevokeResult con detalles de lo revocado
+   */
+  async revokeViolations(userId: number, deviceFingerprint: string): Promise<RevokeResult> {
+    let previousUserUnlinked: RevokeResult['previousUserUnlinked'];
+    let ownDevicesRevoked = 0;
+
+    // 1. Manejar conflicto de dispositivo: verificar si este dispositivo fisico esta enrolado por otro usuario
+    const devicesWithSameFingerprint = await this.deviceRepository.findActiveByDeviceFingerprint(deviceFingerprint);
+    const conflictingDevice = devicesWithSameFingerprint.find(d => d.userId !== userId);
+
+    if (conflictingDevice) {
+      await this.deviceRepository.revoke(
+        conflictingDevice.deviceId,
+        `Auto-revoked: Device re-enrolled by user ${userId} (1:1 policy)`
+      );
+      previousUserUnlinked = {
+        userId: conflictingDevice.userId,
+        reason: 'Device re-enrolled by another user',
+      };
+    }
+
+    // 2. Handle user conflict: Revoke all user's existing devices
+    ownDevicesRevoked = await this.deviceRepository.revokeAllByUserId(
+      userId,
+      'Auto-revoked: New device enrolled (1:1 policy)'
+    );
+
+    return {
+      previousUserUnlinked,
+      ownDevicesRevoked,
+    };
+  }
+
+  /**
+   * Checks if same device is already enrolled by same user (duplicate enrollment attempt)
+   *
+   * @param userId - User attempting enrollment
+   * @param credentialId - Credential ID of the device
+   * @returns true if device is already enrolled by this user
+   */
+  async isDuplicateEnrollment(userId: number, credentialId: string): Promise<boolean> {
+    const existingDevice = await this.deviceRepository.findByCredentialIdIncludingInactive(credentialId);
+    return existingDevice?.isActive === true && existingDevice.userId === userId;
+  }
+}

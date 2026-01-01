@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Asistencia - Lector QR</title>
+  <link rel="stylesheet" href="/shared/styles/base.css" />
+</head>
+<body>
+  <div class="container scanner">
+    <h1>Lector QR</h1>
+    <p id="scanner-status" class="scanner__status">Esperando autenticacion...</p>
+
+    <!-- Seccion de enrollment (si no esta enrolado) -->
+    <div id="enrollment-section" class="scanner__enrollment" style="display: none;">
+      <div class="scanner__enrollment-info">
+        <p>Para registrar asistencia, primero debes vincular este dispositivo.</p>
+        <p class="scanner__enrollment-note">Solo necesitas hacer esto una vez por dispositivo.</p>
+      </div>
+      <button id="enroll-btn" class="btn primary btn--large" disabled>
+        Vincular Dispositivo
+      </button>
+      <p id="enrollment-message" class="scanner__message"></p>
+    </div>
+
+    <!-- Seccion de login ECDH (si esta enrolado pero sin session_key) -->
+    <div id="login-section" class="scanner__login" style="display: none;">
+      <div class="scanner__login-info">
+        <p>Tu dispositivo esta vinculado. Inicia sesion para continuar.</p>
+      </div>
+      <button id="login-btn" class="btn primary btn--large" disabled>
+        Iniciar Sesion
+      </button>
+      <p id="login-message" class="scanner__message"></p>
+    </div>
+
+    <!-- Pantalla inicial: boton de registro (visible cuando tiene session_key) -->
+    <div id="register-section" class="scanner__register" style="display: none;">
+      <p class="scanner__info">Presiona el boton para registrar tu asistencia</p>
+      <button id="register-btn" class="btn primary btn--large" disabled>
+        Registrar Asistencia
+      </button>
+      <p id="register-message" class="scanner__message"></p>
+    </div>
+
+    <!-- Pantalla de escaneo (oculta hasta registrar) -->
+    <div id="scan-section" class="scanner__scan-section" style="display: none;">
+      <div class="scanner__video-wrapper">
+        <video id="camera-feed" autoplay muted playsinline></video>
+        <div id="camera-overlay" class="scanner__overlay">Camara inactiva</div>
+      </div>
+
+      <div class="scanner__controls">
+        <button id="start-scan" class="btn primary">Iniciar camara</button>
+        <button id="stop-scan" class="btn secondary" disabled>Detener</button>
+      </div>
+
+      <div id="scan-result" class="scanner__result" aria-live="polite">
+        Ningun codigo detectado todavia
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/features/qr-reader/main.ts"></script>
+</body>
+
+</html>
