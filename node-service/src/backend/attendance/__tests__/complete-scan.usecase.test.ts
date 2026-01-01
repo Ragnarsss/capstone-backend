@@ -45,6 +45,7 @@ describe('CompleteScanUseCase', () => {
                 encrypted: 'next-qr-encrypted',
                 qrTTL: 60,
             }),
+            removeFromPool: vi.fn().mockResolvedValue(undefined),
         } as any;
 
         mockServices = {

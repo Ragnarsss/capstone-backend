@@ -705,14 +705,12 @@ describe('Flujo Completo: Enrollment + Login', () => {
       // Assert
       expect(output).toBeDefined();
       expect(output.serverPublicKey).toBe(serverPublicKey);
-      expect(output.totpu).toBe(totpu);
       expect(output.deviceId).toBe(deviceId);
 
       // Verificar interacciones
       expect(mockDeviceRepository.findByCredentialId).toHaveBeenCalledWith(credentialId);
       expect(mockEcdhService.performKeyExchange).toHaveBeenCalledWith(clientPublicKey);
       expect(mockHkdfService.deriveSessionKey).toHaveBeenCalled();
-      expect(mockHkdfService.generateTotp).toHaveBeenCalled();
       // save() recibe un objeto con toda la info, no solo deviceId y sessionKey
       expect(mockSessionKeyRepository.save).toHaveBeenCalled();
     });
@@ -825,11 +823,6 @@ describe('Flujo Completo: Enrollment + Login', () => {
       expect(output1.serverPublicKey).toBe(serverPublicKey1);
       expect(output2.serverPublicKey).toBe(serverPublicKey2);
       expect(output1.serverPublicKey).not.toBe(output2.serverPublicKey);
-
-      // Assert - Diferentes TOTPUs
-      expect(output1.totpu).toBe(totpu1);
-      expect(output2.totpu).toBe(totpu2);
-      expect(output1.totpu).not.toBe(output2.totpu);
     });
 
     it('PASO 4: Debe fallar login con credentialId incorrecto', async () => {

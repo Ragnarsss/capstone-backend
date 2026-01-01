@@ -55,7 +55,6 @@ describe('ParticipationService', () => {
             };
 
             vi.mocked(mockStudentState.registerStudent).mockResolvedValue(mockState);
-            vi.mocked(mockQRLifecycle.generateAndProject).mockResolvedValue(mockQR);
             vi.mocked(mockQRLifecycle.generateAndPublish).mockResolvedValue(mockQR);
 
             const result = await service.registerParticipation('session-123', 1001);
@@ -69,14 +68,12 @@ describe('ParticipationService', () => {
                 maxAttempts: 3,
                 qrTTL: 60,
             });
-            expect(mockQRLifecycle.generateAndProject).toHaveBeenCalledWith({
+            expect(mockQRLifecycle.generateAndPublish).toHaveBeenCalledWith({
                 sessionId: 'session-123',
                 studentId: 1001,
                 round: 1,
-                hostUserId: 5000,
-                ttl: 60,
+                qrTTL: 60,
             });
-            expect(mockStudentState.setActiveQR).toHaveBeenCalledWith('session-123', 1001, 'nonce-abc');
             expect(mockQRLifecycle.balancePool).toHaveBeenCalledWith('session-123');
         });
 
@@ -107,7 +104,7 @@ describe('ParticipationService', () => {
             expect(result.success).toBe(false);
             expect(result.errorCode).toBe('ALREADY_COMPLETED');
             expect(result.reason).toContain('Ya completaste');
-            expect(mockQRLifecycle.generateAndProject).not.toHaveBeenCalled();
+            expect(mockQRLifecycle.generateAndPublish).not.toHaveBeenCalled();
         });
 
         it('debería rechazar si estudiante está failed', async () => {
@@ -152,7 +149,7 @@ describe('ParticipationService', () => {
             };
 
             vi.mocked(mockStudentState.registerStudent).mockResolvedValue(mockState);
-            vi.mocked(mockQRLifecycle.generateAndProject).mockRejectedValue(new Error('QR generation failed'));
+            vi.mocked(mockQRLifecycle.generateAndPublish).mockRejectedValue(new Error('QR generation failed'));
 
             const result = await service.registerParticipation('session-123', 1001);
 
@@ -256,7 +253,7 @@ describe('ParticipationService', () => {
             expect(result.success).toBe(true);
             expect(result.data?.qrPayload).toBe('existing-encrypted-qr');
             expect(result.data?.currentRound).toBe(1);
-            expect(mockQRLifecycle.generateAndProject).not.toHaveBeenCalled();
+            expect(mockQRLifecycle.generateAndPublish).not.toHaveBeenCalled();
         });
 
         it('debería generar nuevo QR si el anterior expiró', async () => {
@@ -293,7 +290,6 @@ describe('ParticipationService', () => {
                 state: newState,
                 canRetry: true,
             });
-            vi.mocked(mockQRLifecycle.generateAndProject).mockResolvedValue(mockQR);
             vi.mocked(mockQRLifecycle.generateAndPublish).mockResolvedValue(mockQR);
 
             const result = await service.requestNewQR('session-123', 1001);
@@ -302,12 +298,11 @@ describe('ParticipationService', () => {
             expect(result.data?.qrPayload).toBe('new-encrypted-qr');
             expect(result.data?.currentAttempt).toBe(2);
             expect(mockStudentState.failRound).toHaveBeenCalledWith('session-123', 1001, 'QR_EXPIRED');
-            expect(mockQRLifecycle.generateAndProject).toHaveBeenCalledWith({
+            expect(mockQRLifecycle.generateAndPublish).toHaveBeenCalledWith({
                 sessionId: 'session-123',
                 studentId: 1001,
                 round: 1,
-                hostUserId: 5000,
-                ttl: 60,
+                qrTTL: 60,
             });
         });
 

@@ -40,7 +40,6 @@ describe('PoolFeeder', () => {
                 sessionId: 'session-123',
                 studentId: 1001,
                 roundNumber: 1,
-                hostUserId: 5000,
                 payloadTTL: 60,
             };
 
@@ -72,7 +71,6 @@ describe('PoolFeeder', () => {
                 sessionId: 'session-456',
                 studentId: 2002,
                 roundNumber: 2,
-                hostUserId: 6000,
             };
 
             // No hay session_key (null)
@@ -90,7 +88,6 @@ describe('PoolFeeder', () => {
                 sessionId: 'session-789',
                 studentId: 3003,
                 roundNumber: 1,
-                hostUserId: 7000,
             };
 
             const result = await service.feedStudentQR(input);
@@ -104,7 +101,6 @@ describe('PoolFeeder', () => {
                 sessionId: 'session-abc',
                 studentId: 4004,
                 roundNumber: 3,
-                hostUserId: 8000,
                 payloadTTL: 120,
             };
 
@@ -119,7 +115,6 @@ describe('PoolFeeder', () => {
                 sessionId: 'session-error',
                 studentId: 5005,
                 roundNumber: 1,
-                hostUserId: 9000,
             };
 
             vi.mocked(mockPayloadRepo.store).mockRejectedValue(new Error('Valkey connection failed'));
@@ -135,7 +130,6 @@ describe('PoolFeeder', () => {
                 sessionId: 'session-payload-test',
                 studentId: 6006,
                 roundNumber: 2,
-                hostUserId: 10000,
             };
 
             const result = await service.feedStudentQR(input);
@@ -144,7 +138,7 @@ describe('PoolFeeder', () => {
             expect(result.payload).toMatchObject({
                 v: 1,
                 sid: 'session-payload-test',
-                uid: 10000,
+                uid: 6006, // uid debe ser el studentId
                 r: 2,
             });
             expect(result.payload?.n).toBeDefined(); // nonce debe estar presente
@@ -154,9 +148,9 @@ describe('PoolFeeder', () => {
     describe('feedMultiple()', () => {
         it('debería alimentar múltiples QRs al pool', async () => {
             const inputs: FeedStudentInput[] = [
-                { sessionId: 'session-123', studentId: 1001, roundNumber: 1, hostUserId: 5000 },
-                { sessionId: 'session-123', studentId: 1002, roundNumber: 1, hostUserId: 5000 },
-                { sessionId: 'session-123', studentId: 1003, roundNumber: 1, hostUserId: 5000 },
+                { sessionId: 'session-123', studentId: 1001, roundNumber: 1 },
+                { sessionId: 'session-123', studentId: 1002, roundNumber: 1 },
+                { sessionId: 'session-123', studentId: 1003, roundNumber: 1 },
             ];
 
             const results = await service.feedMultiple(inputs);
@@ -168,8 +162,8 @@ describe('PoolFeeder', () => {
 
         it('debería retornar resultados mixtos (éxito + error)', async () => {
             const inputs: FeedStudentInput[] = [
-                { sessionId: 'session-123', studentId: 1001, roundNumber: 1, hostUserId: 5000 },
-                { sessionId: 'session-123', studentId: 1002, roundNumber: 1, hostUserId: 5000 },
+                { sessionId: 'session-123', studentId: 1001, roundNumber: 1 },
+                { sessionId: 'session-123', studentId: 1002, roundNumber: 1 },
             ];
 
             vi.mocked(mockPoolRepo.upsertStudentQR)
@@ -188,7 +182,7 @@ describe('PoolFeeder', () => {
         it('debería extraer el nonce del payload', () => {
             const payload = PayloadBuilder.buildStudentPayload({
                 sessionId: 'session-123',
-                hostUserId: 5000,
+                studentId: 5000,
                 roundNumber: 1,
             });
 
@@ -197,6 +191,67 @@ describe('PoolFeeder', () => {
             expect(nonce).toBeDefined();
             expect(typeof nonce).toBe('string');
             expect(nonce.length).toBeGreaterThan(0);
+        });
+
+        it('debería retornar nonce único para cada payload', () => {
+            const payload1 = PayloadBuilder.buildStudentPayload({
+                sessionId: 'session-123',
+                studentId: 5000,
+                roundNumber: 1,
+            });
+
+            const payload2 = PayloadBuilder.buildStudentPayload({
+                sessionId: 'session-123',
+                studentId: 5000,
+                roundNumber: 1,
+            });
+
+            const nonce1 = PoolFeeder.getNonce(payload1);
+            const nonce2 = PoolFeeder.getNonce(payload2);
+
+            expect(nonce1).not.toBe(nonce2);
+        });
+    });
+
+    describe('feedMultiple() - casos adicionales', () => {
+        it('debería manejar array vacío', async () => {
+            const results = await service.feedMultiple([]);
+
+            expect(results).toHaveLength(0);
+            expect(mockPoolRepo.upsertStudentQR).not.toHaveBeenCalled();
+        });
+
+        it('debería procesar un solo estudiante correctamente', async () => {
+            const inputs: FeedStudentInput[] = [
+                { sessionId: 'session-single', studentId: 9001, roundNumber: 1 },
+            ];
+
+            const results = await service.feedMultiple(inputs);
+
+            expect(results).toHaveLength(1);
+            expect(results[0].success).toBe(true);
+            expect(mockPoolRepo.upsertStudentQR).toHaveBeenCalledTimes(1);
+        });
+
+        it('debería continuar procesando después de un error', async () => {
+            const inputs: FeedStudentInput[] = [
+                { sessionId: 'session-123', studentId: 1001, roundNumber: 1 },
+                { sessionId: 'session-123', studentId: 1002, roundNumber: 1 },
+                { sessionId: 'session-123', studentId: 1003, roundNumber: 1 },
+            ];
+
+            // Falla el segundo, los demás exitosos
+            vi.mocked(mockPoolRepo.upsertStudentQR)
+                .mockResolvedValueOnce('pool-1')
+                .mockRejectedValueOnce(new Error('Network error'))
+                .mockResolvedValueOnce('pool-3');
+
+            const results = await service.feedMultiple(inputs);
+
+            expect(results).toHaveLength(3);
+            expect(results[0].success).toBe(true);
+            expect(results[1].success).toBe(false);
+            expect(results[2].success).toBe(true);
         });
     });
 });

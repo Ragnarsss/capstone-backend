@@ -55,8 +55,8 @@ export async function registerSessionRoutes(fastify: FastifyInstance): Promise<v
     // Aplicar autenticación
     sessionRoutes.addHook('preHandler', authMiddleware.authenticate());
 
-    // POST /api/session/login - ECDH key exchange
-    sessionRoutes.post('/api/session/login', {
+    // POST /asistencia/api/session/login - ECDH key exchange
+    sessionRoutes.post('/asistencia/api/session/login', {
       preHandler: [jsonOnly, loginRateLimit],
       handler: async (request, reply) => {
         try {

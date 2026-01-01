@@ -256,5 +256,80 @@ describe('PoolBalancer', () => {
             expect(encrypted).toBe('fake-encrypted-qr');
             expect(mockAesGcmService.encryptWithRandomKey).toHaveBeenCalled();
         });
+
+        it('debería generar diferentes QRs falsos en cada llamada', () => {
+            const generator = () => service['generateFakeEncrypted']();
+
+            const qr1 = generator();
+            const qr2 = generator();
+
+            expect(qr1).toBe('fake-encrypted-qr');
+            expect(qr2).toBe('fake-encrypted-qr');
+            expect(mockAesGcmService.encryptWithRandomKey).toHaveBeenCalledTimes(2);
+        });
+    });
+
+    describe('balance() - casos edge', () => {
+        it('debería manejar sesión sin estudiantes', async () => {
+            const stats: PoolStats = { total: 0, students: 0, fakes: 0 };
+
+            vi.mocked(mockPoolRepo.getPoolStats).mockResolvedValue(stats);
+
+            await service.balance('session-empty');
+
+            // Debería agregar minPoolSize fakes
+            expect(mockPoolRepo.addFakeQRs).toHaveBeenCalledWith(
+                'session-empty',
+                10,
+                expect.any(Function)
+            );
+        });
+
+        it('debería no hacer nada si el pool ya está balanceado', async () => {
+            const stats: PoolStats = { total: 10, students: 10, fakes: 0 };
+
+            vi.mocked(mockPoolRepo.getPoolStats)
+                .mockResolvedValueOnce(stats)
+                .mockResolvedValueOnce(stats);
+
+            await service.balance('session-balanced');
+
+            // No debería agregar ni remover (10 estudiantes = minPoolSize, 0 fakes necesarios)
+            expect(mockPoolRepo.addFakeQRs).not.toHaveBeenCalled();
+            expect(mockPoolRepo.removeFakeQRs).not.toHaveBeenCalled();
+        });
+
+        it('debería manejar errores al obtener stats', async () => {
+            vi.mocked(mockPoolRepo.getPoolStats).mockRejectedValue(
+                new Error('Valkey connection failed')
+            );
+
+            await expect(service.balance('session-error')).rejects.toThrow('Valkey connection failed');
+        });
+    });
+
+    describe('getConfig() y updateConfig()', () => {
+        it('debería retornar configuración actual', () => {
+            const config = service.getConfig();
+
+            expect(config).toEqual({
+                minPoolSize: 10,
+            });
+        });
+
+        it('debería actualizar solo minPoolSize', () => {
+            service.updateConfig({ minPoolSize: 20 });
+            const config = service.getConfig();
+
+            expect(config.minPoolSize).toBe(20);
+        });
+
+        it('debería actualizar solo targetRatio', () => {
+            service.updateConfig({ targetRatio: 2.0 });
+            const config = service.getConfig();
+
+            expect(config.minPoolSize).toBe(10);
+            expect(config.targetRatio).toBe(2.0);
+        });
     });
 });

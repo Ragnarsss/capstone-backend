@@ -159,7 +159,6 @@ describe('LoginEcdhController', () => {
                 success: true,
                 session: {
                     serverPublicKey: 'server-public-key-base64',
-                    totpu: 123456,
                     deviceId: 'device-123',
                 },
                 message: 'Sesion establecida exitosamente',

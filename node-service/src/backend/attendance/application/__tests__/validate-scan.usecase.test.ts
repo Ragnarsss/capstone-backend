@@ -184,6 +184,7 @@ describe("createValidateScanUseCase()", () => {
   let mockQRStateLoader: QRStateLoader;
   let mockStudentStateLoader: StudentStateLoader;
   let mockSessionKeyQuery: ISessionKeyQuery;
+  let mockTotpValidator: ITotpValidator;
 
   beforeEach(() => {
     mockQRStateLoader = {
@@ -197,6 +198,10 @@ describe("createValidateScanUseCase()", () => {
     mockSessionKeyQuery = {
       findByUserId: vi.fn(),
     } as ISessionKeyQuery;
+
+    mockTotpValidator = {
+      validate: vi.fn().mockReturnValue(true),
+    } as ITotpValidator;
   });
 
   it("debe crear useCase con dependencias completas", () => {
@@ -204,6 +209,7 @@ describe("createValidateScanUseCase()", () => {
       qrStateLoader: mockQRStateLoader,
       studentStateLoader: mockStudentStateLoader,
       sessionKeyQuery: mockSessionKeyQuery,
+      totpValidator: mockTotpValidator,
     });
 
     expect(useCase).toBeInstanceOf(ValidateScanUseCase);
