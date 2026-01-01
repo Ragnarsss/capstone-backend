@@ -1,555 +1,627 @@
-# Guion de Presentacion - Sistema de Asistencia QR Criptografico
-Institución: Universidad Católica del Norte - Campus Coquimbo 
-Unidad: Escuela de Ingeniería 
-Duracion: - minutos 
-Audiencia: Jurado tecnico + Stakeholders UCN
+# Guion de Presentación - Sistema de Asistencia QR Criptográfico
+
+**Institución:** Universidad Católica del Norte - Campus Coquimbo  
+**Unidad:** Escuela de Ingeniería  
+**Duración:** 15-20 minutos  
+**Audiencia:** Jurado técnico + Stakeholders UCN
+
 ---
-## ESTRUCTURA DE LA PRESENTACION
-### SLIDE : PORTADA ( segundos)
-Titulo: Sistema de Asistencia con QR Criptografico 
-Subtitulo: Modernizando la toma de asistencia en la Escuela de Ingeniería UCN Coquimbo
-Guion:
-> "Buenos dias. Hoy presento el Sistema de Asistencia con QR Criptografico, desarrollado para la Escuela de Ingeniería de la Universidad Católica del Norte, Campus Coquimbo. Este proyecto resuelve un problema critico: la perdida de tiempo en clases presenciales por el proceso manual de toma de asistencia."
+
+## 📍 ESTRUCTURA DE LA PRESENTACIÓN
+
+### SLIDE 1: PORTADA (30 segundos)
+
+**Título:** Sistema de Asistencia con QR Criptográfico  
+**Subtítulo:** Modernizando la toma de asistencia en la Escuela de Ingeniería UCN Coquimbo
+
+**Guion:**
+
+> "Buenos días. Hoy presento el Sistema de Asistencia con QR Criptográfico, desarrollado para la Escuela de Ingeniería de la Universidad Católica del Norte, Campus Coquimbo. Este proyecto resuelve un problema crítico: la pérdida de tiempo en clases presenciales por el proceso manual de toma de asistencia."
+
 ---
-### SLIDE : EL PROBLEMA ( minutos)
-Visual: Foto de profesor tomando lista manualmente + cronometro mostrando - minutos
-Guion:
-> "El contexto: La Escuela de Ingeniería tiene profesores que dictan clases a apróximadamente estudiantes activos. Cada clase, el profesor pierde entre y minutos tomando lista manualmente.
+
+### SLIDE 2: EL PROBLEMA (2 minutos)
+
+**Visual:** Foto de profesor tomando lista manualmente + cronómetro mostrando 15-20 minutos
+
+**Guion:**
+
+> "**El contexto:** La Escuela de Ingeniería tiene 30 profesores que dictan clases a aproximadamente 800 estudiantes activos. Cada clase, el profesor pierde entre 15 y 20 minutos tomando lista manualmente.
 >
-> El impacto cuantificado:
+> **El impacto cuantificado:**
 >
-> - clases por semestre
-> - minutos promedio por clase
-> - = , minutos perdidos por semestre
-> - = horas productivas desperdiciadas
+> - 400 clases por semestre
+> - 15 minutos promedio por clase
+> - = **6,000 minutos perdidos por semestre**
+> - = **100 horas productivas desperdiciadas**
 >
-> Problemas adicionales:
+> **Problemas adicionales:**
 >
-> - Fraude por suplantacion (alumnos firman por companeros ausentes)
-> - Errores de transcripcion en planillas Excel
-> - Falta de trazabilidad (realmente asistío?)
-> - Reportes manuales para acreditacion ( horas por reporte)
+> - ❌ Fraude por suplantación (alumnos firman por compañeros ausentes)
+> - ❌ Errores de transcripción en planillas Excel
+> - ❌ Falta de trazabilidad (¿realmente asistió?)
+> - ❌ Reportes manuales para acreditación (2 horas por reporte)
 >
-> Este problema afecta directamente la calidad de la enseñanza, porque cada minuto perdido en administracion es un minuto menos de contenido academico."
+> Este problema afecta directamente la calidad de la enseñanza, porque cada minuto perdido en administración es un minuto menos de contenido académico."
+
 ---
-### SLIDE : LA SOLUCION ( minutos)
-Visual: Diagrama del flujo: Profesor proyecta QR -> Estudiante escanea -> Confirmacion instantanea
-Guion:
-> "La propuesta: Un sistema de asistencia basado en códigos QR dinámicos con criptografia TOTP que cambian cada segundos.
+
+### SLIDE 3: LA SOLUCIÓN (2 minutos)
+
+**Visual:** Diagrama del flujo: Profesor proyecta QR → Estudiante escanea → Confirmación instantánea
+
+**Guion:**
+
+> "**La propuesta:** Un sistema de asistencia basado en códigos QR dinámicos con criptografía TOTP que cambian cada 10 segundos.
 >
-> Cómo funciona?
+> **¿Cómo funciona?**
 >
-> . El profesor abre sesion en clics ( segundos)
-> . El sistema genera un QR dinámico que se proyecta en pantalla
-> . Los estudiantes escanean con su smartphone (proceso de - segundos)
-> . Validacion instantanea y confirmacion visual
-> . Datos registrados automaticamente en PostgreSQL
+> 1. El profesor abre sesión en 3 clics (30 segundos)
+> 2. El sistema genera un QR dinámico que se proyecta en pantalla
+> 3. Los estudiantes escanean con su smartphone (proceso de 15-20 segundos)
+> 4. Validación instantánea y confirmación visual
+> 5. Datos registrados automáticamente en PostgreSQL
 >
-> Caracteristicas clave:
+> **Características clave:**
 >
-> - QR Dinamico: Cambia cada segundos -> imposible reutilizar capturas
-> - TOTP Criptografico: Algoritmo HMAC-SHA con ventana de segundos
-> - Validacion IP: Solo red UCN Coquimbo (...\)
-> - No duplicados: Constraint UNIQUE (rut, fecha, bloque)
-> - TTL Configurable: Sesion expira automaticamente (- minutos)
+> - ✅ **QR Dinámico:** Cambia cada 10 segundos → imposible reutilizar capturas
+> - ✅ **TOTP Criptográfico:** Algoritmo HMAC-SHA1 con ventana de 30 segundos
+> - ✅ **Validación IP:** Solo red UCN Coquimbo (200.14.84.\*)
+> - ✅ **No duplicados:** Constraint UNIQUE (rut, fecha, bloque)
+> - ✅ **TTL Configurable:** Sesión expira automáticamente (5-10 minutos)
 >
-> El resultado: de minutos a menos de minutos por clase."
+> El resultado: **de 15 minutos a menos de 5 minutos** por clase."
+
 ---
-### SLIDE : EVENT STORMING - Timeline de Eventos ( minutos)
-Visual: Timeline horizontal con fases coloreadas + ejemplo real
-Guion:
-> "Para entender el dominio, realice un Event Storming completo. Permitanme mostrarles el flujo con un caso real:
+
+### SLIDE 4: EVENT STORMING - Timeline de Eventos (3 minutos)
+
+**Visual:** Timeline horizontal con 3 fases coloreadas + ejemplo real
+
+**Guion:**
+
+> "Para entender el dominio, realicé un **Event Storming** completo. Permítanme mostrarles el flujo con un caso real:
 >
-> Contexto del ejemplo:
+> **Contexto del ejemplo:**
 >
-> - Curso: Programación Avanzada (IWI-)
+> - Curso: Programación Avanzada (IWI-131)
 > - Profesor: Cristian Salazar
-> - Sala: Laboratorio L-
-> - Horario: Miercoles :-: (Bloque )
-> - Alumnos: inscritos
+> - Sala: Laboratorio L-201
+> - Horario: Miércoles 08:00-09:30 (Bloque 1)
+> - Alumnos: 42 inscritos
 >
-> FASE : Profesor inicia sesion ( minutos)
+> **FASE 1: Profesor inicia sesión (2 minutos)**
 >
-> - Accede a Sistema Hawaii -> main_curso.php
+> - Accede a Sistema Hawaii → main_curso.php
 > - Clic en 'Nuevo Sistema de Asistencia'
-> - Modal se abre con QR proyectado automaticamente
+> - Modal se abre con QR proyectado automáticamente
 > - Backend crea registro en tabla `asistencia_curso` con:
->  - Codigo unico: CVYAFO ( caracteres)
->  - TTL: minutos (fechahora_termino)
->  - Tipo encuesta: (completa)
+>   - Código único: CVYAFO (6 caracteres)
+>   - TTL: 5 minutos (fechahora_termino)
+>   - Tipo encuesta: 2 (completa)
 >
-> FASE : Estudiantes marcan (- minutos en paralelo)
+> **FASE 2: Estudiantes marcan (3-5 minutos en paralelo)**
 >
-> - Ejemplo: Maria Gonzalez (RUT ..-)
-> - Abre horario.php -> Clic 'Tomar Asistencia'
-> - Camara se activa automaticamente
+> - Ejemplo: María González (RUT 20.123.456-7)
+> - Abre horario.php → Clic 'Tomar Asistencia'
+> - Cámara se activa automáticamente
 > - Escanea QR con biblioteca ZXing
-> - validaciónes en backend (<ms):
->  . TOTP correcto (hash HMAC-SHA valido)
->  . Sesion NO expirada (NOW < fechahora_termino)
->  . IP permitida (... = red UCN)
->  . No duplicado (primera marca del dia/bloque)
-> - Registro en `alumno_asistencia` con timestamp exacto: ::
-> - Frontend muestra: 'Asistencia registrada - Maria Gonzalez'
+> - **4 validaciones en backend (<500ms):**
+>   1. ✅ TOTP correcto (hash HMAC-SHA1 válido)
+>   2. ✅ Sesión NO expirada (NOW < fechahora_termino)
+>   3. ✅ IP permitida (200.14.84.156 = red UCN)
+>   4. ✅ No duplicado (primera marca del día/bloque)
+> - Registro en `alumno_asistencia` con timestamp exacto: 08:03:45
+> - Frontend muestra: '✅ Asistencia registrada - María González'
 >
-> FASE : Feedback post-asistencia (- minutos, opcional)
+> **FASE 3: Feedback post-asistencia (1-2 minutos, opcional)**
 >
-> - Auto-redirect a encuesta (asist.php?c=CVYAFO)
+> - Auto-redirect a encuesta (asist0.php?c=CVYAFO)
 > - Alumno completa: nota, objetivos, puntualidad, comentarios
 > - Guardado en tabla `comentarios_clase`
 >
-> Tiempo total: - segundos por estudiante. Con alumnos escaneando en paralelo, toda la clase puede marcar en - minutos.
+> **Tiempo total:** 15-20 segundos por estudiante. Con 42 alumnos escaneando en paralelo, toda la clase puede marcar en 3-4 minutos.
 >
-> Hotspots identificados:
+> **Hotspots identificados:**
 >
-> - ? alumnos simultaneos saturan el backendNO: Fastify maneja req/seg
-> - ?Alumno toma foto del QR para compartirNO: QR cambia cada seg + validación IP
-> - ?Sin smartphoneSolucion: Marca manual post-clase por profesor"
+> - 🔴 ¿10 alumnos simultáneos saturan el backend? **NO:** Fastify maneja 1000 req/seg
+> - 🔴 ¿Alumno toma foto del QR para compartir? **NO:** QR cambia cada 10 seg + validación IP
+> - 🔴 ¿Sin smartphone? **Solución:** Marca manual post-clase por profesor"
+
 ---
-### SLIDE : IMPACT MAPPING - Actores e Impactos ( minutos)
-Visual: Diagrama de arbol: Goal -> Actores -> Impactos -> Deliverables
-Guion:
-> "Aplique Impact Mapping para conectar la meta de negocio con los impactos concretos por cada actor.
+
+### SLIDE 5: IMPACT MAPPING - Actores e Impactos (3 minutos)
+
+**Visual:** Diagrama de árbol: Goal → Actores → Impactos → Deliverables
+
+**Guion:**
+
+> "Apliqué **Impact Mapping** para conectar la meta de negocio con los impactos concretos por cada actor.
 >
-> GOAL (Meta de Negocio):
-> 'Reducir el tiempo de toma de asistencia de - minutos a menos de minutos (% reduccion), manteniendo precision >% y eliminando fraude por suplantacion'
+> **🎯 GOAL (Meta de Negocio):**
+> 'Reducir el tiempo de toma de asistencia de 15-20 minutos a menos de 5 minutos (67% reducción), manteniendo precisión >99% y eliminando fraude por suplantación'
 >
-> ACTORES Y SUS IMPACTOS:
+> **👥 ACTORES Y SUS IMPACTOS:**
 >
-> . Profesores ( personas)
+> **1. Profesores (30 personas)**
 >
-> - Impacto : Recuperar minutos por clase
->  - Deliverable: Boton en main_curso.php + QR automatico
->  - Medicion: Logs muestran tiempo de sesion
-> - Impacto : Eliminar fraude por suplantacion
->  - Deliverable: TOTP criptográfico + validación IP
->  - Medicion: reportes de fraude vs ~/semestre antes
+> - **Impacto 1:** ⏰ Recuperar 10 minutos por clase
+>   - Deliverable: Botón en main_curso.php + QR automático
+>   - Medición: Logs muestran tiempo de sesión
+> - **Impacto 2:** 🛡️ Eliminar fraude por suplantación
+>   - Deliverable: TOTP criptográfico + validación IP
+>   - Medición: 0 reportes de fraude vs ~10/semestre antes
 >
-> . Estudiantes (~ personas)
+> **2. Estudiantes (~800 personas)**
 >
-> - Impacto : Proceso rápido (< segundos)
->  - Deliverable: Lector QR optimizado con ZXing
->  - Medicion: % exito en primer intento
-> - Impacto : Feedback inmediato
->  - Deliverable: Mensaje personalizado con nombre
->  - Medicion: Reduccion % en consultas '?quede presente?'
+> - **Impacto 3:** ⚡ Proceso rápido (<20 segundos)
+>   - Deliverable: Lector QR optimizado con ZXing
+>   - Medición: 95% éxito en primer intento
+> - **Impacto 4:** ✅ Feedback inmediato
+>   - Deliverable: Mensaje personalizado con nombre
+>   - Medición: Reducción 70% en consultas '¿quedé presente?'
 >
-> . Administradores Academicos ( personas)
+> **3. Administradores Académicos (5 personas)**
 >
-> - Impacto : Reportes automaticos
->  - Deliverable: Exportacion Excel desde asist_lista.php
->  - Medicion: horas -> minutos por reporte
+> - **Impacto 5:** 📊 Reportes automáticos
+>   - Deliverable: Exportación Excel desde asist_lista.php
+>   - Medición: 2 horas → 5 minutos por reporte
 >
-> Priorizacion MoSCoW:
+> **Priorización MoSCoW:**
 >
-> - MUST HAVE: Impactos , , , (MVP - Enero )
-> - SHOULD HAVE: Impacto parcial (ya existe en legacy)
-> - COULD HAVE: Dashboard tiempo real, alertas ML (Post-MVP)
-> - WON'T HAVE: App nativa, reconocimiento facial, integración notas
+> - 🔴 MUST HAVE: Impactos 1, 2, 3, 4 (MVP - Enero 2025)
+> - 🟡 SHOULD HAVE: Impacto 5 parcial (ya existe en legacy)
+> - 🟢 COULD HAVE: Dashboard tiempo real, alertas ML (Post-MVP)
+> - ⚪ WON'T HAVE: App nativa, reconocimiento facial, integración notas
 >
-> M�tricas de validación:
+> **Métricas de validación:**
 >
-> - Baseline: - min/clase, fraude ~ casos/semestre
-> - Target: < min/clase, fraude, satisfaccion >/
-> - Instrumentacion: Logs backend, encuestas Google Forms, entrevistas cualitativas"
+> - Baseline: 15-20 min/clase, fraude ~10 casos/semestre
+> - Target: <5 min/clase, 0 fraude, satisfacción >8/10
+> - Instrumentación: Logs backend, encuestas Google Forms, entrevistas cualitativas"
+
 ---
-### SLIDE : BUSINESS MODEL CANVAS ( minutos)
-Visual: Canvas completo de bloques (simplificado visualmente)
-Guion:
-> "Desarrolle un Business Model Canvas completo para validar la viabilidad del proyecto.
+
+### SLIDE 6: BUSINESS MODEL CANVAS (3 minutos)
+
+**Visual:** Canvas completo de 9 bloques (simplificado visualmente)
+
+**Guion:**
+
+> "Desarrollé un **Business Model Canvas** completo para validar la viabilidad del proyecto.
 >
-> VALUE PROPOSITIONS (Propuesta de Valor):
+> **💎 VALUE PROPOSITIONS (Propuesta de Valor):**
 >
-> - Para Profesores: 'Recupera minutos mientras eliminas fraude completamente'
-> - Para Estudiantes: 'Marca en < seg con confirmacion instantanea'
-> - Para Admins: 'Datos en tiempo real, reportes para acreditacion automaticos'
+> - **Para Profesores:** 'Recupera 10 minutos mientras eliminas fraude completamente'
+> - **Para Estudiantes:** 'Marca en <20 seg con confirmación instantánea'
+> - **Para Admins:** 'Datos en tiempo real, reportes para acreditación automáticos'
 >
-> CUSTOMER SEGMENTS:
+> **👥 CUSTOMER SEGMENTS:**
 >
-> - Primario: profesores (edad -, nivel tech variable)
-> - Secundario: estudiantes (nativos digitales, % con smartphone)
-> - Terciario: administradores academicos
+> - Primario: 30 profesores (edad 30-60, nivel tech variable)
+> - Secundario: 800 estudiantes (nativos digitales, 100% con smartphone)
+> - Terciario: 5 administradores académicos
 >
-> KEY RESOURCES:
+> **🏗️ KEY RESOURCES:**
 >
-> - Stack tecnico: Fastify (backend), Vite (frontend), PostgreSQL, Valkey/Redis
-> - Por que Fastify? x más rápido que Express, TypeScript nativo
-> - Por que Vitest? -x más rápido que Jest, tests pasando
-> - Testing robusto: + tests automatizados ( Node + PHP + EE)
+> - **Stack técnico:** Fastify (backend), Vite (frontend), PostgreSQL, Valkey/Redis
+> - **Por qué Fastify?** 5x más rápido que Express, TypeScript nativo
+> - **Por qué Vitest?** 2-10x más rápido que Jest, 206 tests pasando
+> - **Testing robusto:** 320+ tests automatizados (206 Node + 115 PHP + 3 E2E)
 >
-> KEY PARTNERSHIPS:
+> **🤝 KEY PARTNERSHIPS:**
 >
 > - Escuela de Ingeniería (sponsor y financiamiento)
-> - Direccion TI UCN (infraestructura, Cloudflare Tunnel)
+> - Dirección TI UCN (infraestructura, Cloudflare Tunnel)
 > - Sistema Legacy Hawaii (PostgreSQL compartido, sesiones PHP)
 >
-> COST STRUCTURE:
+> **💸 COST STRUCTURE:**
 >
-> - Desarrollo inicial: $, USD ( horas)
-> - Infraestructura: $/año (VPS + CDN)
-> - Operacion: $,/año (soporte + mantenimiento)
-> - Total Año : $,
-> - Años siguientes: $,/año
+> - Desarrollo inicial: $4,000 USD (80 horas)
+> - Infraestructura: $720/año (VPS + CDN)
+> - Operación: $9,000/año (soporte + mantenimiento)
+> - **Total Año 1: $13,720**
+> - **Años siguientes: $9,720/año**
 >
-> VALUE GENERATED (no monetizado directamente):
+> **💰 VALUE GENERATED (no monetizado directamente):**
 >
-> - Ahorro tiempo docente: , horas/año x $/hora = $,/año
-> - Eficiencia administrativa: . horas/año x $/hora = $,/año
-> - Reduccion fraude: Valor intangible (integridad academica)
-> - Total valor generado: ~$,/año
+> - Ahorro tiempo docente: 1,000 horas/año × $50/hora = **$50,000/año**
+> - Eficiencia administrativa: 76.8 horas/año × $50/hora = **$3,840/año**
+> - Reducción fraude: **Valor intangible** (integridad académica)
+> - **Total valor generado: ~$54,000/año**
 >
-> ROI (Return on Investment):
+> **📈 ROI (Return on Investment):**
 >
-> - Inversion Año : $,
-> - Valor generado: $,/año
-> - ROI: % en primer año
-> - Payback period: ~ meses
+> - Inversión Año 1: $13,720
+> - Valor generado: $54,000/año
+> - **ROI: 394% en primer año**
+> - **Payback period: ~3 meses**
 >
-> El modelo es sostenible: con costos operativos de $,/año contra valor de $,/año, el proyecto se justifica economicamente y escala facilmente a otras facultades."
+> El modelo es sostenible: con costos operativos de $9,720/año contra valor de $54,000/año, el proyecto se justifica económicamente y escala fácilmente a otras facultades."
+
 ---
-### SLIDE : ARQUITECTURA TECNICA ( minutos)
-Visual: Diagrama de arquitectura: Cliente -> Apache -> Backend/Frontend -> PostgreSQL/Valkey
-Guion:
-> "Arquitectura de capas separadas:
+
+### SLIDE 7: ARQUITECTURA TÉCNICA (3 minutos)
+
+**Visual:** Diagrama de arquitectura: Cliente → Apache → Backend/Frontend → PostgreSQL/Valkey
+
+**Guion:**
+
+> "**Arquitectura de 3 capas separadas:**
 >
-> . Backend (Fastify - Node.js )
+> **1. Backend (Fastify - Node.js 20)**
 >
-> - Framework: Fastify .. (x más rápido que Express)
-> - Modulos DDD: Auth, Attendance, Session, Enrollment, Access
-> - WebSocket para QR dinámico (actualizacion cada seg)
-> - TOTP con biblioteca otplib (HMAC-SHA)
-> - Testing: Vitest con tests (cobertura >%)
+> - Framework: Fastify 4.28.1 (5x más rápido que Express)
+> - Módulos DDD: Auth, Attendance, Session, Enrollment, Access
+> - WebSocket para QR dinámico (actualización cada 10 seg)
+> - TOTP con biblioteca otplib (HMAC-SHA1)
+> - Testing: Vitest con 206 tests (cobertura >85%)
 >
-> . Frontend (Vite + TypeScript)
+> **2. Frontend (Vite + TypeScript)**
 >
-> - Bundler: Vite .. (build x más rápido que Webpack)
-> - QR Reader: @zxing/browser (optimizado, reconoce en - seg)
+> - Bundler: Vite 6.0.1 (build 10x más rápido que Webpack)
+> - QR Reader: @zxing/browser (optimizado, reconoce en 3-5 seg)
 > - QR Host: Canvas con WebSocket para actualizaciones
-> - Integracion: Iframes en sistema legacy Hawaii
+> - Integración: Iframes en sistema legacy Hawaii
 >
-> . PHP Integration Module
+> **3. PHP Integration Module**
 >
 > - Rol: Puente entre legacy Hawaii y backend Node.js
-> - Genera JWT con sesion PHP ($\_SESSION['id'])
+> - Genera JWT con sesión PHP ($\_SESSION['id'])
 > - API REST para datos (UserData, CourseData, Enrollment)
-> - Testing: PHPUnit con + tests (cobertura >%)
+> - Testing: PHPUnit con 115+ tests (cobertura >80%)
 >
-> Base de Datos (PostgreSQL +):
+> **Base de Datos (PostgreSQL 12+):**
 >
-> - Schema compartido con sistema legacy
+> - **Schema compartido** con sistema legacy
 > - Tablas clave:
->  - `asistencia_curso`: Sesiones activas
->  - `alumno_asistencia`: Registros de asistencia
->  - `comentarios_clase`: Encuestas post-asistencia
+>   - `asistencia_curso`: Sesiones activas
+>   - `alumno_asistencia`: Registros de asistencia
+>   - `comentarios_clase`: Encuestas post-asistencia
 > - Foreign keys para integridad referencial
 >
-> Cache (Valkey/Redis ..):
+> **Cache (Valkey/Redis 5.4.1):**
 >
-> - Sesiones activas (TTL - min)
-> - TOTP codes en memoria (evita re-calculo)
+> - Sesiones activas (TTL 5-10 min)
+> - TOTP codes en memoria (evita re-cálculo)
 >
-> Infraestructura:
+> **Infraestructura:**
 >
-> - Apache . como reverse proxy
+> - Apache 2.4 como reverse proxy
 > - Cloudflare Tunnel para HTTPS externo (mantochrisal.cl)
-> - Podman/Docker para containerizacion
+> - Podman/Docker para containerización
 > - GitHub Actions para CI/CD
 >
-> Decision arquitectonica critica:
+> **Decisión arquitectónica crítica:**
 >
-> - Problema inicial: Backend mezclado con proyecto Vite
-> - Solucion: Separacion en proyectos independientes
-> - Beneficio: Builds independientes, deploys separados, claridad arquitectonica"
+> - ❌ **Problema inicial:** Backend mezclado con proyecto Vite
+> - ✅ **Solución:** Separación en proyectos independientes
+> - **Beneficio:** Builds independientes, deploys separados, claridad arquitectónica"
+
 ---
-### SLIDE : ESTRATEGIA DE TESTING ( minutos)
-Visual: Piramide de testing: Unit (+) -> Integration (+) -> EE () -> Manual ()
-Guion:
-> "Estrategia de testing multinivel:
+
+### SLIDE 8: ESTRATEGIA DE TESTING (2 minutos)
+
+**Visual:** Pirámide de testing: Unit (206+115) → Integration (50+) → E2E (3) → Manual (7)
+
+**Guion:**
+
+> "**Estrategia de testing multinivel:**
 >
-> . Tests Unitarios ( tests)
+> **1. Tests Unitarios (321 tests)**
 >
-> - Backend Node.js: tests con Vitest
->  - Auth: Token generation, validation, expiry
->  - Attendance: TOTP validation, session expiry, duplicate check
->  - Session: Creation, update, close
-> - PHP Integration: + tests con PHPUnit
->  - JWT encoding/decoding ( tests)
->  - AuthenticationService ( tests)
->  - Controllers y Router (+ tests)
-> - Cobertura: >% PHP, >% Node.js
+> - Backend Node.js: 206 tests con Vitest
+>   - Auth: Token generation, validation, expiry
+>   - Attendance: TOTP validation, session expiry, duplicate check
+>   - Session: Creation, update, close
+> - PHP Integration: 115+ tests con PHPUnit
+>   - JWT encoding/decoding (15 tests)
+>   - AuthenticationService (20 tests)
+>   - Controllers y Router (50+ tests)
+> - **Cobertura:** >80% PHP, >85% Node.js
 >
-> . Tests de Integracion (+ tests)
+> **2. Tests de Integración (50+ tests)**
 >
 > - Base de datos: Inserts, constraints, foreign keys
-> - API REST: Endpoints PHP <-> Backend Node
-> - WebSocket: Conexion, mensajes, desconexion
+> - API REST: Endpoints PHP ↔ Backend Node
+> - WebSocket: Conexión, mensajes, desconexión
 >
-> . Tests EE ( tests con Playwright)
+> **3. Tests E2E (3 tests con Playwright)**
 >
-> - Flujo profesor: Abrir sesion -> Proyectar QR
-> - Flujo estudiante: Escanear QR -> Marcar asistencia -> Encuesta
-> - Validacion completa: JWT generation -> TOTP validation -> DB persistence
+> - Flujo profesor: Abrir sesión → Proyectar QR
+> - Flujo estudiante: Escanear QR → Marcar asistencia → Encuesta
+> - Validación completa: JWT generation → TOTP validation → DB persistence
 >
-> . Validacion Manual ( requisitos funcionales)
+> **4. Validación Manual (7 requisitos funcionales)**
 >
-> - Sistema aislado: Health checks, logs sin errores 
+> - Sistema aislado: Health checks, logs sin errores 500
 > - Opciones UI: Botones visibles, modales funcionales
-> - Registro asistencia: validaciónes en <ms
+> - Registro asistencia: 4 validaciones en <500ms
 > - Encuestas: Redirect correcto, guardado en BD
 > - Pantalla general: Datos en asist_lista.php
-> - Duracion QR: TTL configurable, expiracion validada
+> - Duración QR: TTL configurable, expiracion validada
 >
-> CI/CD con GitHub Actions:
+> **CI/CD con GitHub Actions:**
 >
-> - Workflow automatico en cada push
+> - Workflow automático en cada push
 > - Jobs paralelos: test-php + test-node
 > - Linting: PHP CS Fixer + ESLint
 > - Badge de estado en README
 >
-> Por qué Vitest y no Jest?
+> **¿Por qué Vitest y no Jest?**
 >
-> - Velocidad: -x más rápido ( tests en - seg vs - seg)
+> - Velocidad: 2-10x más rápido (100 tests en 1-2 seg vs 8-12 seg)
 > - TypeScript nativo: Sin configuración adicional
 > - ESM support: Importaciones modernas
 > - API compatible: Migración desde Jest es trivial
-> - Mito desmitificado: Vitest NO es solo para frontend, es excelente para backend Node.js"
+> - **Mito desmitificado:** Vitest NO es solo para frontend, es excelente para backend Node.js"
+
 ---
-### SLIDE : SEGURIDAD Y VALIDACIONES ( minutos)
-Visual: Diagrama de capas de seguridad + ejemplo de ataque fallido
-Guion:
-> "Sistema de seguridad multicapa:
+
+### SLIDE 9: SEGURIDAD Y VALIDACIONES (2 minutos)
+
+**Visual:** Diagrama de 4 capas de seguridad + ejemplo de ataque fallido
+
+**Guion:**
+
+> "**Sistema de seguridad multicapa:**
 >
-> Capa : TOTP Criptografico
+> **Capa 1: TOTP Criptográfico**
 >
-> - Algoritmo: HMAC-SHA (estandar RFC )
+> - Algoritmo: HMAC-SHA1 (estándar RFC 6238)
 > - Secret compartido entre backend y frontend
-> - Ventana de validez: segundos
-> - Ataque bloqueado: Foto del QR -> TOTP expirado en seg
+> - Ventana de validez: 30 segundos
+> - ❌ **Ataque bloqueado:** Foto del QR → TOTP expirado en 10 seg
 >
-> Capa : Validacion de IP
+> **Capa 2: Validación de IP**
 >
-> - Whitelist: Red UCN Coquimbo (...\)
+> - Whitelist: Red UCN Coquimbo (200.14.84.\*)
 > - Configurable por curso: 'UCN' o 'ALL'
-> - Ataque bloqueado: Alumno desde casa -> HTTP Forbidden
+> - ❌ **Ataque bloqueado:** Alumno desde casa → HTTP 403 Forbidden
 >
-> Capa : Constraint de Duplicados
+> **Capa 3: Constraint de Duplicados**
 >
 > - UNIQUE (rut, fecha, bloque) en PostgreSQL
-> - Ataque bloqueado: Doble marca -> HTTP Conflict
+> - ❌ **Ataque bloqueado:** Doble marca → HTTP 409 Conflict
 >
-> Capa : Expiracion de Sesion (TTL)
+> **Capa 4: Expiración de Sesión (TTL)**
 >
 > - fechahora_termino validada en cada request
-> - Ataque bloqueado: QR viejo -> HTTP Gone
+> - ❌ **Ataque bloqueado:** QR viejo → HTTP 410 Gone
 >
-> Sincronizacion de JWT_SECRET:
+> **Sincronización de JWT_SECRET:**
 >
 > - Mismo secret en PHP y Node.js
-> - Validacion pre-deploy automatica
+> - Validación pre-deploy automática
 > - Test de integración cross-service
 >
-> Trazabilidad completa:
+> **Trazabilidad completa:**
 >
 > - Campo `hora_marca` con timestamp exacto
 > - Logs estructurados en Winston (JSON)
-> - Detector de añomalias: marca vs horario esperado
+> - Detector de anomalías: marca vs horario esperado
 >
-> Ejemplo de intento de fraude bloqueado:
+> **Ejemplo de intento de fraude bloqueado:**
 >
-> - Alumno A toma foto del QR a las :
-> - Envia por WhatsApp a Alumno B (ausente)
-> - Alumno B intenta marcar desde casa a las :
-> - Resultado:
->  - TOTP expirado ( min después)
->  - IP externa (no red UCN)
->  - Sistema rechaza con error + log de intento"
+> - Alumno A toma foto del QR a las 08:02
+> - Envía por WhatsApp a Alumno B (ausente)
+> - Alumno B intenta marcar desde casa a las 08:15
+> - **Resultado:**
+>   - TOTP expirado (10 min después)
+>   - IP externa (no red UCN)
+>   - **Sistema rechaza con error 403 + log de intento**"
+
 ---
-### SLIDE : DESPLIEGUE Y OPERACIONES (. minutos)
-Visual: Pipeline de deployment: Dev -> Staging -> Production
-Guion:
-> "Estrategia de despliegue:
+
+### SLIDE 10: DESPLIEGUE Y OPERACIONES (1.5 minutos)
+
+**Visual:** Pipeline de deployment: Dev → Staging → Production
+
+**Guion:**
+
+> "**Estrategia de despliegue:**
 >
-> Ambientes:
+> **Ambientes:**
 >
 > - Local: Desarrollo con Podman Compose
 > - Staging: mantochrisal.cl (Cloudflare Tunnel)
 > - Production: mantochrisal.cl (mismo servidor, diferentes puertos)
 >
-> Proceso de deployment:
+> **Proceso de deployment:**
 >
-> . Git push -> GitHub Actions trigger
-> . Tests automaticos ( tests)
-> . Build de containers (backend, frontend, php-service)
-> . Deploy a staging -> Smoke tests
-> . Validacion manual (checklist requisitos)
-> . Deploy a produccion -> Health checks
+> 1. Git push → GitHub Actions trigger
+> 2. Tests automáticos (321 tests)
+> 3. Build de containers (backend, frontend, php-service)
+> 4. Deploy a staging → Smoke tests
+> 5. Validación manual (checklist 7 requisitos)
+> 6. Deploy a producción → Health checks
 >
-> Plan de rollback ( minutos):
+> **Plan de rollback (10 minutos):**
 >
 > - Script automatizado: rollback.sh
 > - Backup de BD pre-deploy
 > - Containers previous version disponibles
-> - Validacion post-rollback automatica
+> - Validación post-rollback automática
 >
-> Monitoreo:
+> **Monitoreo:**
 >
 > - Health endpoints: /asistencia/health
 > - Logs estructurados (Winston JSON)
-> - M�tricas: Response time, error rate
-> - Alertas: Email en errores criticos
+> - Métricas: Response time, error rate
+> - Alertas: Email en errores críticos
 >
-> Documentacion operacional:
+> **Documentación operacional:**
 >
 > - DEPLOYMENT.md: Paso a paso
-> - PRE_DEPLOY_CHECKLIST.md: validaciónes
+> - PRE_DEPLOY_CHECKLIST.md: 10 validaciones
 > - RUNBOOK.md: Incidentes comunes + soluciones
 > - Scripts: deploy.sh, rollback.sh, backup.sh"
+
 ---
-### SLIDE : RESULTADOS Y METRICAS ( minutos)
-Visual: Dashboard con metricas antes/despues + graficos
-Guion:
-> "Comparativa Antes vs Después:
+
+### SLIDE 11: RESULTADOS Y MÉTRICAS (2 minutos)
+
+**Visual:** Dashboard con métricas antes/después + gráficos
+
+**Guion:**
+
+> "**Comparativa Antes vs Después:**
 >
-> | Metrica           | Antes (Manual) | Después (QR) | Mejora       |
+> | Métrica                     | Antes (Manual) | Después (QR) | Mejora             |
 > | --------------------------- | -------------- | ------------ | ------------------ |
-> | Tiempo/clase       | - min   | < min    | % reduccion |
-> | Fraude/semestre     | ~ casos   | casos   | % eliminado |
-> | Satisfaccion estudiantes | ./     | >/    | +%      |
-> | Satisfaccion profesores | /      | >/    | +%      |
-> | Tiempo reportes     | horas    | min    | % reduccion |
+> | ⏱️ Tiempo/clase             | 15-20 min      | <5 min       | **67% reducción**  |
+> | 🛡️ Fraude/semestre          | ~10 casos      | 0 casos      | **100% eliminado** |
+> | 😤 Satisfacción estudiantes | 6.5/10         | >8/10        | **+23%**           |
+> | 😓 Satisfacción profesores  | 5/10           | >8/10        | **+60%**           |
+> | 📊 Tiempo reportes          | 2 horas        | 5 min        | **96% reducción**  |
 >
-> Impacto cuantificado:
+> **Impacto cuantificado:**
 >
-> - Tiempo recuperado: , horas/año academico
-> - Valor economico: $,/año (tiempo docente)
-> - ROI: % en primer año
-> - Payback: meses
+> - **Tiempo recuperado:** 1,000 horas/año académico
+> - **Valor económico:** $50,000/año (tiempo docente)
+> - **ROI:** 394% en primer año
+> - **Payback:** 3 meses
 >
-> Adopcion:
+> **Adopción:**
 >
-> - Fase (Enero): profesores piloto -> cursos
-> - Fase (Feb-Mar): Expansion a profesores -> Escuela completa
-> - Fase (Abril+): Escalamiento a otras facultades UCN
+> - Fase 1 (Enero): 5 profesores piloto → 10 cursos
+> - Fase 2 (Feb-Mar): Expansión a 30 profesores → Escuela completa
+> - Fase 3 (Abril+): Escalamiento a otras facultades UCN
 >
-> M�tricas t�cnicas:
+> **Métricas técnicas:**
 >
-> - Uptime: >% (medido en staging)
-> - Response time: <ms (p)
-> - Success rate: >% en primer intento
-> - Concurrencia: requests simultaneos sin degradacion
+> - Uptime: >99% (medido en staging)
+> - Response time: <200ms (p95)
+> - Success rate: >95% en primer intento
+> - Concurrencia: 40 requests simultáneos sin degradación
 >
-> Feedback cualitativo (profesores piloto):
+> **Feedback cualitativo (profesores piloto):**
 >
-> - 'Ya no pierdo minutos, empiezo la clase de inmediato'
+> - 'Ya no pierdo 15 minutos, empiezo la clase de inmediato'
 > - 'Finalmente tengo datos confiables para las notas'
 > - 'Los alumnos lo usan sin problemas, es muy intuitivo'"
+
 ---
-### SLIDE : ESCALABILIDAD Y FUTURO (. minutos)
-Visual: Roadmap con fases + mapa UCN con expansion
-Guion:
-> "Plan de escalamiento:
+
+### SLIDE 12: ESCALABILIDAD Y FUTURO (1.5 minutos)
+
+**Visual:** Roadmap con 3 fases + mapa UCN con expansión
+
+**Guion:**
+
+> "**Plan de escalamiento:**
 >
-> Fase : MVP Escuela de Ingeniería (Enero ) ?
+> **Fase 1: MVP Escuela de Ingeniería (Enero 2025) ✅**
 >
-> - profesores, estudiantes
-> - requisitos funcionales validados
-> - Sistema en produccion (mantochrisal.cl)
+> - 30 profesores, 800 estudiantes
+> - 7 requisitos funcionales validados
+> - Sistema en producción (mantochrisal.cl)
 >
-> Fase : Mejoras y Analytics (Feb-Marzo )
+> **Fase 2: Mejoras y Analytics (Feb-Marzo 2025)**
 >
 > - Dashboard de sesiones activas en tiempo real
-> - Alertas tempranas: Alumnos con <% asistencia
+> - Alertas tempranas: Alumnos con <75% asistencia
 > - Reportes avanzados: Tendencias, comparativas
-> - Prediccion de ausencias con ML basico
+> - Predicción de ausencias con ML básico
 >
-> Fase : Expansion UCN (Abril +)
+> **Fase 3: Expansión UCN (Abril 2025+)**
 >
-> - Escalamiento a facultades de UCN Coquimbo
-> - + profesores, ,+ estudiantes
-> - Infraestructura: Upgrade VPS (recursos x)
-> - Costo marginal bajo: ~$ por usuario adicional
+> - Escalamiento a 8 facultades de UCN Coquimbo
+> - 200+ profesores, 5,000+ estudiantes
+> - Infraestructura: Upgrade VPS (recursos 3x)
+> - Costo marginal bajo: ~$0 por usuario adicional
 >
-> Potencial de expansion:
+> **Potencial de expansión:**
 >
-> - UCN Antofagasta: ,+ estudiantes
-> - UCN Santiago: ,+ estudiantes
+> - UCN Antofagasta: 10,000+ estudiantes
+> - UCN Santiago: 3,000+ estudiantes
 > - Otras universidades regionales (licenciamiento)
 >
-> Arquitectura preparada para escala:
+> **Arquitectura preparada para escala:**
 >
-> - Backend stateless (horizontal scaling facil)
+> - Backend stateless (horizontal scaling fácil)
 > - PostgreSQL connection pool optimizado
 > - Valkey/Redis para cache distribuido
-> - Cloudflare CDN para assets estaticos
+> - Cloudflare CDN para assets estáticos
 >
-> Roadmap tecnico futuro:
+> **Roadmap técnico futuro:**
 >
-> - Event Sourcing para auditoria completa
+> - Event Sourcing para auditoría completa
 > - CQRS para separar reads/writes
 > - Push notifications (alertas a estudiantes)
-> - Integracion con sistema de notas
+> - Integración con sistema de notas
 > - Soporte multi-idioma (si escala internacional)"
+
 ---
-### SLIDE : LECCIONES APRENDIDAS ( minutos)
-Visual: Lista de aprendizajes clave con iconos
-Guion:
-> "Principales aprendizajes del proyecto:
+
+### SLIDE 13: LECCIONES APRENDIDAS (2 minutos)
+
+**Visual:** Lista de aprendizajes clave con íconos
+
+**Guion:**
+
+> "**Principales aprendizajes del proyecto:**
 >
-> . Arquitectura Mixta es Anti-patron ?
+> **1. Arquitectura Mixta es Anti-patrón ❌**
 >
-> - Error inicial: Backend Fastify dentro de proyecto Vite
-> - Problema: Vite es para bundling frontend, no para servidores
-> - Solucion: Separacion en proyectos independientes
-> - Leccion: Siempre inicializar backend y frontend separados, incluso en monorepo
+> - **Error inicial:** Backend Fastify dentro de proyecto Vite
+> - **Problema:** Vite es para bundling frontend, no para servidores
+> - **Solución:** Separación en proyectos independientes
+> - **Lección:** Siempre inicializar backend y frontend separados, incluso en monorepo
 >
-> . Event Storming Descubre Hotspots Tempraño ?
+> **2. Event Storming Descubre Hotspots Temprano 🎯**
 >
-> - Valor: Identificar problemas ANTES de codificar
-> - Ejemplo: Sincronizacion de tiempo como riesgo critico
-> - Mitigacion: NTP + ventana de tolerancia disenados desde dia 
-> - Leccion: horas de Event Storming ahorran horas de refactoring
+> - **Valor:** Identificar problemas ANTES de codificar
+> - **Ejemplo:** Sincronización de tiempo como riesgo crítico
+> - **Mitigación:** NTP + ventana de tolerancia diseñados desde día 1
+> - **Lección:** 2 horas de Event Storming ahorran 20 horas de refactoring
 >
-> . Vitest NO es Solo Frontend ?
+> **3. Vitest NO es Solo Frontend ⚡**
 >
-> - Mito: 'Vitest es para Vite, por lo tanto solo frontend'
-> - Realidad: Vitest es -x más rápido que Jest para backend Node.js
-> - Beneficio: tests en segundos vs segundos con Jest
-> - Leccion: No asumir uso de herramienta por nombre, investigar capacidades reales
+> - **Mito:** 'Vitest es para Vite, por lo tanto solo frontend'
+> - **Realidad:** Vitest es 2-10x más rápido que Jest para backend Node.js
+> - **Beneficio:** 206 tests en 3 segundos vs 30 segundos con Jest
+> - **Lección:** No asumir uso de herramienta por nombre, investigar capacidades reales
 >
-> . Criterios SMART Eliminan Ambiguedad ?
+> **4. Criterios SMART Eliminan Ambigüedad 📏**
 >
-> - Antes: 'Sistema debe ser rápido' (subjetivo)
-> - Después: 'Response time <ms en p' (medible)
-> - Impacto: criterios SMART -> discusiones de 'esta completo?'
-> - Leccion: Invertir tiempo en definir metricas objetivas al inicio
+> - **Antes:** 'Sistema debe ser rápido' (subjetivo)
+> - **Después:** 'Response time <200ms en p95' (medible)
+> - **Impacto:** 37 criterios SMART → 0 discusiones de 'está completo?'
+> - **Lección:** Invertir tiempo en definir métricas objetivas al inicio
 >
-> . Plan de Rollback es Tan Importante Como Deploy ?
+> **5. Plan de Rollback es Tan Importante Como Deploy 🔄**
 >
-> - Realidad: Fallos en produccion son inevitables
-> - Preparacion: Script rollback.sh automatizado ( pasos, minutos)
-> - Tranquilidad: Equipo duerme tranquilo sabiendo que hay plan B
-> - Leccion: Crear rollback.sh ANTES del primer deploy, no después del primer incidente
+> - **Realidad:** Fallos en producción son inevitables
+> - **Preparación:** Script rollback.sh automatizado (6 pasos, 10 minutos)
+> - **Tranquilidad:** Equipo duerme tranquilo sabiendo que hay plan B
+> - **Lección:** Crear rollback.sh ANTES del primer deploy, no después del primer incidente
 >
-> . ROI Convence Stakeholders Más Que Features ?
+> **6. ROI Convence Stakeholders Más Que Features 💰**
 >
-> - T�cnica: 'Arquitectura DDD event-driven' (interesante)
-> - Negocio: 'ROI %, payback meses' (convincente)
-> - Resultado: Aprobacion inmediata de presupuesto
-> - Leccion: Traducir metricas t�cnicas a valor de negocio siempre"
+> - **Técnica:** 'Arquitectura DDD event-driven' (interesante)
+> - **Negocio:** 'ROI 394%, payback 3 meses' (convincente)
+> - **Resultado:** Aprobación inmediata de presupuesto
+> - **Lección:** Traducir métricas técnicas a valor de negocio siempre"
+
 ---
-### SLIDE : CONCLUSIONES ( minuto)
-Visual: Resumen ejecutivo con checkmarks
-Guion:
-> "En resumen:
+
+### SLIDE 14: CONCLUSIONES (1 minuto)
+
+**Visual:** Resumen ejecutivo con checkmarks
+
+**Guion:**
+
+> "**En resumen:**
 >
-> Problema resuelto: minutos -> minutos por clase (% reduccion) 
-> Fraude eliminado: QR dinámico + TOTP + validación IP 
-> Adopcion garantizada: Integrado en sistema legacy, sin friccion 
-> ROI positivo: % en primer año ($K valor vs $.K inversion) 
-> Calidad asegurada: + tests automatizados, cobertura >% 
-> Escalable: Preparado para facultades UCN (x crecimiento)
+> ✅ **Problema resuelto:** 15 minutos → 5 minutos por clase (67% reducción)  
+> ✅ **Fraude eliminado:** QR dinámico + TOTP + validación IP  
+> ✅ **Adopción garantizada:** Integrado en sistema legacy, sin fricción  
+> ✅ **ROI positivo:** 394% en primer año ($54K valor vs $13.7K inversión)  
+> ✅ **Calidad asegurada:** 320+ tests automatizados, cobertura >80%  
+> ✅ **Escalable:** Preparado para 8 facultades UCN (10x crecimiento)
 >
-> T�cnicas aplicadas:
+> **Técnicas aplicadas:**
 >
 > - Event Storming para descubrimiento del dominio
 > - Impact Mapping para conectar negocio con entregas
@@ -557,88 +629,138 @@ Guion:
 > - Domain-Driven Design (DDD) en arquitectura
 > - Test-Driven Development (TDD) cuando posible
 >
-> Estado actual: Sistema desplegado en produccion (mantochrisal.cl), requisitos funcionales validados, listo para piloto con profesores en Enero .
+> **Estado actual:** Sistema desplegado en producción (mantochrisal.cl), 7 requisitos funcionales validados, listo para piloto con 5 profesores en Enero 2025.
 >
-> Este proyecto demuestra que con análisis riguroso del dominio, arquitectura solida, y testing exhaustivo, es posible crear soluciones que generan valor real medible, no solo código que funciona."
+> Este proyecto demuestra que con análisis riguroso del dominio, arquitectura sólida, y testing exhaustivo, es posible crear soluciones que generan valor real medible, no solo código que funciona."
+
 ---
-### SLIDE : PREGUNTAS (Q&A)
-Visual: Contacto + recursos adicionales
-Guion:
-> "Muchas gracias por su atencion. Estoy disponible para responder preguntas.
+
+### SLIDE 15: PREGUNTAS (Q&A)
+
+**Visual:** Contacto + recursos adicionales
+
+**Guion:**
+
+> "Muchas gracias por su atención. Estoy disponible para responder preguntas.
 >
-> Recursos adicionales:
+> **Recursos adicionales:**
 >
 > - Repositorio GitHub: [URL]
-> - Documentacion t�cnica completa en /documents/
+> - Documentación técnica completa en /documents/
 > - Demo en vivo: mantochrisal.cl
 > - Contacto: [email]"
+
 ---
- PREGUNTAS FRECUENTES ANTICIPADAS
- Pregunta : "?Por que no usar sistema comercial existente?"
-Respuesta:
-> "Sistemas comerciales cuestan $,-,/año en licencias. Nuestra solución interna cuesta $,/año en operacion (mitad del precio) y nos da control total sobre features, datos, y roadmap. Además, la integración con sistema legacy Hawaii seria igualmente compleja en solución comercial, porque el schema PostgreSQL es compartido."
+
+## 📊 PREGUNTAS FRECUENTES ANTICIPADAS
+
+### Pregunta 1: "¿Por qué no usar sistema comercial existente?"
+
+**Respuesta:**
+
+> "Sistemas comerciales cuestan $10,000-20,000/año en licencias. Nuestra solución interna cuesta $9,720/año en operación (mitad del precio) y nos da control total sobre features, datos, y roadmap. Además, la integración con sistema legacy Hawaii sería igualmente compleja en solución comercial, porque el schema PostgreSQL es compartido."
+
 ---
- Pregunta : "?Que pasa si un alumno no tiene smartphone?"
-Respuesta:
-> "Estimamos <% de casos edge. Soluciones: () Usar computador de sala si hay, () Companero presta telefono (solo debe logearse), () Profesor marca manualmente post-clase en asist_lista.php. El sistema no busca ser % para el %, sino % para el %."
+
+### Pregunta 2: "¿Qué pasa si un alumno no tiene smartphone?"
+
+**Respuesta:**
+
+> "Estimamos <2% de casos edge. Soluciones: (1) Usar computador de sala si hay, (2) Compañero presta teléfono (solo debe logearse), (3) Profesor marca manualmente post-clase en asist_lista.php. El sistema no busca ser 100% para el 2%, sino 98% para el 98%."
+
 ---
- Pregunta : "?Como evitan que alguien tome foto del QR?"
-Respuesta:
-> "Tres capas de seguridad: () QR cambia cada segundos con TOTP criptográfico, foto vieja es invalida. () Validacion de IP requiere estar en red UCN (...\), no funciona desde casa. () Timestamp de marca registrado, profesor puede detectar añomalias (alumno marco a las : pero llego : fisicamente)."
+
+### Pregunta 3: "¿Cómo evitan que alguien tome foto del QR?"
+
+**Respuesta:**
+
+> "Tres capas de seguridad: (1) QR cambia cada 10 segundos con TOTP criptográfico, foto vieja es inválida. (2) Validación de IP requiere estar en red UCN (200.14.84.\*), no funciona desde casa. (3) Timestamp de marca registrado, profesor puede detectar anomalías (alumno marcó a las 08:00 pero llegó 08:30 físicamente)."
+
 ---
- Pregunta : "?Por que Fastify y no Express que es más conocido?"
-Respuesta:
-> "Fastify es x más rápido que Express en benchmarks reales. Con alumnos escaneando simultaneamente, performance es critica. Además, Fastify tiene soporte TypeScript nativo (Express requiere tipos externos) y arquitectura de plugins más limpia. La curva de aprendizaje es similar, pero los beneficios de performance y DX justifican la eleccion."
+
+### Pregunta 4: "¿Por qué Fastify y no Express que es más conocido?"
+
+**Respuesta:**
+
+> "Fastify es 5x más rápido que Express en benchmarks reales. Con 40 alumnos escaneando simultáneamente, performance es crítica. Además, Fastify tiene soporte TypeScript nativo (Express requiere tipos externos) y arquitectura de plugins más limpia. La curva de aprendizaje es similar, pero los beneficios de performance y DX justifican la elección."
+
 ---
- Pregunta : "?Que pasa si el sistema cae durante una clase?"
-Respuesta:
-> "Plan de contingencia: () Sistema tiene uptime >% medido en staging. () Si cae, profesor puede reabrir sesion (datos persisten en PostgreSQL). () En falla total, profesor marca manualmente post-clase en minutos. () Rollback automatizado en minutos con script. () Monitoreo proactivo con alertas via email."
+
+### Pregunta 5: "¿Qué pasa si el sistema cae durante una clase?"
+
+**Respuesta:**
+
+> "Plan de contingencia: (1) Sistema tiene uptime >99% medido en staging. (2) Si cae, profesor puede reabrir sesión (datos persisten en PostgreSQL). (3) En falla total, profesor marca manualmente post-clase en 5 minutos. (4) Rollback automatizado en 10 minutos con script. (5) Monitoreo proactivo con alertas vía email."
+
 ---
- Pregunta : "?Como validaron los requisitos funcionales?"
-Respuesta:
-> "Creamos matriz de trazabilidad: cada requisito -> componentes -> tests -> evidencias. Por ejemplo, Requisito (registro exitoso) tiene: + tests backend, query SQL de verificacion, screenshot de confirmacion, logs de TOTP validation. Total: casos de prueba, tipos de evidencia especificos. Todo documentado en PLAN_IMPLEMENTACION_ENERO_.md."
+
+### Pregunta 6: "¿Cómo validaron los 7 requisitos funcionales?"
+
+**Respuesta:**
+
+> "Creamos matriz de trazabilidad: cada requisito → componentes → tests → evidencias. Por ejemplo, Requisito 4 (registro exitoso) tiene: 20+ tests backend, query SQL de verificación, screenshot de confirmación, logs de TOTP validation. Total: 37 casos de prueba, 28 tipos de evidencia específicos. Todo documentado en PLAN_IMPLEMENTACION_ENERO_2025.md."
+
 ---
- Pregunta : "?Cuanto tiempo tomo el desarrollo?"
-Respuesta:
-> "Fase de análisis: semanas (Event Storming, Impact Mapping, requisitos). Desarrollo: horas (planificadas en dias x h, - Enero). Total: ~- semanas desde concepto hasta produccion. La clave fue planificacion rigurosa: horas de documentacion ahorraron + horas de refactoring."
+
+### Pregunta 7: "¿Cuánto tiempo tomó el desarrollo?"
+
+**Respuesta:**
+
+> "Fase de análisis: 2 semanas (Event Storming, Impact Mapping, requisitos). Desarrollo: 80 horas (planificadas en 10 días × 8h, 1-12 Enero). Total: ~3-4 semanas desde concepto hasta producción. La clave fue planificación rigurosa: 6 horas de documentación ahorraron 20+ horas de refactoring."
+
 ---
- TIMING DETALLADO
-| Slide | Contenido       | Tiempo | Acumulado |
+
+## ⏱️ TIMING DETALLADO
+
+| Slide | Contenido             | Tiempo | Acumulado |
 | ----- | --------------------- | ------ | --------- |
-|   | Portada        | :  | :   |
-|   | El Problema      | :  | :   |
-|   | La Solucion      | :  | :   |
-|   | Event Storming    | :  | :   |
-|   | Impact Mapping    | :  | :   |
-|   | Business Model Canvas | :  | :   |
-|   | Arquitectura T�cnica | :  | :   |
-|   | Estrategia de Testing | :  | :   |
-|   | Seguridad       | :  | :   |
-|   | Despliegue      | :  | :   |
-|   | Resultados      | :  | :   |
-|   | Escalabilidad     | :  | :   |
-|   | Lecciones       | :  | :   |
-|   | Conclusiones     | :  | :   |
-|   | Q&A          | :+ | :+  |
-Total: : minutos (presentacion) + + minutos (Q&A flexible)
+| 1     | Portada               | 0:30   | 0:30      |
+| 2     | El Problema           | 2:00   | 2:30      |
+| 3     | La Solución           | 2:00   | 4:30      |
+| 4     | Event Storming        | 3:00   | 7:30      |
+| 5     | Impact Mapping        | 3:00   | 10:30     |
+| 6     | Business Model Canvas | 3:00   | 13:30     |
+| 7     | Arquitectura Técnica  | 3:00   | 16:30     |
+| 8     | Estrategia de Testing | 2:00   | 18:30     |
+| 9     | Seguridad             | 2:00   | 20:30     |
+| 10    | Despliegue            | 1:30   | 22:00     |
+| 11    | Resultados            | 2:00   | 24:00     |
+| 12    | Escalabilidad         | 1:30   | 25:30     |
+| 13    | Lecciones             | 2:00   | 27:30     |
+| 14    | Conclusiones          | 1:00   | 28:30     |
+| 15    | Q&A                   | 5:00+  | 33:30+    |
+
+**Total:** 28:30 minutos (presentación) + 5+ minutos (Q&A flexible)
+
 ---
- CONSEJOS DE DELIVERY
- Enfasis y Pausas:
-- Numeros importantes: Pausar después de "% ROI", "% reduccion", "$, valor"
-- Hotspots: Enfatizar problema -> solución en cada caso
-- Lecciones: Contar como historia personal (más memorable)
- Contacto Visual:
-- Mirar a jurado tecnico en slides - (arquitectura, testing)
-- Mirar a stakeholders en slides , , (problema, modelo negocio, resultados)
- Gesticulacion:
-- Timeline (Slide ): Maño izquierda a derecha siguiendo fases
-- ROI (Slide ): Maño mostrando "de aqui a aqui" (inversion -> valor)
-- Seguridad (Slide ): Contar capas con dedos (, , , )
- Backup:
-- Demo en vivo: Tener video pre-grabado por si WiFi falla
-- Slides extra: Diagramás tecnicos detallados si piden profundizar
-- Codigo: Fragmentos key listos para mostrar si preguntan implementación
+
+## 🎯 CONSEJOS DE DELIVERY
+
+### Énfasis y Pausas:
+
+- **Números importantes:** Pausar después de "394% ROI", "67% reducción", "$54,000 valor"
+- **Hotspots:** Enfatizar problema → solución en cada caso
+- **Lecciones:** Contar como historia personal (más memorable)
+
+### Contacto Visual:
+
+- Mirar a jurado técnico en slides 7-10 (arquitectura, testing)
+- Mirar a stakeholders en slides 2, 6, 11 (problema, modelo negocio, resultados)
+
+### Gesticulación:
+
+- **Timeline (Slide 4):** Mano izquierda a derecha siguiendo fases
+- **ROI (Slide 6):** Mano mostrando "de aquí a aquí" (inversión → valor)
+- **Seguridad (Slide 9):** Contar capas con dedos (1, 2, 3, 4)
+
+### Backup:
+
+- **Demo en vivo:** Tener video pre-grabado por si WiFi falla
+- **Slides extra:** Diagramas técnicos detallados si piden profundizar
+- **Código:** Fragmentos key listos para mostrar si preguntan implementación
+
 ---
-Ultima actualizacion: de diciembre de  
-Version: . 
-Duracion objetivo: - minutos + Q&A
+
+**Última actualización:** 31 de diciembre de 2025  
+**Versión:** 1.0  
+**Duración objetivo:** 28-30 minutos + Q&A
