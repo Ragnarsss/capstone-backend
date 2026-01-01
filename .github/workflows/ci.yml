@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: rockylinux:9
-    
+
     steps:
       - name: Checkout código
         uses: actions/checkout@v4
@@ -81,11 +81,11 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: rockylinux:9
-    
+
     strategy:
       matrix:
-        php-version: ['7.4', '8.0', '8.1']
-    
+        php-version: ["7.4", "8.0", "8.1"]
+
     steps:
       - name: Checkout código
         uses: actions/checkout@v4
@@ -144,7 +144,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: rockylinux:9
-    
+
     steps:
       - name: Checkout código
         uses: actions/checkout@v4
@@ -192,7 +192,7 @@ jobs:
     container:
       image: rockylinux:9
     needs: [test-node, test-php]
-    
+
     steps:
       - name: Checkout código
         uses: actions/checkout@v4
@@ -218,7 +218,7 @@ jobs:
         run: |
           echo "## 📦 Artefactos Generados" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           if [ -d dist ]; then
             echo "✅ Directorio dist/ creado" >> $GITHUB_STEP_SUMMARY
             
@@ -254,7 +254,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [test-node, test-php, lint, build]
     if: always()
-    
+
     steps:
       - name: Generar resumen
         run: |
