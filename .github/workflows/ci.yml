@@ -26,7 +26,10 @@ jobs:
 
       - name: Instalar Node.js 20 en Rocky Linux
         run: |
-          dnf install -y --allowerasing nodejs npm git
+          # Instalar Node.js 20 desde NodeSource (Rocky Linux default es muy antiguo)
+          dnf install -y --allowerasing curl
+          curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -
+          dnf install -y nodejs git
           node --version
           npm --version
           git --version
@@ -154,7 +157,10 @@ jobs:
 
       - name: Instalar Node.js en Rocky Linux
         run: |
-          dnf install -y --allowerasing nodejs npm git
+          # Instalar Node.js 20 desde NodeSource
+          dnf install -y --allowerasing curl
+          curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -
+          dnf install -y nodejs git
           node --version
           npm --version
           git --version
@@ -207,7 +213,10 @@ jobs:
 
       - name: Instalar Node.js en Rocky Linux
         run: |
-          dnf install -y --allowerasing nodejs npm git
+          # Instalar Node.js 20 desde NodeSource
+          dnf install -y --allowerasing curl
+          curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -
+          dnf install -y nodejs git
           node --version
           npm --version
           git --version
