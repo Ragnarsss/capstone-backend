@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Asistencia - Enrollment</title>
+  <link rel="stylesheet" href="/shared/styles/base.css" />
+  <link rel="stylesheet" href="./styles/enrollment.css" />
+</head>
+<body>
+  <div class="container enrollment">
+    <h1>Registro de Dispositivo</h1>
+    <p id="enrollment-status" class="enrollment__status">Verificando estado...</p>
+
+    <!-- Información del usuario autenticado -->
+    <div id="user-info" class="enrollment__user-info" style="display: none;">
+      <p>Usuario: <span id="user-name"></span></p>
+      <p>Dispositivos registrados: <span id="device-count">0</span>/5</p>
+    </div>
+
+    <!-- Lista de dispositivos existentes -->
+    <div id="devices-section" class="enrollment__devices" style="display: none;">
+      <h2>Mis Dispositivos</h2>
+      <ul id="devices-list" class="enrollment__device-list"></ul>
+    </div>
+
+    <!-- Sección de enrollment -->
+    <div id="enrollment-section" class="enrollment__action">
+      <p class="enrollment__info">
+        Registra este dispositivo para poder marcar tu asistencia de forma segura.
+        El registro utiliza biometría (huella, rostro) o PIN de tu dispositivo.
+      </p>
+      
+      <button id="enroll-btn" class="btn primary btn--large" disabled>
+        <span id="enroll-btn-icon">🔐</span>
+        <span id="enroll-btn-text">Registrar este dispositivo</span>
+      </button>
+      
+      <p id="enrollment-message" class="enrollment__message"></p>
+    </div>
+
+    <!-- Sección post-enrollment: Login -->
+    <div id="login-section" class="enrollment__login" style="display: none;">
+      <h2>Iniciar Sesión Segura</h2>
+      <p>Tu dispositivo está registrado. Inicia sesión para obtener tu clave de sesión.</p>
+      
+      <button id="login-btn" class="btn primary btn--large">
+        <span>🔑</span>
+        <span>Iniciar Sesión</span>
+      </button>
+      
+      <p id="login-message" class="enrollment__message"></p>
+    </div>
+
+    <!-- Log panel visible siempre para debugging -->
+    <div id="debug-section" class="enrollment__debug">
+      <details id="debug-details" open>
+        <summary>📋 Estado del Proceso</summary>
+        <div id="debug-output" class="debug-log"></div>
+        <button id="clear-log-btn" class="btn btn--small" style="margin-top: 8px;">Limpiar log</button>
+      </details>
+    </div>
+  </div>
+
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>
