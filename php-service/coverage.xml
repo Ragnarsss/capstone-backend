@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<coverage generated="1767374249">
-  <project timestamp="1767374249">
+<coverage generated="1767377961">
+  <project timestamp="1767377961">
     <file name="/var/www/html/hawaii/asistencia/php-service/src/config.php">
       <line num="9" type="stmt" count="6"/>
       <line num="10" type="stmt" count="6"/>

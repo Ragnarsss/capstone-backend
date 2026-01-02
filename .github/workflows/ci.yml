@@ -127,59 +127,103 @@ jobs:
   test-php:
     name: Tests PHP (PHPUnit)
     runs-on: ubuntu-latest
-    container:
-      image: rockylinux:9
-
-    strategy:
-      matrix:
-        php-version: ["7.4", "8.0", "8.1"]
 
     steps:
       - name: Checkout código
         uses: actions/checkout@v4
 
-      - name: Instalar PHP ${{ matrix.php-version }} en Rocky Linux
-        run: |
-          dnf install -y --allowerasing epel-release git
-          dnf install -y https://rpms.remirepo.net/enterprise/remi-release-9.rpm
-          dnf module reset php -y
-          dnf module enable php:remi-${{ matrix.php-version }} -y
-          dnf install -y php php-mbstring php-pdo php-pgsql php-json php-xml php-pecl-xdebug
-          php --version
-          # Instalar Composer manualmente
-          curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
-          composer --version
+      - name: Setup PHP 7.4 con PCOV
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "7.4"
+          extensions: mbstring, pdo, pgsql, json, xml, pcov
+          coverage: pcov
+          tools: composer:v2
 
       - name: Validar composer.json
         working-directory: php-service
-        run: |
-          if [ -f composer.json ]; then
-            composer validate --no-check-all --no-check-publish
-          else
-            echo "[!] composer.json no encontrado - saltando validación"
-          fi
+        run: composer validate --no-check-all --no-check-publish
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: php-service/vendor
+          key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-php-
 
       - name: Instalar dependencias PHP
         working-directory: php-service
-        run: |
-          if [ -f composer.json ]; then
-            composer install --prefer-dist --no-progress --no-suggest
-          else
-            echo "[!] composer.json no encontrado - saltando instalación"
-          fi
+        run: composer install --prefer-dist --no-progress --no-interaction
 
-      - name: Ejecutar tests PHPUnit
+      - name: Ejecutar tests PHPUnit con coverage
         working-directory: php-service
         run: |
-          if [ -f vendor/bin/phpunit ]; then
-            vendor/bin/phpunit --coverage-text --coverage-clover=coverage.xml
+          php -d pcov.enabled=1 -d pcov.directory=./src vendor/bin/phpunit \
+            --coverage-text \
+            --coverage-clover=coverage.xml \
+            --coverage-html=coverage/html \
+            --testdox
+
+      - name: Verificar umbral de cobertura mínima
+        working-directory: php-service
+        run: |
+          # Extraer porcentaje de cobertura de lines
+          coverage=$(php -r '
+            $xml = simplexml_load_file("coverage.xml");
+            $metrics = $xml->project->metrics;
+            $lines = (int)$metrics["coveredstatements"];
+            $total = (int)$metrics["statements"];
+            echo round(($lines / $total) * 100, 2);
+          ')
+
+          echo "Cobertura actual: ${coverage}%"
+          echo "Umbral mínimo: 50%"
+
+          if (( $(echo "$coverage < 50" | bc -l) )); then
+            echo "❌ Cobertura por debajo del umbral mínimo"
+            exit 1
           else
-            echo "[!] PHPUnit no instalado aún - tests PHP pendientes de implementación (Día 1-2)"
-            echo "[*] Tareas planificadas: 115+ tests PHP (>80% cobertura)"
-            exit 0
+            echo "✅ Cobertura cumple con el umbral mínimo"
           fi
 
-      - name: Subir cobertura PHP
+      - name: Generar resumen de cobertura PHP
+        if: always()
+        working-directory: php-service
+        run: |
+          echo "## Cobertura de Tests PHP" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f coverage.xml ]; then
+            # Parsear XML y mostrar métricas
+            php -r '
+              $xml = simplexml_load_file("coverage.xml");
+              $metrics = $xml->project->metrics;
+              
+              $statements = (int)$metrics["statements"];
+              $covered_statements = (int)$metrics["coveredstatements"];
+              $methods = (int)$metrics["methods"];
+              $covered_methods = (int)$metrics["coveredmethods"];
+              $classes = (int)$metrics["classes"];
+              $covered_classes = (int)$metrics["coveredclasses"];
+              
+              $line_coverage = round(($covered_statements / $statements) * 100, 2);
+              $method_coverage = round(($covered_methods / $methods) * 100, 2);
+              $class_coverage = $classes > 0 ? round(($covered_classes / $classes) * 100, 2) : 0;
+              
+              echo "| Métrica | Cobertura |\n";
+              echo "|---------|-----------|" . PHP_EOL;
+              echo "| Líneas | {$line_coverage}% ({$covered_statements}/{$statements}) |" . PHP_EOL;
+              echo "| Métodos | {$method_coverage}% ({$covered_methods}/{$methods}) |" . PHP_EOL;
+              echo "| Clases | {$class_coverage}% ({$covered_classes}/{$classes}) |" . PHP_EOL;
+            ' >> $GITHUB_STEP_SUMMARY
+            
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Tests ejecutados:** $(grep -o 'tests="[0-9]*"' coverage.xml | grep -o '[0-9]*')" >> $GITHUB_STEP_SUMMARY
+            echo "**Aserciones:** $(grep -o 'assertions="[0-9]*"' coverage.xml | grep -o '[0-9]*')" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Subir cobertura PHP a Codecov
         uses: codecov/codecov-action@v4
         if: always()
         with:
@@ -187,6 +231,14 @@ jobs:
           flags: php-service
           name: codecov-php-service
           fail_ci_if_error: false
+
+      - name: Subir reporte HTML de cobertura PHP
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report-php
+          path: php-service/coverage/
+          retention-days: 30
 
   # Job 3: Linting y Formateo
   lint:
