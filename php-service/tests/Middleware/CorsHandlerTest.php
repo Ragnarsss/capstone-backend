@@ -67,4 +67,48 @@ class CorsHandlerTest extends TestCase
         $handler = new CorsHandler($this->config);
         $this->assertTrue(method_exists($handler, 'handle'));
     }
+
+    public function testIsOriginAllowedWithMultipleOrigins()
+    {
+        $config = [
+            'cors' => [
+                'allowed_origins' => [
+                    'http://localhost:3000',
+                    'http://localhost:9506',
+                    'https://mantochrisal.cl',
+                    'https://losvilos.ucn.cl'
+                ],
+                'allow_credentials' => true
+            ]
+        ];
+        
+        $handler = new CorsHandler($config);
+        
+        $this->assertTrue($handler->isOriginAllowed('http://localhost:3000'));
+        $this->assertTrue($handler->isOriginAllowed('https://mantochrisal.cl'));
+        $this->assertTrue($handler->isOriginAllowed('https://losvilos.ucn.cl'));
+        $this->assertFalse($handler->isOriginAllowed('http://attacker.com'));
+    }
+
+    public function testIsOriginAllowedCaseSensitive()
+    {
+        $handler = new CorsHandler($this->config);
+        
+        // CORS origins son case-sensitive
+        $this->assertTrue($handler->isOriginAllowed('http://localhost:9506'));
+        $this->assertFalse($handler->isOriginAllowed('HTTP://LOCALHOST:9506'));
+    }
+
+    public function testConfigWithCredentialsDisabled()
+    {
+        $config = [
+            'cors' => [
+                'allowed_origins' => ['http://localhost:9506'],
+                'allow_credentials' => false
+            ]
+        ];
+        
+        $handler = new CorsHandler($config);
+        $this->assertInstanceOf(CorsHandler::class, $handler);
+    }
 }

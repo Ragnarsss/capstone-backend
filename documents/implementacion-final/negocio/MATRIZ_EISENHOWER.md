@@ -99,15 +99,44 @@
   - [x] **BONUS:** Fixes emojis incompatibles
   - [x] **BONUS:** Parser jq para coverage legible
 
-### 🟡 Día 5: Tests E2E Automatizados (Playwright)
+### 🟡 Día 4-5: Definición Framework Testing E2E e Integración
+
+- **No urgente:** Decisión técnica puede tomarse antes de implementación
+- **Importante:** Afecta arquitectura de tests y mantenibilidad
+- **Impacto:** MEDIO-ALTO - Decisión de largo plazo
+- **Opciones a evaluar:**
+  - [ ] **E2E Browser:** Playwright vs Cypress vs Puppeteer
+  - [ ] **Integración HTTP:** Vitest + fetch vs Supertest vs PHPUnit HTTP
+  - [ ] **Estrategia dual:** Vitest para HTTP + Playwright para UI
+  - [ ] Criterios: velocidad, debugging, CI/CD integration, curva aprendizaje
+- **Decisión:** Documentar en ESTRATEGIA_AUTOMATIZACION_TESTS.md
+- **Tiempo estimado:** 2-3 horas investigación + decisión
+
+### 🟡 Día 5: Tests E2E Automatizados (Framework TBD)
 
 - **No urgente:** Tests manuales cubren funcionalidad inicialmente
 - **Importante:** Previenen regresiones en flujos críticos
 - **Impacto:** MEDIO-ALTO - Seguridad a largo plazo
-- **Tests:**
+- **Prerequisito:** Definir framework de testing (tarea anterior)
+- **Tests a implementar:**
   - [ ] Test JWT: Profesor obtiene token válido
   - [ ] Test QR Host: Proyección dinámica cada 10s
   - [ ] Test QR Reader: Escaneo y registro completo
+
+### 🟡 Día 5: Tests Integración HTTP para PHP Service
+
+- **No urgente:** Tests unitarios PHPUnit cubren lógica crítica (58.28% coverage)
+- **Importante:** Valida código no testeable con PHPUnit (header(), exit())
+- **Impacto:** MEDIO - Aumenta cobertura PHP de 58.28% a ~75%
+- **Contexto:** Código con header()/exit() no puede testearse con PHPUnit
+- **Solución:** Tests de integración HTTP con Vitest contra servidor PHP real
+- **Tests a implementar:**
+  - [ ] Test CORS headers con diferentes orígenes (allowed/blocked)
+  - [ ] Test OPTIONS preflight request handling
+  - [ ] Test rate limiting (429 después de límite)
+  - [ ] Test session validation flow completo
+  - [ ] Test respuestas 401/403/500 con headers correctos
+- **Beneficio:** Valida flujo HTTP completo end-to-end sin mocks
 
 ### 🟡 Día 8: Documentación de Despliegue
 

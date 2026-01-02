@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<coverage generated="1767377961">
-  <project timestamp="1767377961">
+<coverage generated="1767379603">
+  <project timestamp="1767379603">
     <file name="/var/www/html/hawaii/asistencia/php-service/src/config.php">
       <line num="9" type="stmt" count="6"/>
       <line num="10" type="stmt" count="6"/>
@@ -46,8 +46,8 @@
       <class name="JwtBridge\CorsHandler" namespace="global">
         <metrics complexity="8" methods="3" coveredmethods="2" conditionals="0" coveredconditionals="0" statements="25" coveredstatements="3" elements="28" coveredelements="5"/>
       </class>
-      <line num="14" type="method" name="__construct" visibility="public" complexity="1" crap="1" count="5"/>
-      <line num="16" type="stmt" count="5"/>
+      <line num="14" type="method" name="__construct" visibility="public" complexity="1" crap="1" count="8"/>
+      <line num="16" type="stmt" count="8"/>
       <line num="19" type="method" name="handle" visibility="public" complexity="5" crap="30" count="0"/>
       <line num="21" type="stmt" count="0"/>
       <line num="22" type="stmt" count="0"/>
@@ -71,22 +71,22 @@
       <line num="51" type="stmt" count="0"/>
       <line num="52" type="stmt" count="0"/>
       <line num="53" type="stmt" count="0"/>
-      <line num="57" type="method" name="isOriginAllowed" visibility="public" complexity="2" crap="2" count="3"/>
-      <line num="59" type="stmt" count="3"/>
-      <line num="60" type="stmt" count="3"/>
+      <line num="57" type="method" name="isOriginAllowed" visibility="public" complexity="2" crap="2" count="5"/>
+      <line num="59" type="stmt" count="5"/>
+      <line num="60" type="stmt" count="5"/>
       <metrics loc="63" ncloc="55" classes="1" methods="3" coveredmethods="2" conditionals="0" coveredconditionals="0" statements="25" coveredstatements="3" elements="28" coveredelements="5"/>
     </file>
     <file name="/var/www/html/hawaii/asistencia/php-service/src/middleware/LegacySessionValidator.php">
       <class name="JwtBridge\LegacySessionValidator" namespace="global">
-        <metrics complexity="19" methods="5" coveredmethods="1" conditionals="0" coveredconditionals="0" statements="26" coveredstatements="3" elements="31" coveredelements="4"/>
+        <metrics complexity="19" methods="5" coveredmethods="1" conditionals="0" coveredconditionals="0" statements="26" coveredstatements="5" elements="31" coveredelements="6"/>
       </class>
       <line num="6" type="stmt" count="1"/>
       <line num="7" type="stmt" count="0"/>
-      <line num="19" type="method" name="__construct" visibility="public" complexity="1" crap="1" count="5"/>
-      <line num="21" type="stmt" count="5"/>
-      <line num="24" type="method" name="validate" visibility="public" complexity="9" crap="90" count="0"/>
-      <line num="26" type="stmt" count="0"/>
-      <line num="27" type="stmt" count="0"/>
+      <line num="19" type="method" name="__construct" visibility="public" complexity="1" crap="1" count="9"/>
+      <line num="21" type="stmt" count="9"/>
+      <line num="24" type="method" name="validate" visibility="public" complexity="9" crap="53.36" count="1"/>
+      <line num="26" type="stmt" count="1"/>
+      <line num="27" type="stmt" count="1"/>
       <line num="31" type="stmt" count="0"/>
       <line num="32" type="stmt" count="0"/>
       <line num="36" type="stmt" count="0"/>
@@ -96,9 +96,9 @@
       <line num="44" type="stmt" count="0"/>
       <line num="45" type="stmt" count="0"/>
       <line num="48" type="stmt" count="0"/>
-      <line num="51" type="method" name="validateRole" visibility="public" complexity="5" crap="15.55" count="1"/>
-      <line num="53" type="stmt" count="1"/>
-      <line num="54" type="stmt" count="1"/>
+      <line num="51" type="method" name="validateRole" visibility="public" complexity="5" crap="15.55" count="2"/>
+      <line num="53" type="stmt" count="2"/>
+      <line num="54" type="stmt" count="2"/>
       <line num="57" type="stmt" count="0"/>
       <line num="58" type="stmt" count="0"/>
       <line num="59" type="stmt" count="0"/>
@@ -113,7 +113,7 @@
       <line num="79" type="stmt" count="0"/>
       <line num="80" type="stmt" count="0"/>
       <line num="82" type="stmt" count="0"/>
-      <metrics loc="85" ncloc="78" classes="1" methods="5" coveredmethods="1" conditionals="0" coveredconditionals="0" statements="28" coveredstatements="4" elements="33" coveredelements="5"/>
+      <metrics loc="85" ncloc="78" classes="1" methods="5" coveredmethods="1" conditionals="0" coveredconditionals="0" statements="28" coveredstatements="6" elements="33" coveredelements="7"/>
     </file>
     <file name="/var/www/html/hawaii/asistencia/php-service/src/middleware/Logger.php">
       <class name="JwtBridge\Logger" namespace="global">
@@ -197,6 +197,6 @@
       <line num="93" type="stmt" count="0"/>
       <metrics loc="99" ncloc="92" classes="1" methods="4" coveredmethods="1" conditionals="0" coveredconditionals="0" statements="45" coveredstatements="30" elements="49" coveredelements="31"/>
     </file>
-    <metrics files="5" loc="366" ncloc="328" classes="4" methods="18" coveredmethods="6" conditionals="0" coveredconditionals="0" statements="151" coveredstatements="86" elements="169" coveredelements="92"/>
+    <metrics files="5" loc="366" ncloc="328" classes="4" methods="18" coveredmethods="6" conditionals="0" coveredconditionals="0" statements="151" coveredstatements="88" elements="169" coveredelements="94"/>
   </project>
 </coverage>

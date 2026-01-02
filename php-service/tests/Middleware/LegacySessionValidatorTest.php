@@ -68,4 +68,59 @@ class LegacySessionValidatorTest extends TestCase
         // Verificar que se instancia sin errores
         $this->assertInstanceOf(LegacySessionValidator::class, $validator);
     }
+
+    public function testValidateWithValidationDisabled()
+    {
+        $_SESSION['user'] = 'test@ucn.cl';
+        
+        $validator = new LegacySessionValidator($this->config);
+        $result = $validator->validate();
+        
+        // Con validate_legacy_session = false, debería retornar true siempre que haya $_SESSION['user']
+        $this->assertTrue($result);
+        
+        unset($_SESSION['user']);
+    }
+
+    public function testValidateRoleWithMultipleAllowedRoles()
+    {
+        $config = $this->config;
+        $config['security']['require_role_validation'] = false;
+        $config['security']['allowed_roles'] = ['profesor', 'admin', 'coordinador'];
+        
+        $validator = new LegacySessionValidator($config);
+        
+        // Con require_role_validation = false, cualquier rol es válido
+        $this->assertTrue($validator->validateRole(['rol' => 'estudiante']));
+        $this->assertTrue($validator->validateRole(['rol' => 'profesor']));
+        $this->assertTrue($validator->validateRole(['rol' => 'admin']));
+    }
+
+    public function testValidatorWithDifferentSessionCookieName()
+    {
+        $config = $this->config;
+        $config['legacy']['session_cookie_name'] = 'CUSTOM_SESSID';
+        
+        $validator = new LegacySessionValidator($config);
+        
+        $this->assertInstanceOf(LegacySessionValidator::class, $validator);
+    }
+
+    public function testValidatorWithCustomSessionPath()
+    {
+        $config = $this->config;
+        $config['legacy']['session_path'] = '/custom/path/sessions';
+        
+        $validator = new LegacySessionValidator($config);
+        
+        $this->assertInstanceOf(LegacySessionValidator::class, $validator);
+    }
+
+    protected function tearDown(): void
+    {
+        if (isset($_SESSION)) {
+            $_SESSION = [];
+        }
+        parent::tearDown();
+    }
 }
