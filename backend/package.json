@@ -17,6 +17,7 @@
         "@fastify/http-proxy": "^9.5.0",
         "@fastify/static": "^7.0.4",
         "@fastify/websocket": "10.0.1",
+        "@playwright/test": "^1.57.0",
         "@simplewebauthn/server": "^11.0.0",
         "fastify": "4.28.1",
         "ioredis": "5.4.1",

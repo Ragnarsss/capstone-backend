@@ -67,12 +67,61 @@ jobs:
         working-directory: backend
         run: |
           if [ -f coverage/coverage-summary.json ]; then
-            echo "## 📊 Cobertura de Tests Node.js" >> $GITHUB_STEP_SUMMARY
+            echo "## Cobertura de Tests Node.js" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "\`\`\`json" >> $GITHUB_STEP_SUMMARY
-            cat coverage/coverage-summary.json >> $GITHUB_STEP_SUMMARY
-            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            
+            # Parsear JSON y crear tabla Markdown
+            total_lines=$(jq -r '.total.lines.pct' coverage/coverage-summary.json)
+            total_statements=$(jq -r '.total.statements.pct' coverage/coverage-summary.json)
+            total_functions=$(jq -r '.total.functions.pct' coverage/coverage-summary.json)
+            total_branches=$(jq -r '.total.branches.pct' coverage/coverage-summary.json)
+            
+            echo "| Métrica | Cobertura |" >> $GITHUB_STEP_SUMMARY
+            echo "|---------|-----------|" >> $GITHUB_STEP_SUMMARY
+            echo "| Líneas | ${total_lines}% |" >> $GITHUB_STEP_SUMMARY
+            echo "| Statements | ${total_statements}% |" >> $GITHUB_STEP_SUMMARY
+            echo "| Funciones | ${total_functions}% |" >> $GITHUB_STEP_SUMMARY
+            echo "| Branches | ${total_branches}% |" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            # Top 5 archivos con mejor cobertura
+            echo "### ✓ Top 5 Archivos con Mejor Cobertura" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            jq -r 'to_entries | 
+                   map(select(.key != "total")) | 
+                   sort_by(-.value.lines.pct) | 
+                   limit(5;.[]) | 
+                   "- \(.key | split("/") | last): **\(.value.lines.pct)%** coverage"' \
+                   coverage/coverage-summary.json >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            # Archivos que necesitan atención (< 80%)
+            low_coverage=$(jq -r 'to_entries | 
+                                   map(select(.key != "total" and .value.lines.pct < 80)) | 
+                                   length' coverage/coverage-summary.json)
+            
+            if [ "$low_coverage" -gt 0 ]; then
+              echo "### ! Archivos que Necesitan Más Tests (< 80%)" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              jq -r 'to_entries | 
+                     map(select(.key != "total" and .value.lines.pct < 80)) | 
+                     sort_by(.value.lines.pct) | 
+                     limit(5;.[]) | 
+                     "- \(.key | split("/") | last): **\(.value.lines.pct)%** coverage"' \
+                     coverage/coverage-summary.json >> $GITHUB_STEP_SUMMARY
+            fi
+            
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "[Ver reporte HTML completo](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
           fi
+
+      - name: Subir reporte HTML de cobertura
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report-node
+          path: backend/coverage/
+          retention-days: 30
 
   # Job 2: Tests PHP (PHPUnit)
   test-php:
@@ -107,7 +156,7 @@ jobs:
           if [ -f composer.json ]; then
             composer validate --no-check-all --no-check-publish
           else
-            echo "⚠️ composer.json no encontrado - saltando validación"
+            echo "[!] composer.json no encontrado - saltando validación"
           fi
 
       - name: Instalar dependencias PHP
@@ -116,7 +165,7 @@ jobs:
           if [ -f composer.json ]; then
             composer install --prefer-dist --no-progress --no-suggest
           else
-            echo "⚠️ composer.json no encontrado - saltando instalación"
+            echo "[!] composer.json no encontrado - saltando instalación"
           fi
 
       - name: Ejecutar tests PHPUnit
@@ -125,8 +174,8 @@ jobs:
           if [ -f vendor/bin/phpunit ]; then
             vendor/bin/phpunit --coverage-text --coverage-clover=coverage.xml
           else
-            echo "⚠️ PHPUnit no instalado aún - tests PHP pendientes de implementación (Día 1-2)"
-            echo "📋 Tareas planificadas: 115+ tests PHP (>80% cobertura)"
+            echo "[!] PHPUnit no instalado aún - tests PHP pendientes de implementación (Día 1-2)"
+            echo "[*] Tareas planificadas: 115+ tests PHP (>80% cobertura)"
             exit 0
           fi
 
@@ -163,9 +212,9 @@ jobs:
         working-directory: backend
         run: |
           if [ -f .eslintrc.js ] || [ -f .eslintrc.json ] || [ -f eslint.config.js ]; then
-            npm run lint || echo "⚠️ ESLint no configurado aún"
+            npm run lint || echo "[!] ESLint no configurado aún"
           else
-            echo "ℹ️ ESLint pendiente de configuración"
+            echo "[i] ESLint pendiente de configuración"
           fi
 
       - name: Instalar PHP para linting
@@ -180,7 +229,7 @@ jobs:
           if [ -f .php-cs-fixer.php ]; then
             php-cs-fixer fix --dry-run --diff --verbose
           else
-            echo "ℹ️ PHP CS Fixer pendiente de configuración"
+            echo "[i] PHP CS Fixer pendiente de configuración"
           fi
 
   # Job 4: Build verification (asegurar que el build funciona)
@@ -223,36 +272,36 @@ jobs:
       - name: Verificar artefactos backend
         working-directory: backend
         run: |
-          echo "## 📦 Artefactos Backend" >> $GITHUB_STEP_SUMMARY
+          echo "## Artefactos Backend" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
           if [ -d dist ]; then
-            echo "✅ Backend dist/ creado" >> $GITHUB_STEP_SUMMARY
+            echo "[OK] Backend dist/ creado" >> $GITHUB_STEP_SUMMARY
             
             if [ -f dist/index.js ]; then
-              echo "✅ Backend compilado: dist/index.js" >> $GITHUB_STEP_SUMMARY
+              echo "[OK] Backend compilado: dist/index.js" >> $GITHUB_STEP_SUMMARY
             else
-              echo "❌ Backend NO compilado: dist/index.js no encontrado" >> $GITHUB_STEP_SUMMARY
+              echo "[ERROR] Backend NO compilado: dist/index.js no encontrado" >> $GITHUB_STEP_SUMMARY
               exit 1
             fi
           else
-            echo "❌ Directorio dist/ no creado" >> $GITHUB_STEP_SUMMARY
+            echo "[ERROR] Directorio dist/ no creado" >> $GITHUB_STEP_SUMMARY
             exit 1
           fi
 
       - name: Verificar artefactos frontend
         working-directory: frontend
         run: |
-          echo "## 📦 Artefactos Frontend" >> $GITHUB_STEP_SUMMARY
+          echo "## Artefactos Frontend" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
           if [ -d dist ]; then
-            echo "✅ Frontend dist/ creado" >> $GITHUB_STEP_SUMMARY
+            echo "[OK] Frontend dist/ creado" >> $GITHUB_STEP_SUMMARY
             echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
             ls -lh dist/ >> $GITHUB_STEP_SUMMARY
             echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           else
-            echo "❌ Frontend dist/ no creado" >> $GITHUB_STEP_SUMMARY
+            echo "[ERROR] Frontend dist/ no creado" >> $GITHUB_STEP_SUMMARY
             exit 1
           fi
 
@@ -280,16 +329,16 @@ jobs:
     steps:
       - name: Generar resumen
         run: |
-          echo "# 🎯 Resumen de CI - Sistema de Asistencia" >> $GITHUB_STEP_SUMMARY
+          echo "# Resumen de CI - Sistema de Asistencia" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Job | Estado |" >> $GITHUB_STEP_SUMMARY
           echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Tests Node.js | ${{ needs.test-node.result == 'success' && '✅ Exitoso' || '❌ Fallido' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Tests PHP | ${{ needs.test-php.result == 'success' && '✅ Exitoso' || '❌ Fallido' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Linting | ${{ needs.lint.result == 'success' && '✅ Exitoso' || '❌ Fallido' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Build | ${{ needs.build.result == 'success' && '✅ Exitoso' || '❌ Fallido' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Tests Node.js | ${{ needs.test-node.result == 'success' && '[OK] Exitoso' || '[FAIL] Fallido' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Tests PHP | ${{ needs.test-php.result == 'success' && '[OK] Exitoso' || '[FAIL] Fallido' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Linting | ${{ needs.lint.result == 'success' && '[OK] Exitoso' || '[FAIL] Fallido' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build | ${{ needs.build.result == 'success' && '[OK] Exitoso' || '[FAIL] Fallido' }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "---" >> $GITHUB_STEP_SUMMARY
-          echo "🔗 **Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "👤 **Autor:** @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
-          echo "🌿 **Branch:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Autor:** @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
