@@ -1,0 +1,1 @@
+{"version":1,"defects":[],"times":{"JWTTest::testDecodeRejectsTokenWithInvalidSignature":0.002,"JWTTest::testConstructorRejectsEmptySecret":0,"JWTTest::testDecodeValidatesAndReturnsPayload":0,"JWTTest::testEncodeIncludesStandardClaims":0,"JWTTest::testEncodeGeneratesValidJWTStructure":0}}

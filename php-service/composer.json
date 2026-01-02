@@ -1,0 +1,27 @@
+{
+    "name": "hawaii/asistencia-php-service",
+    "description": "Servicio PHP legacy con integración Node.js",
+    "type": "project",
+    "require": {
+        "php": ">=7.4",
+        "ext-json": "*",
+        "ext-mbstring": "*"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.5"
+    },
+    "autoload": {
+        "psr-4": {
+            "Hawaii\\Asistencia\\": "src/asistencia-node-integration/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Hawaii\\Asistencia\\Tests\\": "tests/"
+        }
+    },
+    "config": {
+        "sort-packages": true,
+        "optimize-autoloader": true
+    }
+}
