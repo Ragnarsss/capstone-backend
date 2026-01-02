@@ -94,9 +94,11 @@ Ver `compose.yaml` para configuración completa con Docker Compose.
 Genera un token JWT válido si el usuario tiene sesión activa en el sistema legacy.
 
 **Headers:**
+
 - `Cookie: PHPSESSID=...` (sesión legacy)
 
 **Respuesta exitosa (200):**
+
 ```json
 {
   "success": true,
