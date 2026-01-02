@@ -29,6 +29,7 @@ export {
   jsonOrForm,
   multipartOnly,
 } from './content-type.middleware';
+export { createJWTAuthMiddleware } from './jwt-auth.middleware';
 
 // Error classes and utilities
 export * from './errors/index';

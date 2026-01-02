@@ -18,6 +18,7 @@ import { registerSessionModule } from './modules/session/session.module';
 import { registerRestrictionModule } from './modules/restriction/restriction.module';
 import { registerAccessRoutes } from './modules/access/presentation/routes';
 import { registerAttendanceRoutes } from './modules/attendance/presentation/routes';
+import { registerProtectedRoutes } from './modules/protected/routes';
 import { frontendPlugin } from './plugins/frontend-plugin';
 import { JWTUtils } from './modules/auth/domain/jwt-utils';
 import { QRProjectionService } from './modules/qr-projection/application/qr-projection.service';
@@ -104,7 +105,10 @@ export async function createApp() {
   // Attendance module - validación de payloads QR
   await registerAttendanceRoutes(fastify);
 
-  // Health check endpoint
+  // Protected routes - ejemplos con JWT auth
+  await registerProtectedRoutes(fastify);
+
+  // Health check endpoint (no autenticado)
   fastify.get('/health', async () => {
     return { status: 'ok', timestamp: Date.now() };
   });
