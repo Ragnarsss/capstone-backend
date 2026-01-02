@@ -1,7 +1,8 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import { JWTUtils } from '../modules/auth/domain/jwt-utils';
 import { logger } from '../shared/infrastructure/logger';
-import type { JWTPayload } from '../modules/auth/domain/models';
+import type { AuthenticatedUser } from '../modules/auth/domain/models';
+import { UserId } from '../modules/auth/domain/user-id';
 
 /**
  * Middleware HTTP de autenticación JWT
@@ -57,8 +58,16 @@ export function createJWTAuthMiddleware(jwtUtils: JWTUtils) {
             // Validar token con JWTUtils
             const payload = jwtUtils.verify(token);
 
-            // Inyectar payload en request para uso en handlers
-            request.user = payload;
+            // Convertir a AuthenticatedUser con UserId (Value Object)
+            const authenticatedUser: AuthenticatedUser = {
+                userId: UserId.create(payload.userId),
+                username: payload.username,
+                nombreCompleto: payload.nombreCompleto,
+                rol: payload.rol,
+            };
+
+            // Inyectar usuario en request para uso en handlers
+            request.user = authenticatedUser;
 
             logger.debug('[JWTAuthMiddleware] Token validado exitosamente', {
                 userId: payload.userId,
@@ -88,13 +97,4 @@ export function createJWTAuthMiddleware(jwtUtils: JWTUtils) {
             });
         }
     };
-}
-
-/**
- * Extender tipos de Fastify para incluir request.user
- */
-declare module 'fastify' {
-    interface FastifyRequest {
-        user?: JWTPayload;
-    }
 }

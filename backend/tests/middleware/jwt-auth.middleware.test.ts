@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import { createJWTAuthMiddleware } from '../../src/middleware/jwt-auth.middleware';
 import { JWTUtils } from '../../src/modules/auth/domain/jwt-utils';
-import type { JWTPayload } from '../../src/modules/auth/domain/models';
+import type { JWTPayload, AuthenticatedUser } from '../../src/modules/auth/domain/models';
+import { UserId } from '../../src/modules/auth/domain/user-id';
 
 describe('JWT Auth Middleware', () => {
     let jwtUtils: JWTUtils;
@@ -54,7 +55,11 @@ describe('JWT Auth Middleware', () => {
             await middleware(mockRequest as FastifyRequest, mockReply as FastifyReply);
 
             expect(jwtUtils.verify).toHaveBeenCalledWith(token);
-            expect(mockRequest.user).toEqual(payload);
+            expect(mockRequest.user).toBeDefined();
+            expect(mockRequest.user?.userId).toBeInstanceOf(UserId);
+            expect(mockRequest.user?.userId.toNumber()).toBe(123);
+            expect(mockRequest.user?.username).toBe('profesor@ucn.cl');
+            expect(mockRequest.user?.rol).toBe('profesor');
             expect(mockReply.code).not.toHaveBeenCalled();
         });
 
@@ -76,7 +81,11 @@ describe('JWT Auth Middleware', () => {
             await middleware(mockRequest as FastifyRequest, mockReply as FastifyReply);
 
             expect(jwtUtils.verify).toHaveBeenCalledWith(token);
-            expect(mockRequest.user).toEqual(payload);
+            expect(mockRequest.user).toBeDefined();
+            expect(mockRequest.user?.userId).toBeInstanceOf(UserId);
+            expect(mockRequest.user?.userId.toNumber()).toBe(123);
+            expect(mockRequest.user?.username).toBe('profesor@ucn.cl');
+            expect(mockRequest.user?.rol).toBe('profesor');
             expect(mockReply.code).not.toHaveBeenCalled();
         });
 
@@ -177,7 +186,8 @@ describe('JWT Auth Middleware', () => {
             await middleware(mockRequest as FastifyRequest, mockReply as FastifyReply);
 
             expect(mockRequest.user).toBeDefined();
-            expect(mockRequest.user?.userId).toBe(456);
+            expect(mockRequest.user?.userId).toBeInstanceOf(UserId);
+            expect(mockRequest.user?.userId.toNumber()).toBe(456);
             expect(mockRequest.user?.username).toBe('12345678-9');
             expect(mockRequest.user?.rol).toBe('alumno');
         });
@@ -187,6 +197,7 @@ describe('JWT Auth Middleware', () => {
                 userId: 789,
                 username: 'otro@ucn.cl',
                 rol: 'profesor',
+                nombreCompleto: 'Profesor Test',
                 iat: 1234567890,
                 exp: 1234567890 + 300,
                 jti: 'jti-value',
@@ -200,10 +211,12 @@ describe('JWT Auth Middleware', () => {
 
             await middleware(mockRequest as FastifyRequest, mockReply as FastifyReply);
 
-            expect(mockRequest.user).toEqual(payload);
-            expect(mockRequest.user?.jti).toBe('jti-value');
-            expect(mockRequest.user?.iat).toBe(1234567890);
-            expect(mockRequest.user?.exp).toBe(1234567890 + 300);
+            expect(mockRequest.user).toBeDefined();
+            expect(mockRequest.user?.userId).toBeInstanceOf(UserId);
+            expect(mockRequest.user?.userId.toNumber()).toBe(789);
+            expect(mockRequest.user?.username).toBe('otro@ucn.cl');
+            expect(mockRequest.user?.rol).toBe('profesor');
+            expect(mockRequest.user?.nombreCompleto).toBe('Profesor Test');
         });
     });
 
