@@ -9,27 +9,6 @@
 #   Produccion:  podman-compose -f compose.yaml -f compose.prod.yaml up -d
 
 services:
-  # Servicio PHP con Apache (backend legacy)
-  php-service:
-    build:
-      context: ./php-service
-      dockerfile: Containerfile
-    container_name: asistencia-php
-    env_file:
-      - .env
-    environment:
-      # Variables JWT para modulo asistencia-node-integration
-      - JWT_SECRET=${JWT_SECRET:-change_this_secret_in_production}
-      - JWT_SECRET_INTERNAL=${JWT_SECRET_INTERNAL:-change_this_internal_secret_in_production}
-      - NODE_MODULE_ENABLED=${NODE_MODULE_ENABLED:-true}
-      - NODE_SERVICE_URL=http://backend:3000
-    ports:
-      - "9500:80"
-      - "9505:443"
-    depends_on:
-      - backend
-      - postgres
-
   # Servicio Backend con Fastify y WebSocket
   backend:
     build:
