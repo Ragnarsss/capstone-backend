@@ -25,15 +25,15 @@ Completar la integración y despliegue del nuevo sistema de asistencia basado en
 
 ### 1.3 Matriz de Trazabilidad Requisitos → Implementación → Validación
 
-| Req   | Descripción         | Componentes Clave                        | Tests Unitarios   | Tests Integración  | Tests E2E             | Validación Manual | Evidencia Requerida                |
-| ----- | ------------------- | ---------------------------------------- | ----------------- | ------------------ | --------------------- | ----------------- | ---------------------------------- |
-| **1** | Sistema aislado     | Apache config, compose.yaml, rutas       | N/A               | Config tests       | Health checks         | Checklist día 6   | Screenshots + logs sin errores 500 |
-| **2** | Opción estudiante   | horario.php línea ~950                   | PHP session tests | Modal opening      | E2E reader flow       | Checklist día 6   | Screenshot botón + modal           |
-| **3** | Opción profesor     | main_curso.php, can_tomar_asistencia()   | PHP auth tests    | Modal opening      | E2E host flow         | Checklist día 6   | Screenshot botón + QR proyectado   |
-| **4** | Registro asistencia | AttendanceService, TOTP validation       | 20+ backend tests | DB insertion tests | E2E scan + register   | Checklist día 6   | Query SQL mostrando registro       |
-| **5** | Encuestas           | Redirect a asist0.php, comentarios_clase | PHP form tests    | Redirect tests     | E2E complete flow     | Checklist día 7   | Query SQL en comentarios_clase     |
-| **6** | Pantalla general    | asist_lista.php, alumno_asistencia       | Query tests       | Display tests      | Manual verification   | Checklist día 7   | Screenshot pantalla + query        |
-| **7** | Duración QR         | TTL validation, fechahora_termino        | TOTP expiry tests | Expiry integration | Automated expiry test | Checklist día 7   | Test automatizado + logs           |
+| Req   | Descripción         | Componentes Clave                                                             | Tests Unitarios   | Tests Integración   | Tests E2E             | Validación Manual | Evidencia Requerida                      |
+| ----- | ------------------- | ----------------------------------------------------------------------------- | ----------------- | ------------------- | --------------------- | ----------------- | ---------------------------------------- |
+| **1** | Sistema aislado     | Apache config, compose.yaml, rutas                                            | N/A               | Config tests        | Health checks         | Checklist día 6   | Screenshots + logs sin errores 500       |
+| **2** | Opción estudiante   | horario.php línea ~950                                                        | PHP session tests | Modal opening       | E2E reader flow       | Checklist día 6   | Screenshot botón + modal                 |
+| **3** | Opción profesor     | main_curso.php L619-657, api_get_asistencia_token.php, can_tomar_asistencia() | PHP auth tests    | Modal opening + JWT | E2E host flow         | Checklist día 6   | Screenshot botón + modal + QR proyectado |
+| **4** | Registro asistencia | AttendanceService, TOTP validation                                            | 20+ backend tests | DB insertion tests  | E2E scan + register   | Checklist día 6   | Query SQL mostrando registro             |
+| **5** | Encuestas           | Redirect a asist0.php, comentarios_clase                                      | PHP form tests    | Redirect tests      | E2E complete flow     | Checklist día 7   | Query SQL en comentarios_clase           |
+| **6** | Pantalla general    | asist_lista.php, alumno_asistencia                                            | Query tests       | Display tests       | Manual verification   | Checklist día 7   | Screenshot pantalla + query              |
+| **7** | Duración QR         | TTL validation, fechahora_termino                                             | TOTP expiry tests | Expiry integration  | Automated expiry test | Checklist día 7   | Test automatizado + logs                 |
 
 **Totales:** 115 tests PHP + 206 tests Node + 3 tests E2E + 7 validaciones manuales
 
@@ -117,28 +117,100 @@ Completar la integración y despliegue del nuevo sistema de asistencia basado en
 
 #### Requisito 3: Opción Profesor
 
+**Implementación Actual:**
+
+El botón **"Nuevo Sistema de Asistencia"** está implementado en [main_curso.php](main_curso.php#L619-L657) con las siguientes características:
+
+- **ID del botón:** `#main_curso_nuevo_sistema_asistencia`
+- **Ubicación:** Línea ~619 de main_curso.php
+- **Icono:** Font Awesome `fa-check-square-o fa-2x`
+- **Función de apertura:** `openAsistenciaModalProfesor()`
+- **Endpoint de autenticación:** `/api_get_asistencia_token.php`
+- **URL del iframe:** `https://mantochrisal.cl/asistencia/features/qr-host/index.html`
+- **Comunicación:** postMessage para pasar JWT al iframe
+
+**Flujo Técnico:**
+
+1. Usuario hace clic en botón
+2. AJAX GET a `/api_get_asistencia_token.php` con `withCredentials: true`
+3. Backend PHP valida sesión y genera JWT con claims: `userId`, `email`, `role`
+4. Frontend recibe `{success: true, token: "eyJhbGc..."}`
+5. Se crea un diálogo jQuery UI con iframe embebido
+6. Al cargar iframe, se envía `postMessage` con token y datos del curso
+7. Frontend de profesor (qr-host) inicia WebSocket y genera QR TOTP
+
 **Criterios de Aceptación SMART:**
 
-- [ ] Botón visible en main_curso.php para profesores autorizados
-- [ ] Función `can_tomar_asistencia($idCurso, $idSemestre)` retorna true
+- [ ] Botón visible en main_curso.php para profesores autorizados (validado por `can_tomar_asistencia($idCurso, $idSemestre)`)
+- [ ] Función `can_tomar_asistencia($idCurso, $idSemestre)` retorna true para profesor asignado
 - [ ] Clic abre modal en < 500ms
+- [ ] Iframe carga correctamente (sin errores de CORS)
+- [ ] JWT recibido tiene 3 partes (header.payload.signature) y claims válidos
 - [ ] QR dinámico visible y cambia cada 10 segundos (±1 seg)
 - [ ] WebSocket conectado (inspeccionar console: "WebSocket connected")
+- [ ] Modal tiene título "Nuevo Sistema de Asistencia - [Nombre Curso]"
+- [ ] Modal ocupa 95% de ancho y alto de ventana
 
 **Casos de Prueba:**
 
-1. Login como profesor asignado al curso → Botón visible
+1. Login como profesor asignado al curso → Botón "Nuevo Sistema de Asistencia" visible
 2. Login como profesor NO asignado → Botón NO visible
-3. Clic en botón → Modal abierto con QR
-4. Esperar 10 segundos → QR cambia (payload diferente)
-5. Inspeccionar console → WebSocket activo sin errores
-6. Cerrar modal → WebSocket desconectado
+3. Clic en botón → AJAX exitoso a `/api_get_asistencia_token.php` (verificar Network tab)
+4. Verificar respuesta JSON: `response.success === true && response.token` existe
+5. Modal abierto en < 500ms con iframe cargando
+6. Inspeccionar postMessage enviado (Console): debe incluir `token`, `courseId`, `courseName`
+7. Esperar 10 segundos → QR cambia (payload diferente en datos del QR)
+8. Inspeccionar console → WebSocket activo sin errores
+9. Cerrar modal → WebSocket desconectado (verificar mensaje de desconexión)
+
+**Código de Referencia (main_curso.php líneas 619-657):**
+
+```php
+$("#main_curso_nuevo_sistema_asistencia").button({
+    icons: { primary: 'fa fa-check-square-o fa-2x' }
+}).click(function(e) {
+    e.stopPropagation();
+
+    $.ajax({
+        url: '/api_get_asistencia_token.php',
+        method: 'GET',
+        xhrFields: { withCredentials: true },
+        success: function(response) {
+            if (response.success && response.token) {
+                openAsistenciaModalProfesor(
+                    'https://mantochrisal.cl/asistencia/features/qr-host/index.html',
+                    response.token,
+                    nombreCurso
+                );
+            }
+        }
+    });
+
+    function openAsistenciaModalProfesor(iframeUrl, token, nombreCurso) {
+        var $iframe = $("<iframe style='width:100%; height:100%; border:none;'></iframe>");
+        $iframe.attr('src', iframeUrl);
+
+        $iframe.on('load', function() {
+            $iframe[0].contentWindow.postMessage({ token: token }, '*');
+        });
+
+        $dialog.dialog({
+            title: "Nuevo Sistema de Asistencia - " + nombreCurso,
+            width: $(window).width() * 0.95,
+            height: $(window).height() * 0.95,
+            modal: true
+        });
+    }
+});
+```
 
 **Evidencias:**
 
-- Screenshot de main_curso.php con botón
+- Screenshot de main_curso.php con botón visible
+- Screenshot de Network tab mostrando respuesta de `/api_get_asistencia_token.php`
+- Screenshot de modal abierto con iframe cargado
 - Video de QR cambiando cada 10 segundos
-- Screenshot de console mostrando WebSocket activo
+- Screenshot de console mostrando WebSocket activo y postMessage enviado
 - Registro de sesión en `asistencia_curso` con código correcto
 
 #### Requisito 4: Registro Exitoso
@@ -504,7 +576,17 @@ asistencia/
 │   │   ├── middleware/        # Middlewares Fastify
 │   │   ├── app.ts             # Composición Fastify
 │   │   └── index.ts           # Entry point
-│   ├── tests/                 # Tests unitarios e integración
+│   ├── tests/                 # Suite completa de tests
+│   │   ├── unit/              # Tests unitarios Node.js
+│   │   ├── integration/       # Tests integración PHP + BD
+│   │   ├── e2e/               # Tests End-to-End Playwright
+│   │   │   ├── requisitos/    # Tests por requisito funcional
+│   │   │   ├── setup/         # Configuración y helpers
+│   │   │   └── playwright.config.ts
+│   │   └── scripts/           # Scripts automatización
+│   │       ├── validate-requirements.sh
+│   │       ├── run-all-tests.sh
+│   │       └── setup-test-db.sh
 │   ├── tsconfig.json          # TypeScript backend
 │   ├── package.json           # Solo deps backend
 │   └── Containerfile          # Imagen backend
@@ -514,6 +596,9 @@ asistencia/
 │   │   ├── features/          # QR reader, QR host
 │   │   ├── shared/            # Auth, WebSocket, utils
 │   │   └── types/             # TypeScript types
+│   ├── tests/                 # Tests del frontend
+│   │   ├── unit/              # Tests componentes
+│   │   └── integration/       # Tests API calls
 │   ├── public/                # Assets estáticos
 │   ├── index.html             # Entry points
 │   ├── vite.config.ts         # Configuración Vite
