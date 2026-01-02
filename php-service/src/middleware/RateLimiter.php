@@ -1,5 +1,7 @@
 <?php
 
+namespace JwtBridge;
+
 /**
  * Middleware: Rate Limiting usando Redis/Valkey
  * Previene abuso del endpoint JWT

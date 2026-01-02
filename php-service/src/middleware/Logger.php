@@ -1,5 +1,7 @@
 <?php
 
+namespace JwtBridge;
+
 /**
  * Utilidad: Logger centralizado
  */

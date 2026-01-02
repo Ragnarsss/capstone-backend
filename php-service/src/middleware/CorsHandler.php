@@ -1,5 +1,7 @@
 <?php
 
+namespace JwtBridge;
+
 /**
  * Middleware: CORS restrictivo
  * Solo permite orígenes configurados

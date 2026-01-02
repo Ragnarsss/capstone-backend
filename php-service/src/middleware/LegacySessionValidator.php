@@ -1,5 +1,7 @@
 <?php
 
+namespace JwtBridge;
+
 /**
  * Middleware: Validación de sesión legacy
  * Lee sesiones PHP del sistema Hawaii legacy

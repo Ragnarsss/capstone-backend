@@ -5,6 +5,11 @@
  * Genera tokens JWT seguros para integración legacy → Node.js
  */
 
+use JwtBridge\Logger;
+use JwtBridge\CorsHandler;
+use JwtBridge\RateLimiter;
+use JwtBridge\LegacySessionValidator;
+
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/middleware/Logger.php';
 require_once __DIR__ . '/middleware/CorsHandler.php';

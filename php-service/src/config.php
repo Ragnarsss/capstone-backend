@@ -5,10 +5,16 @@
  * Todas las configuraciones sensibles vienen de variables de entorno
  */
 
+// Validar JWT_SECRET antes de construir config
+$jwtSecret = getenv('JWT_SECRET');
+if (empty($jwtSecret)) {
+    throw new RuntimeException('JWT_SECRET no configurado');
+}
+
 return [
     // JWT Configuration
     'jwt' => [
-        'secret' => getenv('JWT_SECRET') ?: throw new RuntimeException('JWT_SECRET no configurado'),
+        'secret' => $jwtSecret,
         'ttl' => (int)(getenv('JWT_TTL') ?: 300), // 5 minutos por defecto
         'issuer' => getenv('JWT_ISSUER') ?: 'jwt-bridge-service',
         'audience' => getenv('JWT_AUDIENCE') ?: 'asistencia-backend',
