@@ -219,9 +219,9 @@
 
 ## Resumen Ejecutivo por Día
 
-| Día       | Cuadrante 1 (Hacer YA)                                 | Cuadrante 2 (Planificar)      | Tiempo Crítico | Tiempo Estratégico | Estado    |
-| --------- | ------------------------------------------------------ | ----------------------------- | -------------- | ------------------ | --------- |
-| **1**     | Separación arquitectónica (7h) + Testing PHP base (3h) | CI/CD setup (4h) *anticipado* | 10h            | 4h                 | ✅ 100%   |
+| Día       | Cuadrante 1 (Hacer YA)                                 | Cuadrante 2 (Planificar)      | Tiempo Crítico | Tiempo Estratégico | Estado       |
+| --------- | ------------------------------------------------------ | ----------------------------- | -------------- | ------------------ | ------------ |
+| **1**     | Separación arquitectónica (7h) + Testing PHP base (3h) | CI/CD setup (4h) _anticipado_ | 10h            | 4h                 | ✅ 100%      |
 | **2**     | Testing PHP avanzado (90 tests restantes) (8h)         | -                             | 8h             | 0h                 | ⏳ Pendiente |
 | **3**     | Migración endpoint (4.5h)                              | -                             | 4.5h           | 0h                 | ⏳ Pendiente |
 | **4**     | -                                                      | Tests manuales reducidos (2h) | 0h             | 2h                 | ⏳ Pendiente |
@@ -233,9 +233,10 @@
 | **10**    | Tests staging (4h)                                     | Optimizaciones (4h)           | 4h             | 4h                 | ⏳ Pendiente |
 | **11**    | -                                                      | Logging + monitoreo (8h)      | 0h             | 8h                 | ⏳ Pendiente |
 | **12**    | Despliegue producción (8h)                             | -                             | 8h             | 0h                 | ⏳ Pendiente |
-| **Total** | **54h (67.5%)**                                        | **30h (37.5%)**               | **54h**        | **30h**            | 14h/84h   |
+| **Total** | **54h (67.5%)**                                        | **30h (37.5%)**               | **54h**        | **30h**            | 14h/84h      |
 
 **Notas Día 1:**
+
 - ✅ Completado: Separación arquitectónica + CI/CD + JWT Bridge Service + 25 tests
 - 🎯 CI/CD anticipado de Día 3 a Día 1 (decisión estratégica acertada)
 - 📊 Tiempo real Día 1: 11h (vs 8h planeado) - justificado por extras valiosos
@@ -250,9 +251,10 @@
 **Descripción:** Solo 25/115 tests PHP implementados (21.7% completitud)
 
 **Componentes faltantes:**
+
 - JWT.php legacy: 10 tests adicionales
 - AuthenticationService: 20 tests
-- LegacySessionAdapter: 10 tests  
+- LegacySessionAdapter: 10 tests
 - NodeServiceClient: 15 tests
 - Controladores API: 30 tests
 - Router: 10 tests
@@ -269,6 +271,7 @@
 **Descripción:** 0 tests implementados en componentes frontend críticos
 
 **Componentes sin coverage:**
+
 - enrollment/: Flujo inscripción estudiante
 - qr-host/: Proyección QR profesor
 - qr-reader/: Escaneo y validación QR
@@ -285,6 +288,7 @@
 **Descripción:** Tests E2E Playwright existen pero no se ejecutan en CI/CD
 
 **Tests implementados:**
+
 - backend/tests/e2e/enrollment.e2e.spec.ts
 - backend/tests/e2e/qr-flow.e2e.spec.ts
 - (otros en directorio)
@@ -302,6 +306,7 @@
 **Descripción:** JWT Bridge Service implementado pero sin documentación API
 
 **Faltante:**
+
 - Endpoint specification (POST /generate-token)
 - Request/response examples
 - Error codes documentation
@@ -319,6 +324,7 @@
 **Descripción:** Tests unitarios completos, pero falta validación end-to-end
 
 **Escenarios a probar:**
+
 1. horario.php → JWT Bridge → token válido → Frontend acepta
 2. Frontend → Backend WebSocket con JWT → autenticación exitosa
 3. Token expirado → Backend rechaza → Frontend re-obtiene token
@@ -336,6 +342,7 @@
 **Descripción:** No hay métricas de performance establecidas
 
 **Métricas faltantes:**
+
 - JWT generation time (target: <50ms p95)
 - Rate limiter overhead (target: <5ms)
 - CORS middleware latency (target: <2ms)
@@ -353,6 +360,7 @@
 **Descripción:** JWT Bridge implementa seguridad, pero no auditada formalmente
 
 **Puntos a revisar:**
+
 - [ ] Rate limiting es suficiente? (10/min vs ataques distribuidos)
 - [ ] CORS whitelist completa para producción
 - [ ] JWT secret rotation strategy
@@ -371,18 +379,20 @@
 **Descripción:** Logs dispersos en múltiples servicios sin agregación
 
 **Estado actual:**
+
 - JWT Bridge: error_log() → stderr
 - Backend: winston logger → stdout
 - Frontend: console.log() → browser
 - Legacy: error_log() → /var/log/apache2/
 
 **Solución propuesta:**
+
 - Día 11: Implementar aggregator (ELK, Loki, o similar)
 - Structured JSON logging en todos los servicios
 - Retention policy (30 días mínimo)
 
 **Impacto:** MEDIO - Debugging actual es manual  
-**Prioridad:** Día 11  
+**Prioridad:** Día 11
 
 ---
 
@@ -391,11 +401,13 @@
 **Descripción:** Servicios asumen variables de entorno sin validación startup
 
 **Riesgo:**
+
 - JWT_SECRET vacío → tokens inválidos (silent failure)
 - CORS_ALLOWED_ORIGINS vacío → permite todos (security risk)
 - VALKEY_HOST incorrecto → rate limiting deshabilitado
 
 **Solución:**
+
 - Config validation en startup de cada servicio
 - Fail fast si variable crítica falta
 - Logging de configuración cargada (sin secrets)
@@ -411,6 +423,7 @@
 **Descripción:** No hay procedimiento de rollback documentado
 
 **Faltante:**
+
 - Script rollback.sh
 - Backup strategy de base de datos
 - Blue-green deployment setup
@@ -487,18 +500,18 @@
 
 ### Progreso Global Sprint 1 (Post Día 1)
 
-| Indicador                  | Completado | Total | %      | Estado     |
-| -------------------------- | ---------- | ----- | ------ | ---------- |
-| **Tests PHP**              | 25         | 115   | 21.7%  | 🟡 En progreso |
-| **Tests Node.js**          | 1333       | 1333  | 100%   | ✅ Completo |
-| **CI/CD Jobs**             | 7          | 7     | 100%   | ✅ Completo |
-| **Arquitectura**           | 4          | 4     | 100%   | ✅ Completo |
-| **Seguridad**              | 4          | 4     | 100%   | ✅ Completo |
-| **Tests E2E**              | 0          | 8     | 0%     | ⏳ Pendiente |
-| **Documentación**          | 3          | 8     | 37.5%  | 🟡 En progreso |
-| **Requisitos validados**   | 0          | 7     | 0%     | ⏳ Día 6-7 |
-| **Deploy staging**         | 0          | 1     | 0%     | ⏳ Día 9   |
-| **Deploy producción**      | 0          | 1     | 0%     | ⏳ Día 12  |
+| Indicador                | Completado | Total | %     | Estado         |
+| ------------------------ | ---------- | ----- | ----- | -------------- |
+| **Tests PHP**            | 25         | 115   | 21.7% | 🟡 En progreso |
+| **Tests Node.js**        | 1333       | 1333  | 100%  | ✅ Completo    |
+| **CI/CD Jobs**           | 7          | 7     | 100%  | ✅ Completo    |
+| **Arquitectura**         | 4          | 4     | 100%  | ✅ Completo    |
+| **Seguridad**            | 4          | 4     | 100%  | ✅ Completo    |
+| **Tests E2E**            | 0          | 8     | 0%    | ⏳ Pendiente   |
+| **Documentación**        | 3          | 8     | 37.5% | 🟡 En progreso |
+| **Requisitos validados** | 0          | 7     | 0%    | ⏳ Día 6-7     |
+| **Deploy staging**       | 0          | 1     | 0%    | ⏳ Día 9       |
+| **Deploy producción**    | 0          | 1     | 0%    | ⏳ Día 12      |
 
 **Progreso total:** 14/84 horas completadas (16.7%)  
 **Días completados:** 1/12 (8.3%)  
