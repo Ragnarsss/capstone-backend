@@ -9,12 +9,20 @@ export default defineConfig({
     test: {
         globals: true,
         environment: 'node',
+        exclude: [
+            '**/node_modules/**',
+            '**/dist/**',
+            '**/tests/e2e/**',
+            '**/*.e2e.spec.ts',
+            '**/playwright.config.ts'
+        ],
         coverage: {
             provider: 'v8',
             reporter: ['text', 'html', 'lcov', 'json-summary'],
             exclude: [
                 'node_modules/',
                 'dist/',
+                'tests/e2e/**',
                 '**/__tests__/**',
                 '**/*.test.ts',
                 '**/*.spec.ts'
