@@ -17,13 +17,13 @@ class RateLimiter
         $this->config = $config;
         
         if ($config['rate_limit']['enabled']) {
-            $this->redis = new Redis();
+            $this->redis = new \Redis();
             try {
                 $this->redis->connect(
                     $config['rate_limit']['redis_host'],
                     $config['rate_limit']['redis_port']
                 );
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 error_log("Redis connection failed: " . $e->getMessage());
                 $this->redis = null;
             }
@@ -62,7 +62,7 @@ class RateLimiter
             }
 
             return true;
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             error_log("Rate limit check failed: " . $e->getMessage());
             return true; // Permitir en caso de error
         }
@@ -80,7 +80,7 @@ class RateLimiter
         try {
             $current = (int)$this->redis->get($key);
             return max(0, $maxRequests - $current);
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             return null;
         }
     }
@@ -90,7 +90,7 @@ class RateLimiter
         if ($this->redis) {
             try {
                 $this->redis->close();
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 // Silenciar errores en destructor
             }
         }

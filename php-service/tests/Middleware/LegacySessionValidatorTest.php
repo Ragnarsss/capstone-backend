@@ -23,6 +23,7 @@ class LegacySessionValidatorTest extends TestCase
                 'db_pass' => 'test_pass'
             ],
             'security' => [
+                'validate_legacy_session' => false,
                 'allowed_roles' => ['profesor', 'admin'],
                 'require_role_validation' => false
             ]

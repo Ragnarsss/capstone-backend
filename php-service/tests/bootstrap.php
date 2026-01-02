@@ -4,6 +4,22 @@
  * Bootstrap para tests PHPUnit
  */
 
+// Definir constante para indicar que estamos en PHPUnit
+define('PHPUNIT_RUNNING', true);
+
+// Stub functions from db.inc for testing
+if (!function_exists('is_logged_in')) {
+    function is_logged_in() {
+        return isset($_SESSION['K_USER']);
+    }
+}
+
+if (!function_exists('get_usuario_actual')) {
+    function get_usuario_actual() {
+        return $_SESSION['K_USER'] ?? false;
+    }
+}
+
 // Autoload de Composer
 require_once __DIR__ . '/../vendor/autoload.php';
 

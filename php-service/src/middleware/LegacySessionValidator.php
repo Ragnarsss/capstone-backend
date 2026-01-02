@@ -2,15 +2,19 @@
 
 namespace JwtBridge;
 
+// Importar funciones del sistema legacy solo si no estamos en tests
+if (!defined('PHPUNIT_RUNNING')) {
+    require_once '/var/www/html/hawaii/db.inc';
+}
+
 /**
  * Middleware: Validación de sesión legacy
- * Lee sesiones PHP del sistema Hawaii legacy
+ * Usa las funciones de db.inc del sistema Hawaii
  */
 
 class LegacySessionValidator
 {
     private $config;
-    private $db;
 
     public function __construct($config)
     {
@@ -19,86 +23,62 @@ class LegacySessionValidator
 
     public function validate()
     {
-        // Configurar path de sesiones si está especificado
-        if (!empty($this->config['legacy']['session_path'])) {
-            ini_set('session.save_path', $this->config['legacy']['session_path']);
+        if (!$this->config['security']['validate_legacy_session']) {
+            return true;
         }
 
-        // Iniciar sesión si no está activa
-        if (session_status() !== PHP_SESSION_ACTIVE) {
-            session_start();
+        // Usar función legacy is_logged_in()
+        if (!is_logged_in()) {
+            return false;
         }
 
-        // Verificar autenticación
-        if (!$this->isLoggedIn()) {
-            http_response_code(401);
-            header('Content-Type: application/json');
-            echo json_encode([
-                'success' => false,
-                'error' => 'NOT_AUTHENTICATED',
-                'message' => 'Usuario no autenticado en sistema legacy'
-            ]);
-            exit;
+        // Verificar campos requeridos de sesión
+        if (!isset($_SESSION['correo']) || empty($_SESSION['correo'])) {
+            return false;
         }
 
-        return $this->getUserData();
-    }
-
-    private function isLoggedIn()
-    {
-        // Verificar si existe la variable de sesión (ajustar según el legacy)
-        return isset($_SESSION['K_USER']) || isset($_SESSION['usuario']);
-    }
-
-    private function getUserData()
-    {
-        $username = $_SESSION['K_USER'] ?? $_SESSION['usuario'] ?? null;
-        $rol = $_SESSION['rol'] ?? 'estudiante';
-        
-        if (!$username) {
-            return null;
+        if (!isset($_SESSION['rol']) || empty($_SESSION['rol'])) {
+            return false;
         }
 
-        return [
-            'username' => $username,
-            'rol' => $rol,
-            'session_id' => session_id()
-        ];
-    }
-
-    public function validateRole($user)
-    {
-        if (!$this->config['security']['require_role_validation']) {
-            return true; // Validación deshabilitada
-        }
-
-        $allowedRoles = $this->config['security']['allowed_roles'];
-        $userRole = $user['rol'] ?? 'estudiante';
-
-        if (!in_array($userRole, $allowedRoles)) {
-            http_response_code(403);
-            header('Content-Type: application/json');
-            echo json_encode([
-                'success' => false,
-                'error' => 'INSUFFICIENT_PERMISSIONS',
-                'message' => 'Rol no autorizado para generar tokens',
-                'required_roles' => $allowedRoles,
-                'user_role' => $userRole
-            ]);
-            exit;
+        if (!isset($_SESSION['activo']) || $_SESSION['activo'] !== true) {
+            return false;
         }
 
         return true;
     }
 
-    public function __destruct()
+    public function validateRole($requiredRole)
     {
-        if ($this->db) {
-            try {
-                $this->db->close();
-            } catch (Exception $e) {
-                // Silenciar errores
-            }
+        if (!$this->config['security']['validate_legacy_session']) {
+            return true;
         }
+
+        if (!isset($this->config['security']['require_role_validation']) || 
+            !$this->config['security']['require_role_validation']) {
+            return true;
+        }
+
+        if (!isset($_SESSION['rol'])) {
+            return false;
+        }
+
+        return $_SESSION['rol'] === $requiredRole;
+    }
+
+    public function getUserEmail()
+    {
+        if (!isset($_SESSION['correo'])) {
+            return null;
+        }
+        return $_SESSION['correo'];
+    }
+
+    public function getUserRole()
+    {
+        if (!isset($_SESSION['rol'])) {
+            return null;
+        }
+        return $_SESSION['rol'];
     }
 }
