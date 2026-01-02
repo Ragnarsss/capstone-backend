@@ -1,0 +1,67 @@
+# Imagen base: PHP 8.1 Alpine (ultra ligera ~40MB)
+FROM php:8.1-fpm-alpine
+
+# Instalar extensiones necesarias
+RUN apk add --no-cache \
+    redis \
+    nginx \
+    wget \
+    && docker-php-ext-install opcache \
+    && pecl install redis \
+    && docker-php-ext-enable redis
+
+# Configuración PHP optimizada para producción
+RUN { \
+    echo 'opcache.enable=1'; \
+    echo 'opcache.memory_consumption=128'; \
+    echo 'opcache.interned_strings_buffer=8'; \
+    echo 'opcache.max_accelerated_files=4000'; \
+    echo 'opcache.revalidate_freq=2'; \
+    echo 'opcache.fast_shutdown=1'; \
+    echo 'expose_php=off'; \
+    echo 'display_errors=off'; \
+    echo 'log_errors=on'; \
+    echo 'error_log=/proc/self/fd/2'; \
+} > /usr/local/etc/php/conf.d/opcache.ini
+
+# Configuración Nginx
+RUN mkdir -p /run/nginx && \
+    rm -f /etc/nginx/http.d/default.conf
+
+# Crear configuración Nginx
+RUN echo 'server { \n\
+    listen 9001; \n\
+    root /app; \n\
+    index index.php; \n\
+    \n\
+    location / { \n\
+        try_files $uri /index.php$is_args$args; \n\
+    } \n\
+    \n\
+    location ~ \.php$ { \n\
+        fastcgi_pass 127.0.0.1:9000; \n\
+        fastcgi_index index.php; \n\
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name; \n\
+        include fastcgi_params; \n\
+    } \n\
+}' > /etc/nginx/http.d/jwt-bridge.conf
+
+# Directorio de trabajo
+WORKDIR /app
+
+# Copiar código fuente
+COPY src/ /app/
+
+# Script de inicio para PHP-FPM y Nginx
+RUN echo '#!/bin/sh\nphp-fpm -D\nnginx -g "daemon off;"' > /start.sh && \
+    chmod +x /start.sh
+
+# Exponer puerto
+EXPOSE 9001
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:9001/ || exit 1
+
+# Comando de inicio
+CMD ["/start.sh"]

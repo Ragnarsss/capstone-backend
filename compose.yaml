@@ -9,6 +9,49 @@
 #   Produccion:  podman-compose -f compose.yaml -f compose.prod.yaml up -d
 
 services:
+  # JWT Bridge Service - Generación segura de tokens
+  jwt-bridge:
+    build:
+      context: ./php-service
+      dockerfile: Containerfile
+    container_name: asistencia-jwt-bridge
+    env_file:
+      - .env
+    environment:
+      # JWT Configuration
+      - JWT_SECRET=${JWT_SECRET:-change_this_secret_in_production}
+      - JWT_TTL=${JWT_TTL:-300}
+      - JWT_ISSUER=jwt-bridge-service
+      - JWT_AUDIENCE=asistencia-backend
+      # CORS
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:9506,https://mantochrisal.cl}
+      # Rate Limiting
+      - RATE_LIMIT_ENABLED=true
+      - RATE_LIMIT_MAX_REQUESTS=10
+      - RATE_LIMIT_WINDOW=60
+      - REDIS_HOST=valkey
+      - REDIS_PORT=6379
+      # Legacy Integration
+      - LEGACY_SESSION_NAME=PHPSESSID
+      - LEGACY_SESSION_PATH=/var/www/html/hawaii/sessions
+      # Security
+      - ALLOWED_ROLES=profesor,admin
+      - REQUIRE_ROLE_VALIDATION=false
+      # Logging
+      - LOGGING_ENABLED=true
+      - LOG_LEVEL=info
+    depends_on:
+      valkey:
+        condition: service_healthy
+    expose:
+      - "9001"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9001/"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
   # Servicio Backend con Fastify y WebSocket
   backend:
     build:
