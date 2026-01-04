@@ -238,6 +238,26 @@
   - PENDIENTE Scripts: deploy.sh, rollback.sh, backup.sh
   - PENDIENTE Validación de secrets (JWT_SECRET sincronizado)
 
+### Semana 2: Continuous Delivery Staging (Auto-deploy)
+
+- **No urgente:** CI robusto es suficiente para Semana 1
+- **Importante:** Automatiza deploys a staging, reduce errores manuales
+- **Impacto:** MEDIO - Mejora eficiencia operacional
+- **Prerequisitos:**
+  - Tests E2E Playwright estables (Day 4)
+  - Staging funcional 100% (Day 3 COMPLETADO)
+  - Proceso de rollback definido
+  - Monitoreo básico implementado
+- **Implementación:**
+  - PENDIENTE Workflow CD staging (.github/workflows/cd-staging.yml)
+  - PENDIENTE Self-hosted runner en VM 104
+  - PENDIENTE Health checks automatizados post-deploy
+  - PENDIENTE Notificaciones de deploy (success/failure)
+  - PENDIENTE Rollback automático si health checks fallan
+- **Alcance:** Auto-deploy main → staging (deploy a producción sigue manual)
+- **Decisión:** Continuous Delivery (manual approval para producción)
+- **Tiempo estimado:** 4-6 horas implementación + validación
+
 ### Día 10: Optimizaciones de Performance
 
 - **No urgente:** Performance actual es aceptable
