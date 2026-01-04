@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { startServer } from './app';
 import { setupGlobalErrorHandlers } from './middleware';
 
