@@ -335,18 +335,21 @@ validate-env:
 ### Prioridad ALTA (implementar Día 4)
 
 1. **Test E2E en CI** - Detectar regresiones antes de staging
-2. **Disk space check** - Prevenir Issue #2
-3. **Validación tsx runtime** - CI debe reflejar producción real
+2. **Validación tsx runtime** - CI debe reflejar producción real
 
 ### Prioridad MEDIA (implementar Día 5)
 
-4. **Validación variables entorno** - Prevenir Issue #3
-5. **Health checks explícitos** - Reducir flaky tests
-6. **Caché Playwright** - Optimizar performance CI
+3. **Validación variables entorno** - Prevenir Issue #3
+4. **Health checks explícitos** - Reducir flaky tests
+5. **Caché Playwright** - Optimizar performance CI
 
 ### Prioridad BAJA (implementar post-Sprint 1)
 
-7. **Eliminar build artifacts backend** - Cleanup, no crítico
+6. **Eliminar build artifacts backend** - Cleanup, no crítico
+
+### Descartado
+
+7. **Disk space check en CI** - Runners GitHub tienen suficiente espacio, no aplica a servidor producción
 
 ---
 
@@ -370,16 +373,16 @@ validate-env:
 
 ## Plan de Implementación
 
-### Día 4 - Fase 1 (2h)
+### Día 4 - Fase 1 (3h)
 
 1. Agregar job test-e2e con Playwright
-2. Agregar job disk-check
-3. Modificar job build para validar tsx runtime
+2. Modificar job build para validar tsx runtime
+3. Agregar health checks explícitos
 
 ### Día 4 - Fase 2 (1h)
 
-4. Agregar health checks explícitos
-5. Caché Playwright browsers
+4. Caché Playwright browsers
+5. Validación con push a branch test/ci-improvements
 
 ### Día 5 (1h)
 

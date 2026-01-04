@@ -13,6 +13,7 @@ node-service/src/frontend/**/*.js.map
 # Environment
 .env
 .env.local
+.env.staging
 
 # IDE
 .vscode/
@@ -33,6 +34,7 @@ compose.dev.yaml
 compose.prod.yaml
 compose.yml
 compose.dev.yml
+compose.staging.yaml
 
 # Ignore
 .ignore/
