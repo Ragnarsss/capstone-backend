@@ -1,8 +1,8 @@
 // Tipos compartidos entre módulos
 
 // QR Payload types - compartidos entre qr-projection y attendance
+export type { QRPayloadV1 } from './qr-payload.types';
 export {
-  QRPayloadV1,
   isQRPayloadV1,
   PAYLOAD_VERSION,
   NONCE_LENGTH,
