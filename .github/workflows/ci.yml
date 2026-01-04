@@ -309,37 +309,41 @@ jobs:
         working-directory: frontend
         run: npm ci
 
-      - name: Build backend
+      - name: Validar backend tsx runtime
         working-directory: backend
-        run: npm run build
-        env:
-          NODE_ENV: production
+        run: |
+          echo "## Validacion Backend (tsx runtime)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Verificar que tsx esta instalado
+          if npm list tsx > /dev/null 2>&1; then
+            echo "- [OK] tsx runtime instalado" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- [ERROR] tsx runtime NO instalado" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          # Verificar que el punto de entrada existe
+          if [ -f src/index.ts ]; then
+            echo "- [OK] Punto de entrada: src/index.ts" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- [ERROR] src/index.ts no encontrado" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          # Verificar que no hay build script innecesario
+          if grep -q '"build":.*"tsc"' package.json 2>/dev/null; then
+            echo "- [WARNING] package.json tiene build script con tsc (no usado en produccion)" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Runtime:** tsx (ejecucion directa de TypeScript)" >> $GITHUB_STEP_SUMMARY
 
       - name: Build frontend
         working-directory: frontend
         run: npm run build
         env:
           NODE_ENV: production
-
-      - name: Verificar artefactos backend
-        working-directory: backend
-        run: |
-          echo "## Artefactos Backend" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          if [ -d dist ]; then
-            echo "[OK] Backend dist/ creado" >> $GITHUB_STEP_SUMMARY
-            
-            if [ -f dist/index.js ]; then
-              echo "[OK] Backend compilado: dist/index.js" >> $GITHUB_STEP_SUMMARY
-            else
-              echo "[ERROR] Backend NO compilado: dist/index.js no encontrado" >> $GITHUB_STEP_SUMMARY
-              exit 1
-            fi
-          else
-            echo "[ERROR] Directorio dist/ no creado" >> $GITHUB_STEP_SUMMARY
-            exit 1
-          fi
 
       - name: Verificar artefactos frontend
         working-directory: frontend
@@ -356,13 +360,6 @@ jobs:
             echo "[ERROR] Frontend dist/ no creado" >> $GITHUB_STEP_SUMMARY
             exit 1
           fi
-
-      - name: Guardar artefactos backend
-        uses: actions/upload-artifact@v4
-        with:
-          name: backend-artifacts
-          path: backend/dist/
-          retention-days: 7
 
       - name: Guardar artefactos frontend
         uses: actions/upload-artifact@v4
