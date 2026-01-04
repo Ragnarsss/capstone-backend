@@ -1,0 +1,99 @@
+# Compose Staging - Sistema de Asistencia
+#
+# Uso: podman-compose -f compose.yaml -f compose.staging.yaml up -d
+#
+# Arquitectura Staging:
+# ┌─────────────────────────────────────────────────────────────┐
+# │ Apache (Host)                                                │
+# │  - Sirve Hawaii legacy                                       │
+# │  - Sirve frontend estático: /asistencia/frontend/dist        │
+# │  - ProxyPass /api → localhost:3000 (backend en contenedor)  │
+# │  - api_get_asistencia_token.php genera JWT                   │
+# └─────────────────────────────────────────────────────────────┘
+#                              │
+#                              ▼
+# ┌─────────────────────────────────────────────────────────────┐
+# │ Contenedores Staging                                         │
+# │  ✓ backend:3000 (Fastify + WebSocket)                       │
+# │  ✓ postgres:5432 (Base de datos)                            │
+# │  ✓ valkey:6379 (Cache/Redis)                                │
+# │  ✗ frontend (Apache sirve estáticos)                        │
+# │  ✗ jwt-bridge (api_get_asistencia_token.php en Apache)      │
+# └─────────────────────────────────────────────────────────────┘
+
+services:
+  # Backend Node.js - Optimizado con multi-stage
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Containerfile
+      target: production
+    image: localhost/asistencia-backend:staging
+    container_name: asistencia-backend-staging
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.staging
+    depends_on:
+      - postgres
+      - valkey
+    mem_limit: 512m
+    memswap_limit: 512m
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3000/health",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # PostgreSQL - Base de datos
+  postgres:
+    image: docker.io/postgres:18-alpine
+    container_name: asistencia-postgres-staging
+    restart: unless-stopped
+    ports:
+      - "15432:5432"
+    environment:
+      - POSTGRES_USER=asistencia
+      - POSTGRES_PASSWORD=asistencia_dev_2024
+      - POSTGRES_DB=asistencia_ucn
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    mem_limit: 512m
+    memswap_limit: 512m
+
+  # Valkey - Cache y sesiones
+  valkey:
+    image: docker.io/valkey/valkey:7-alpine
+    container_name: asistencia-valkey-staging
+    restart: unless-stopped
+    ports:
+      - "16379:6379"
+    command:
+      [
+        "valkey-server",
+        "--maxmemory",
+        "128mb",
+        "--maxmemory-policy",
+        "allkeys-lru",
+      ]
+    volumes:
+      - valkey-data:/data
+    mem_limit: 256m
+    memswap_limit: 256m
+
+volumes:
+  postgres-data:
+  valkey-data:
+# SERVICIOS EXCLUIDOS (no declarados = no se levantan):
+# - jwt-bridge: Usamos /api_get_asistencia_token.php en Apache
+# - frontend: Apache sirve /var/www/html/hawaii/asistencia/frontend/dist
